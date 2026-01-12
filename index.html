@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Epiroc Management Analytics</title>
+    <title>Epiroc Executive Oversight</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root { --ey: #f1c40f; --bg: #0d0d0d; --card: #1a1a1a; --red: #ff4d4d; }
@@ -55,7 +55,7 @@
 
     <div class="chart-area">
         <div style="height:350px;"><canvas id="mainChart"></canvas></div>
-        <h3 style="color:var(--ey); margin-top:30px;">FLEET PERFORMANCE SUMMARY (Grouped by Model)</h3>
+        <h3 style="color:var(--ey); margin-top:30px;">FLEET PERFORMANCE SUMMARY</h3>
         <table class="summary-table" id="summary-tbl">
             <thead>
                 <tr>
@@ -76,7 +76,7 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbxTs6lcBmiE7eYuzvNbTCAMLAjKvVPhMce7R18cIRMMtnUhwWB_W9bQ580VOqHng7Kv/exec";
+    const API = "https://script.google.com/macros/s/AKfycbz59eppGBvOBzCqCp9f49lox8MyXKst-b9GRmU7BvAY95xPX5kFu6T0ogNHT15yMXJq/exec";
     let chart = null, globalData = null;
 
     window.onload = async () => {
@@ -111,7 +111,7 @@
         document.getElementById('s-rpm').innerText = globalData.latest[7];
         document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
 
-        // FIXING UNDEFINED VALUES
+        // FIXING UNDEFINED VALUES - ENSURE KEYS MATCH BACKEND
         document.getElementById('fleet-summary-body').innerHTML = summary.map(row => `
             <tr>
                 <td><b>${row.id}</b></td>
