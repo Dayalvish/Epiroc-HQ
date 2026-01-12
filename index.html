@@ -5,35 +5,46 @@
     <title>Epiroc Executive Oversight</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --ey: #f1c40f; --bg: #0d0d0d; --card: #1a1a1a; }
+        :root { --ey: #f1c40f; --bg: #0d0d0d; --card: #1a1a1a; --red: #ff4d4d; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 20px; opacity:0; transition: 0.5s; }
         .authorized { opacity: 1 !important; }
         .header { display: flex; justify-content: space-between; border-bottom: 3px solid var(--ey); padding-bottom: 10px; margin-bottom: 20px; }
-        .main-layout { display: grid; grid-template-columns: 280px 1fr; gap: 20px; }
-        .sidebar, .chart-area { background: var(--card); padding: 20px; border-radius: 8px; }
+        .main-layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 20px; }
+        .sidebar, .chart-area, .warning-sidebar { background: var(--card); padding: 20px; border-radius: 8px; }
+        .warning-sidebar { border: 1px solid var(--red); height: 600px; overflow-y: auto; }
+        .alert-card { background: #2d0000; border-left: 4px solid var(--red); padding: 12px; margin-bottom: 10px; font-size: 0.8rem; }
         .summary-table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #111; font-size: 0.85rem; }
-        .summary-table th, .summary-table td { padding: 10px; text-align: left; border-bottom: 1px solid #333; }
+        .summary-table th, .summary-table td { padding: 10px; border-bottom: 1px solid #333; text-align: left; }
         .summary-table th { background: #222; color: var(--ey); text-transform: uppercase; font-size: 0.7rem; }
         select, input { width: 100%; padding: 12px; margin-top: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; }
+        .live-dot { height: 10px; width: 10px; background: #2ecc71; border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.2; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1 style="margin:0;">EPIROC EXECUTIVE OVERSIGHT</h1>
-    <img src="https://raw.githubusercontent.com/Dayalvish/Epiroc-dash/main/Picture1.png" height="50">
+    <div>
+        <h1 style="margin:0;">EPIROC EXECUTIVE OVERSIGHT</h1>
+        <div style="color:#2ecc71; font-size:0.9rem;"><div class="live-dot"></div> LIVE FLEET STATUS | <span id="last-sync">--:--:--</span></div>
+    </div>
+    <img src="https://raw.githubusercontent.com/Dayalvish/Epiroc-dash/main/Picture1.png" height="55">
 </div>
 
 <div class="main-layout">
     <div class="sidebar">
         <label>Filter by Model</label>
         <select id="modelSelect" onchange="refreshSummaryOnly()"><option value="">All Models</option></select>
-        
-        <label style="display:block; margin-top:15px;">Select Machine</label>
+        <label style="display:block; margin-top:15px;">Machine Selection</label>
         <select id="rigSelect" onchange="refresh()"><option>Loading...</option></select>
-        
         <label style="display:block; margin-top:15px;">Target Month</label>
         <input type="month" id="monthFilter" onchange="refresh()">
+        <label style="display:block; margin-top:15px;">Analysis Mode</label>
+        <select id="chartMode" onchange="drawChart()">
+            <option value="loadVsComp">Load vs Compressor %</option>
+            <option value="tempVsOil">Eng Temp vs Oil Pressure</option>
+            <option value="compVsRpm">Comp Temp vs RPM</option>
+        </select>
     </div>
 
     <div class="chart-area">
@@ -46,10 +57,15 @@
             <tbody id="fleet-summary-body"></tbody>
         </table>
     </div>
+
+    <div class="warning-sidebar">
+        <h3 style="color:var(--red); margin:0 0 15px 0; font-size: 0.9rem; text-align: center;">⚠️ CRITICAL FLEET ALERTS</h3>
+        <div id="alert-list">Scanning fleet...</div>
+    </div>
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbwAoNu58pvhzp-grH6r8_5Wu-0FywgSAYlup1ac813180FT0OHwHwCgSi4rFeuyyYlx/exec";
+    const API = "https://script.google.com/macros/s/AKfycbz_xvF94sVo6EmOGGAaeo-cJSuEoptYhlYpQuJSuFB_t5J2y6eFkLMmq3ju30qJQR6_/exec";
     let chart = null, globalData = null;
 
     window.onload = async () => {
@@ -61,79 +77,61 @@
     };
 
     async function init() {
-        const [rRes, mRes] = await Promise.all([
-            fetch(`${API}?get=list`),
-            fetch(`${API}?get=model_list`)
-        ]);
-        const rList = await rRes.json();
-        const mList = await mRes.json();
-        
+        const [rRes, mRes] = await Promise.all([fetch(`${API}?get=list`), fetch(`${API}?get=model_list`)]);
+        const rList = await rRes.json(), mList = await mRes.json();
         document.getElementById('rigSelect').innerHTML = rList.map(id => `<option value="${id}">${id}</option>`).join('');
         document.getElementById('modelSelect').innerHTML = '<option value="">All Models</option>' + mList.map(m => `<option value="${m}">${m}</option>`).join('');
-        
+        setInterval(refresh, 60000); 
         refresh();
     }
 
     async function refresh() {
-        const rig = document.getElementById('rigSelect').value, month = document.getElementById('monthFilter').value;
-        const model = document.getElementById('modelSelect').value;
+        const rig = document.getElementById('rigSelect').value, month = document.getElementById('monthFilter').value, model = document.getElementById('modelSelect').value;
         if(!rig) return;
-
-        const [dRes, sRes] = await Promise.all([
+        const [dRes, sRes, wRes] = await Promise.all([
             fetch(`${API}?fleetId=${encodeURIComponent(rig)}&month=${month}&v=${Date.now()}`),
-            fetch(`${API}?get=fleet_summary&month=${month}&model=${model}&v=${Date.now()}`)
+            fetch(`${API}?get=fleet_summary&month=${month}&model=${model}&v=${Date.now()}`),
+            fetch(`${API}?get=warnings&v=${Date.now()}`)
         ]);
-
         globalData = await dRes.json();
-        const summary = await sRes.json();
+        const summary = await sRes.json(), alerts = await wRes.json();
 
+        document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
         document.getElementById('fleet-summary-body').innerHTML = summary.map(row => `
-            <tr>
-                <td><b>${row.id}</b></td>
-                <td>${row.model}</td>
-                <td>${row.monthlyAudits}</td>
-                <td>${row.totalAudits}</td>
-                <td>${row.avgLoad}%</td>
-                <td>${row.avgOil} bar</td>
-                <td>${row.avgTemp}°C</td>
-            </tr>
-        `).join('');
+            <tr><td><b>${row.id}</b></td><td>${row.model}</td><td>${row.monthlyAudits}</td><td>${row.totalAudits}</td><td>${row.avgLoad}%</td><td>${row.avgOil} bar</td><td>${row.avgTemp}°C</td></tr>`).join('');
+        
+        document.getElementById('alert-list').innerHTML = alerts.length ? alerts.map(a => `
+            <div class="alert-card"><b>${a.id}</b><br>${a.oil < a.oilLimit ? `❌ Low Oil: ${a.oil} bar` : ''}${a.temp > a.tempLimit ? `❌ High Temp: ${a.temp}°C` : ''}<br><small>${a.time}</small></div>`).join('') : "<p style='color:#2ecc71; text-align:center;'>✅ Fleet Healthy</p>";
         drawChart();
     }
 
     async function refreshSummaryOnly() {
-        const month = document.getElementById('monthFilter').value;
-        const model = document.getElementById('modelSelect').value;
+        const month = document.getElementById('monthFilter').value, model = document.getElementById('modelSelect').value;
         const sRes = await fetch(`${API}?get=fleet_summary&month=${month}&model=${model}&v=${Date.now()}`);
         const summary = await sRes.json();
-        
         document.getElementById('fleet-summary-body').innerHTML = summary.map(row => `
-            <tr>
-                <td><b>${row.id}</b></td>
-                <td>${row.model}</td>
-                <td>${row.monthlyAudits}</td>
-                <td>${row.totalAudits}</td>
-                <td>${row.avgLoad}%</td>
-                <td>${row.avgOil} bar</td>
-                <td>${row.avgTemp}°C</td>
-            </tr>
-        `).join('');
+            <tr><td><b>${row.id}</b></td><td>${row.model}</td><td>${row.monthlyAudits}</td><td>${row.totalAudits}</td><td>${row.avgLoad}%</td><td>${row.avgOil} bar</td><td>${row.avgTemp}°C</td></tr>`).join('');
     }
 
     function drawChart() {
-        const ctx = document.getElementById('mainChart').getContext('2d');
+        const mode = document.getElementById('chartMode').value, ctx = document.getElementById('mainChart').getContext('2d');
         if(chart) chart.destroy();
         const d = globalData.monthlyData;
         
+        let datasets = (mode === 'loadVsComp') ? [
+            { label: 'Eng Load %', data: d.map(x => x.engLoad), borderColor: '#f1c40f' },
+            { label: 'Comp % (Col V)', data: d.map(x => x.compPerc), borderColor: '#3498db' }
+        ] : (mode === 'tempVsOil') ? [
+            { label: 'Temp °C', data: d.map(x => x.engTemp), borderColor: '#e74c3c' },
+            { label: 'Oil bar', data: d.map(x => x.engOil), borderColor: '#2ecc71' }
+        ] : [
+            { label: 'Comp Temp °C', data: d.map(x => x.compLow), borderColor: '#e67e22' },
+            { label: 'RPM', data: d.map(x => x.engRpm), borderColor: '#9b59b6' }
+        ];
+
         chart = new Chart(ctx, {
             type: 'line',
-            data: { 
-                labels: d.map(x => x.date), 
-                datasets: [
-                    { label: 'Eng Load %', data: d.map(x => x.engLoad), borderColor: '#f1c40f' },
-                    { label: 'Comp % (Col V)', data: d.map(x => x.compPerc), borderColor: '#3498db' }
-                ] 
-            },
+            data: { labels: d.map(x => x.date), datasets: datasets },
             options: { responsive: true, maintainAspectRatio: false }
         });
     }
