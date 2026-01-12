@@ -41,16 +41,20 @@
         <input type="month" id="monthFilter" onchange="refresh()">
         <label style="display:block; margin-top:15px;">Analysis Mode</label>
         <select id="chartMode" onchange="drawChart()">
-            <option value="loadVsComp">Load vs Compressor %</option>
+            <option value="loadVsComp">Eng Load vs Compressor %</option>
             <option value="tempVsOil">Eng Temp vs Oil Pressure</option>
-            <option value="compVsRpm">Comp Temp vs RPM</option>
+            <option value="compVsRpm">Comp Temp vs Engine RPM</option>
         </select>
+        <div style="margin-top:20px;">
+            <button onclick="window.print()" style="width:100%; padding:10px; background:#e74c3c; color:white; border:none; border-radius:4px; cursor:pointer;">📄 Download PDF</button>
+            <button onclick="exportToExcel()" style="width:100%; padding:10px; background:#27ae60; color:white; border:none; border-radius:4px; cursor:pointer; margin-top:10px;">📊 Export Excel</button>
+        </div>
     </div>
 
     <div class="chart-area">
         <div style="height:350px;"><canvas id="mainChart"></canvas></div>
         <h3 style="color:var(--ey); margin-top:30px;">FLEET PERFORMANCE SUMMARY</h3>
-        <table class="summary-table">
+        <table class="summary-table" id="summary-tbl">
             <thead>
                 <tr><th>Rig ID</th><th>Model</th><th>Audits (Mon)</th><th>Total Audits</th><th>Avg Load</th><th>Avg Oil</th><th>Avg Temp</th></tr>
             </thead>
@@ -65,15 +69,17 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbwCbA9XWdyAIsaYy8-iobR3SKiPNVNJEsVxHOJoBKpHRYo1jXaNzmIkvtIsSrc_nP22/exec";
+    const API = "https://script.google.com/macros/s/AKfycbyGFW7UtjYcmS7KZw3TtPSYT1z5EvBK7xRAtC4t99IxMzSuOz1DqXFHddz7GkMDWYxJ/exec";
     let chart = null, globalData = null;
 
     window.onload = async () => {
         const u = prompt("Management ID"), p = prompt("Password");
-        const res = await fetch(`${API}?get=login&user=${u}&pass=${p}`);
-        const data = await res.json();
-        if(data.success) { document.body.classList.add('authorized'); init(); } 
-        else { location.reload(); }
+        try {
+            const res = await fetch(`${API}?get=login&user=${u}&pass=${p}`);
+            const data = await res.json();
+            if(data.success) { document.body.classList.add('authorized'); init(); } 
+            else { alert("Wrong Credentials"); location.reload(); }
+        } catch(e) { alert("Handshake Error"); }
     };
 
     async function init() {
@@ -113,30 +119,52 @@
             <tr><td><b>${row.id}</b></td><td>${row.model}</td><td>${row.monthlyAudits}</td><td>${row.totalAudits}</td><td>${row.avgLoad}%</td><td>${row.avgOil} bar</td><td>${row.avgTemp}°C</td></tr>`).join('');
     }
 
+    function exportToExcel() {
+        let table = document.getElementById("summary-tbl"), url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
+        let link = document.createElement('a'); link.download = "Fleet_Summary.xls"; link.href = url; link.click();
+    }
+
     function drawChart() {
         const mode = document.getElementById('chartMode').value, ctx = document.getElementById('mainChart').getContext('2d');
         if(chart) chart.destroy();
         const d = globalData.monthlyData;
         
-        let datasets = (mode === 'loadVsComp') ? [
-            { label: 'Eng Load %', data: d.map(x => x.engLoad), borderColor: '#f1c40f' },
-            { label: 'Comp % (Col V)', data: d.map(x => x.compPerc), borderColor: '#3498db' }
-        ] : (mode === 'tempVsOil') ? [
-            { label: 'Temp °C', data: d.map(x => x.engTemp), borderColor: '#e74c3c' },
-            { label: 'Oil bar', data: d.map(x => x.engOil), borderColor: '#2ecc71' }
-        ] : [
-            { label: 'Comp Temp °C', data: d.map(x => x.compLow), borderColor: '#e67e22' },
-            { label: 'RPM', data: d.map(x => x.engRpm), borderColor: '#9b59b6' }
-        ];
+        // Define Scale Configuration for "Normal" Looking Charts
+        let datasets = [];
+        let scales = {
+            y: { type: 'linear', display: true, position: 'left', grid: { color: '#333' } },
+            y1: { type: 'linear', display: false, position: 'right', grid: { drawOnChartArea: false } }
+        };
+
+        if(mode === 'loadVsComp') {
+            datasets = [
+                { label: 'Eng Load %', data: d.map(x => x.engLoad), borderColor: '#f1c40f', yAxisID: 'y' },
+                { label: 'Comp % (Col V)', data: d.map(x => x.compPerc), borderColor: '#3498db', yAxisID: 'y' }
+            ];
+        } else if(mode === 'tempVsOil') {
+            scales.y1.display = true; // Use right axis for Oil Pressure (low values)
+            datasets = [
+                { label: 'Temp °C', data: d.map(x => x.engTemp), borderColor: '#e74c3c', yAxisID: 'y' },
+                { label: 'Oil bar', data: d.map(x => x.engOil), borderColor: '#2ecc71', yAxisID: 'y1' }
+            ];
+        } else {
+            scales.y1.display = true; // Use right axis for Temp (lower relative to RPM)
+            datasets = [
+                { label: 'RPM', data: d.map(x => x.engRpm), borderColor: '#9b59b6', yAxisID: 'y' },
+                { label: 'Comp Temp °C', data: d.map(x => x.compLow), borderColor: '#e67e22', yAxisID: 'y1' }
+            ];
+        }
 
         chart = new Chart(ctx, {
             type: 'line',
             data: { labels: d.map(x => x.date), datasets: datasets },
-            options: { responsive: true, maintainAspectRatio: false }
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                scales: scales 
+            }
         });
     }
 </script>
 </body>
 </html>
-
-
