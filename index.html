@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Epiroc Parameter OverView</title>
+    <title>Epiroc Executive Oversight</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root { --ey: #f1c40f; --bg: #0d0d0d; --card: #1a1a1a; --red: #ff4d4d; }
@@ -17,12 +17,16 @@
         .main-layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 20px; }
         .sidebar, .chart-area, .warning-sidebar { background: var(--card); padding: 20px; border-radius: 8px; }
         
-        .warning-sidebar { border: 1px solid var(--red); height: 550px; overflow-y: auto; }
+        .warning-sidebar { border: 1px solid var(--red); height: 600px; overflow-y: auto; }
         .alert-card { background: #2d0000; border-left: 4px solid var(--red); padding: 12px; margin-bottom: 10px; font-size: 0.8rem; }
         .alert-card b { color: var(--red); font-size: 0.9rem; }
 
+        .summary-table { width: 100%; border-collapse: collapse; margin-top: 20px; background: var(--card); border-radius: 8px; overflow: hidden; }
+        .summary-table th, .summary-table td { padding: 12px; text-align: left; border-bottom: 1px solid #333; }
+        .summary-table th { background: #222; color: var(--ey); font-size: 0.8rem; text-transform: uppercase; }
+
         select, input { width: 100%; padding: 12px; margin-top: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; }
-        .chart-container { height: 450px; width: 100%; }
+        .chart-container { height: 400px; width: 100%; }
         .live-dot { height: 10px; width: 10px; background: #2ecc71; border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.2; } 100% { opacity: 1; } }
     </style>
@@ -56,7 +60,7 @@
             <option value="compVsRpm">Comp Temp vs RPM</option>
         </select>
         <div style="margin-top:30px; font-size:0.85rem; color:#888;">
-            <p>Latest Data Point:</p>
+            <p>Latest Rig Data:</p>
             <div style="display:flex; justify-content:space-between;"><span>Oil:</span><b id="v-oil">--</b></div>
             <div style="display:flex; justify-content:space-between;"><span>Temp:</span><b id="v-temp">--</b></div>
         </div>
@@ -64,6 +68,13 @@
 
     <div class="chart-area">
         <div class="chart-container"><canvas id="mainChart"></canvas></div>
+        <h3 style="color:var(--ey); margin-top:30px;">FLEET HEALTH SUMMARY (Audit Ranking)</h3>
+        <table class="summary-table">
+            <thead>
+                <tr><th>Rig ID</th><th>Total Audits</th><th>Avg Load</th><th>Last Entry</th></tr>
+            </thead>
+            <tbody id="fleet-summary-body"></tbody>
+        </table>
     </div>
 
     <div class="warning-sidebar">
@@ -73,7 +84,7 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbyrcdKPb9NmxkzkigJyslptUNcybo0BrzZl44BOcqzr649Evuo5mHFpszd0DKv8y7Lk/exec";
+    const API = "https://script.google.com/macros/s/AKfycbzYBTc-cq6SYKhVW3lZW6v4GHtogqsDuiLmPDegd6z1bpk9zjw7QJWjSS4ZU2gjxMr0/exec";
     let chart = null;
     let globalData = null;
 
@@ -82,14 +93,14 @@
         const res = await fetch(`${API}?get=login&user=${u}&pass=${p}`);
         const data = await res.json();
         if(data.success) { document.body.classList.add('authorized'); init(); } 
-        else { location.reload(); }
+        else { alert("Access Denied"); location.reload(); }
     };
 
     async function init() {
         const res = await fetch(`${API}?get=list`);
         const list = await res.json();
         document.getElementById('rigSelect').innerHTML = list.map(id => `<option value="${id}">${id}</option>`).join('');
-        setInterval(refresh, 45000); // 45s Auto-Refresh
+        setInterval(refresh, 60000); // Auto-Refresh every 60s
         refresh();
     }
 
@@ -98,16 +109,17 @@
         const month = document.getElementById('monthFilter').value;
         if(!rig) return;
 
-        // Parallel Fetch for Data and Fleet-wide Warnings
-        const [dRes, wRes] = await Promise.all([
+        const [dRes, wRes, sRes] = await Promise.all([
             fetch(`${API}?fleetId=${encodeURIComponent(rig)}&month=${month}&v=${Date.now()}`),
-            fetch(`${API}?get=warnings&v=${Date.now()}`)
+            fetch(`${API}?get=warnings&v=${Date.now()}`),
+            fetch(`${API}?get=fleet_summary&v=${Date.now()}`)
         ]);
 
         globalData = await dRes.json();
         const alerts = await wRes.json();
+        const summary = await sRes.json();
 
-        // Update Stats
+        // Update Top Stats
         document.getElementById('s-count').innerText = globalData.stats.auditCount;
         document.getElementById('s-load').innerText = globalData.stats.avgLoad + "%";
         document.getElementById('s-rpm').innerText = globalData.latest.engRpm;
@@ -115,15 +127,25 @@
         document.getElementById('v-temp').innerText = globalData.latest.engTemp + "°C";
         document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
 
-        // Update Warnings
+        // Update Warning Sidebar
         document.getElementById('alert-list').innerHTML = alerts.length ? alerts.map(a => `
             <div class="alert-card">
                 <b>${a.id}</b><br>
                 ${a.oil < a.oilLimit ? `❌ Low Oil: ${a.oil}<br>` : ''}
                 ${a.temp > a.tempLimit ? `❌ High Temp: ${a.temp}` : ''}
-                <div style="color:#888; font-size:0.7rem; margin-top:5px;">Last: ${a.time}</div>
+                <div style="color:#888; font-size:0.7rem; margin-top:5px;">Last Update: ${a.time}</div>
             </div>
         `).join('') : "<p style='color:#2ecc71'>✅ Fleet Healthy</p>";
+
+        // Update Fleet Summary Table
+        document.getElementById('fleet-summary-body').innerHTML = summary.map(row => `
+            <tr>
+                <td><b>${row.id}</b></td>
+                <td>${row.audits}</td>
+                <td>${row.avgLoad}%</td>
+                <td>${row.lastUpdate}</td>
+            </tr>
+        `).join('');
 
         drawChart();
     }
@@ -167,6 +189,3 @@
 </script>
 </body>
 </html>
-
-
-
