@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Epiroc Executive Oversight</title>
+    <title>Epiroc Management Analytics</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --ey: #f1c40f; --bg: #0d0d0d; --card: #1a1a1a; --red: #ff4d4d; }
+        :root { --ey: #f1c40f; --bg: #0d0d0d; --card: #1a1a1a; --red: #ff4d4d; --green: #27ae60; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 20px; opacity:0; transition: 0.5s; }
-        .authorized { opacity: 1; }
+        .authorized { opacity: 1 !important; }
         .header { display: flex; justify-content: space-between; border-bottom: 3px solid var(--ey); padding-bottom: 10px; margin-bottom: 20px; }
         
         .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
@@ -21,14 +21,25 @@
         .alert-card { background: #2d0000; border-left: 4px solid var(--red); padding: 12px; margin-bottom: 10px; font-size: 0.8rem; }
         .alert-card b { color: var(--red); font-size: 0.9rem; }
 
-        .summary-table { width: 100%; border-collapse: collapse; margin-top: 20px; background: var(--card); border-radius: 8px; overflow: hidden; }
-        .summary-table th, .summary-table td { padding: 12px; text-align: left; border-bottom: 1px solid #333; }
-        .summary-table th { background: #222; color: var(--ey); font-size: 0.8rem; text-transform: uppercase; }
+        .summary-table { width: 100%; border-collapse: collapse; margin-top: 20px; background: var(--card); border-radius: 8px; overflow: hidden; font-size: 0.9rem; }
+        .summary-table th, .summary-table td { padding: 10px; text-align: left; border-bottom: 1px solid #333; }
+        .summary-table th { background: #222; color: var(--ey); font-size: 0.75rem; text-transform: uppercase; }
+        .summary-table tr:hover { background: #222; }
 
         select, input { width: 100%; padding: 12px; margin-top: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; }
         .chart-container { height: 400px; width: 100%; }
+        .btn-report { width: 100%; padding: 10px; margin-top: 10px; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        
         .live-dot { height: 10px; width: 10px; background: #2ecc71; border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.2; } 100% { opacity: 1; } }
+
+        @media print {
+            .sidebar, .controls, .header-right, .btn-report { display: none !important; }
+            .main-layout { grid-template-columns: 1fr !important; }
+            body { background: white !important; color: black !important; }
+            .chart-area, .warning-sidebar { border: 1px solid #ddd !important; }
+            .summary-table th { background: #eee; color: black; }
+        }
     </style>
 </head>
 <body>
@@ -38,40 +49,52 @@
         <h1 style="margin:0;">EPIROC EXECUTIVE OVERSIGHT</h1>
         <div style="color:#2ecc71; font-size:0.9rem;"><div class="live-dot"></div> LIVE FLEET STATUS | <span id="last-sync">--:--:--</span></div>
     </div>
-    <img src="https://raw.githubusercontent.com/Dayalvish/Epiroc-dash/main/Picture1.png" height="50">
+    <div class="header-right">
+        <img src="https://raw.githubusercontent.com/Dayalvish/Epiroc-dash/main/Picture1.png" height="50">
+    </div>
 </div>
 
 <div class="stat-grid">
     <div class="stat-box"><small>MONTHLY AUDITS</small><div id="s-count">0</div></div>
     <div class="stat-box"><small>AVG ENGINE LOAD</small><div id="s-load">0%</div></div>
-    <div class="stat-box"><small>CURRENT ENGINE RPM</small><div id="s-rpm">0</div></div>
+    <div class="stat-box"><small>LATEST ENGINE RPM</small><div id="s-rpm">0</div></div>
 </div>
 
 <div class="main-layout">
     <div class="sidebar">
         <label>Machine Selection</label>
         <select id="rigSelect" onchange="refresh()"><option>Loading...</option></select>
-        <label style="display:block; margin-top:15px;">Historical Month</label>
+        
+        <label style="display:block; margin-top:15px;">Target Month</label>
         <input type="month" id="monthFilter" onchange="refresh()">
+        
         <label style="display:block; margin-top:15px;">Analysis Mode</label>
         <select id="chartMode" onchange="drawChart()">
-            <option value="loadVsComp">Load vs Compressor %</option>
-            <option value="tempVsOil">Temp vs Oil Pressure</option>
-            <option value="compVsRpm">Comp Temp vs RPM</option>
+            <option value="loadVsComp">Eng Load vs Compressor %</option>
+            <option value="tempVsOil">Eng Temp vs Oil Pressure</option>
+            <option value="compVsRpm">Comp Temp vs Engine RPM</option>
         </select>
-        <div style="margin-top:30px; font-size:0.85rem; color:#888;">
-            <p>Latest Rig Data:</p>
-            <div style="display:flex; justify-content:space-between;"><span>Oil:</span><b id="v-oil">--</b></div>
-            <div style="display:flex; justify-content:space-between;"><span>Temp:</span><b id="v-temp">--</b></div>
+
+        <div style="margin-top:30px; border-top: 1px solid #444; padding-top: 15px;">
+            <label style="color:var(--dim); font-size:0.8rem;">REPORTS</label>
+            <button class="btn-report" onclick="window.print()" style="background:#e74c3c;">📄 Download PDF Report</button>
+            <button class="btn-report" onclick="exportToExcel()" style="background:var(--green);">📊 Export Fleet Excel</button>
         </div>
     </div>
 
     <div class="chart-area">
         <div class="chart-container"><canvas id="mainChart"></canvas></div>
-        <h3 style="color:var(--ey); margin-top:30px;">FLEET HEALTH SUMMARY (Audit Ranking)</h3>
-        <table class="summary-table">
+        <h3 style="color:var(--ey); margin-top:30px;">MONTHLY PERFORMANCE SUMMARY</h3>
+        <table class="summary-table" id="summary-tbl">
             <thead>
-                <tr><th>Rig ID</th><th>Total Audits</th><th>Avg Load</th><th>Last Entry</th></tr>
+                <tr>
+                    <th>Rig ID</th>
+                    <th>Audits</th>
+                    <th>Avg Load</th>
+                    <th>Avg Oil (bar)</th>
+                    <th>Avg Temp (°C)</th>
+                    <th>Last Entry</th>
+                </tr>
             </thead>
             <tbody id="fleet-summary-body"></tbody>
         </table>
@@ -84,7 +107,7 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbzYBTc-cq6SYKhVW3lZW6v4GHtogqsDuiLmPDegd6z1bpk9zjw7QJWjSS4ZU2gjxMr0/exec";
+    const API = "https://script.google.com/macros/s/AKfycby8302-nZ11Jbfpdfh3SlVTGtGu2on4c0vWVVglGgYF44yRHE5U59NZb-9hGXbheVQ6/exec";
     let chart = null;
     let globalData = null;
 
@@ -100,7 +123,7 @@
         const res = await fetch(`${API}?get=list`);
         const list = await res.json();
         document.getElementById('rigSelect').innerHTML = list.map(id => `<option value="${id}">${id}</option>`).join('');
-        setInterval(refresh, 60000); // Auto-Refresh every 60s
+        setInterval(refresh, 60000); 
         refresh();
     }
 
@@ -109,45 +132,52 @@
         const month = document.getElementById('monthFilter').value;
         if(!rig) return;
 
+        // Fetch everything including the new filtered summary
         const [dRes, wRes, sRes] = await Promise.all([
             fetch(`${API}?fleetId=${encodeURIComponent(rig)}&month=${month}&v=${Date.now()}`),
             fetch(`${API}?get=warnings&v=${Date.now()}`),
-            fetch(`${API}?get=fleet_summary&v=${Date.now()}`)
+            fetch(`${API}?get=fleet_summary&month=${month}&v=${Date.now()}`)
         ]);
 
         globalData = await dRes.json();
         const alerts = await wRes.json();
         const summary = await sRes.json();
 
-        // Update Top Stats
         document.getElementById('s-count').innerText = globalData.stats.auditCount;
         document.getElementById('s-load').innerText = globalData.stats.avgLoad + "%";
         document.getElementById('s-rpm').innerText = globalData.latest.engRpm;
-        document.getElementById('v-oil').innerText = globalData.latest.engOil + " bar";
-        document.getElementById('v-temp').innerText = globalData.latest.engTemp + "°C";
         document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
 
-        // Update Warning Sidebar
         document.getElementById('alert-list').innerHTML = alerts.length ? alerts.map(a => `
             <div class="alert-card">
                 <b>${a.id}</b><br>
                 ${a.oil < a.oilLimit ? `❌ Low Oil: ${a.oil}<br>` : ''}
                 ${a.temp > a.tempLimit ? `❌ High Temp: ${a.temp}` : ''}
-                <div style="color:#888; font-size:0.7rem; margin-top:5px;">Last Update: ${a.time}</div>
+                <div style="color:#888; font-size:0.7rem; margin-top:5px;">${a.time}</div>
             </div>
         `).join('') : "<p style='color:#2ecc71'>✅ Fleet Healthy</p>";
 
-        // Update Fleet Summary Table
-        document.getElementById('fleet-summary-body').innerHTML = summary.map(row => `
+        document.getElementById('fleet-summary-body').innerHTML = summary.length ? summary.map(row => `
             <tr>
                 <td><b>${row.id}</b></td>
                 <td>${row.audits}</td>
                 <td>${row.avgLoad}%</td>
+                <td>${row.avgOil}</td>
+                <td>${row.avgTemp}</td>
                 <td>${row.lastUpdate}</td>
             </tr>
-        `).join('');
+        `).join('') : "<tr><td colspan='6'>No data for this month</td></tr>";
 
         drawChart();
+    }
+
+    function exportToExcel() {
+        let table = document.getElementById("summary-tbl");
+        let html = table.outerHTML;
+        let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(html);
+        let link = document.createElement('a');
+        link.download = "Fleet_Summary_" + (document.getElementById('monthFilter').value || "All") + ".xls";
+        link.href = url; link.click();
     }
 
     function drawChart() {
@@ -159,7 +189,7 @@
 
         if(mode === 'loadVsComp') {
             datasets = [
-                { label: 'Load %', data: d.map(x => x.engLoad), borderColor: '#f1c40f', yAxisID: 'y' },
+                { label: 'Eng Load %', data: d.map(x => x.engLoad), borderColor: '#f1c40f', yAxisID: 'y' },
                 { label: 'Comp %', data: d.map(x => x.compPerc), borderColor: '#3498db', yAxisID: 'y' }
             ];
         } else if(mode === 'tempVsOil') {
@@ -180,9 +210,10 @@
             options: {
                 responsive: true, maintainAspectRatio: false,
                 scales: {
-                    y: { position: 'left', grid: { color: '#333' } },
-                    y1: { display: mode !== 'loadVsComp', position: 'right', grid: { drawOnChartArea: false } }
-                }
+                    y: { position: 'left', grid: { color: '#333' }, ticks: { color: '#888' } },
+                    y1: { display: mode !== 'loadVsComp', position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#888' } }
+                },
+                plugins: { legend: { labels: { color: 'white' } } }
             }
         });
     }
