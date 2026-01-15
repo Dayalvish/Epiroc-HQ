@@ -20,8 +20,6 @@
         .mini-card { background: #222; padding: 12px; border-radius: 4px; text-align: center; border: 1px solid #333; }
         .mini-card span { font-size: 1.1rem; font-weight: bold; color: var(--ey); }
         .alert-card { background: #222; padding: 12px; margin-bottom: 12px; border-left: 5px solid var(--red); border-radius: 4px; font-size: 0.8rem; text-align: left; }
-        .live-dot { height: 10px; width: 10px; background: var(--green); border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); } 100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); } }
     </style>
 </head>
 <body>
@@ -29,7 +27,7 @@
 <div class="header">
     <div>
         <h1 style="margin:0;">EPIROC CENTRAL PARAMETER VISUALIZER</h1>
-        <div style="color:var(--green); font-size:0.9rem;"><div class="live-dot"></div> LIVE STATUS | <span id="last-sync">--:--:--</span></div>
+        <div style="color:var(--green); font-size:0.9rem;">LIVE FLEET STATUS | <span id="last-sync">--:--:--</span></div>
     </div>
     <img src="https://raw.githubusercontent.com/Dayalvish/Epiroc-dash/main/Picture1.png" height="55">
 </div>
@@ -61,6 +59,7 @@
         </div>
 
         <button onclick="window.print()" style="width:100%; padding:12px; background:var(--red); color:white; border:none; border-radius:4px; cursor:pointer; margin-top:25px; font-weight:bold;">📄 GENERATE PDF</button>
+        <button onclick="exportToExcel()" style="width:100%; padding:12px; background:#27ae60; color:white; border:none; border-radius:4px; cursor:pointer; margin-top:10px; font-weight:bold;">📊 EXCEL EXPORT</button>
     </div>
 
     <div class="chart-area">
@@ -85,7 +84,7 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbwjPfW-T4mmtNFATLutFtw3RDkzGHDl84ZMZwU9dIZ1BhvrrPOcA-goEilT84TTyzKV/exec";
+    const API = "https://script.google.com/macros/s/AKfycbxa2IPXBOCVzk12cT0teuhyqXG3QIUbVx5MMsSPu8mFG1xZhYK99OUAodcxVg1Tpb0/exec";
     let chart = null, globalData = null;
 
     window.onload = async () => {
@@ -143,10 +142,15 @@
         
         document.getElementById('alert-list').innerHTML = alerts.length ? alerts.map(a => `
             <div class="alert-card"><b>${a.id}</b> <span style="float:right;">${a.time}</span><br>
-            ${a.temp > a.tempLimit ? `<span style="color:var(--red)">⚠️ High Temp: ${a.temp}°C > ${a.tempLimit}</span><br>` : ''}
-            ${a.oil < a.oilLimit ? `<span style="color:var(--red)">⚠️ Low Oil: ${a.oil}b < ${a.oilLimit}</span>` : ''}</div>`).join('') : "<p style='color:var(--green); text-align:center;'>✅ Fleet Healthy</p>";
+            ${a.temp > a.tempLimit ? `<span style="color:var(--red)">⚠️ High Temp: ${a.temp}°C (Limit: ${a.tempLimit})</span><br>` : ''}
+            ${a.oil < a.oilLimit ? `<span style="color:var(--red)">⚠️ Low Oil: ${a.oil}b (Limit: ${a.oilLimit})</span>` : ''}</div>`).join('') : "<p style='color:var(--green); text-align:center;'>✅ Fleet Healthy</p>";
 
         drawChart();
+    }
+
+    function exportToExcel() {
+        let table = document.getElementById("summary-tbl"), url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
+        let link = document.createElement('a'); link.download = "Fleet_Summary.xls"; link.href = url; link.click();
     }
 
     function drawChart() {
@@ -156,7 +160,7 @@
         let datasets = [], labels = d.map(x => x.date);
         let scales = { 
             y: { position: 'left', grid: {color: '#333'}, title: {display: true, text: 'Values', color: '#888'} }, 
-            y1: { position: 'right', display: false, grid: {drawOnChartArea: false}, title: {display: true, text: 'Secondary Axis', color: '#888'} } 
+            y1: { position: 'right', display: false, grid: {drawOnChartArea: false}, title: {display: true, text: 'Engine RPM', color: '#888'} } 
         };
 
         if(mode === 'tempVsOil') {
