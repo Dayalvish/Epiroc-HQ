@@ -17,14 +17,15 @@
         .summary-table th { background: #222; color: var(--ey); text-transform: uppercase; font-size: 0.7rem; }
         select, input { width: 100%; padding: 12px; margin-top: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; }
         
+        /* Mini Counters Styling */
         .mini-stats { margin-top: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border-top: 1px solid #444; padding-top: 20px; }
         .mini-card { background: #222; padding: 10px; border-radius: 4px; text-align: center; border: 1px solid #333; }
         .mini-card small { font-size: 0.65rem; color: #888; text-transform: uppercase; display: block; }
         .mini-card span { font-size: 1.1rem; font-weight: bold; color: var(--ey); }
-        .prod-kpi { border-color: var(--blue); } /* Highlight Productivity Counters */
 
         .live-dot { height: 10px; width: 10px; background: var(--green); border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.2; } 100% { opacity: 1; } }
+        .alert-card { background: #222; padding: 10px; margin-bottom: 10px; border-left: 4px solid var(--red); border-radius: 4px; font-size: 0.8rem; }
     </style>
 </head>
 <body>
@@ -51,21 +52,23 @@
         <label style="display:block; margin-top:15px;">Analysis Mode</label>
         <select id="chartMode" onchange="drawChart()">
             <option value="loadVsComp">Load vs Compressor %</option>
-            <option value="tempVsOil">Eng Temp vs Oil Pressure</option>
-            <option value="dth_air">DTH: Set vs Bit Pressure (S vs T)</option>
-            <option value="hydro_impact">Hydraulic: Impact Correlation (AG X-Axis)</option>
+            <option value="tempVsOil">Engine Temp vs Oil Pressure</option>
+            <option value="compVsRpm">Compressor Temp vs Engine RPM</option>
+            <option value="setBit">Set Air vs Bit Pressure</option>
+            <option value="hydro_impact">Impact vs Feed & Damper Pressure</option>
         </select>
 
         <div class="mini-stats">
             <div class="mini-card"><small>Fleet Avg Load</small><span id="v-fleet-load">--</span></div>
             <div class="mini-card"><small>Avg Oil Pres</small><span id="v-fleet-oil">--</span></div>
-            <div class="mini-card prod-kpi"><small>Avg Air Set</small><span id="v-avg-airset">--</span></div>
-            <div class="mini-card prod-kpi"><small>Avg Impact</small><span id="v-avg-impact">--</span></div>
+            <div class="mini-card"><small>Avg Air Set</small><span id="v-avg-airset">--</span></div>
+            <div class="mini-card"><small>Avg Impact</small><span id="v-avg-impact">--</span></div>
             <div class="mini-card"><small>Active Rigs</small><span id="v-active-rigs">--</span></div>
             <div class="mini-card"><small>Air Efficiency</small><span id="v-air-eff">--</span></div>
         </div>
 
         <button onclick="window.print()" style="width:100%; padding:10px; background:#e74c3c; color:white; border:none; border-radius:4px; cursor:pointer; margin-top:20px;">📄 Download PDF</button>
+        <button onclick="exportToExcel()" style="width:100%; padding:10px; background:#27ae60; color:white; border:none; border-radius:4px; cursor:pointer; margin-top:10px;">📊 Export Excel</button>
     </div>
 
     <div class="chart-area">
@@ -73,7 +76,15 @@
         <h3 style="color:var(--ey); margin-top:30px;">FLEET PERFORMANCE SUMMARY</h3>
         <table class="summary-table" id="summary-tbl">
             <thead>
-                <tr><th>Rig ID</th><th>Model</th><th>Audits (Mon)</th><th>Avg Load</th><th>Avg Air (S)</th><th>Avg Bit (T)</th><th>Avg Impact (AG)</th></tr>
+                <tr>
+                    <th>Rig ID</th>
+                    <th>Model</th>
+                    <th>Audits</th>
+                    <th>Avg Load</th>
+                    <th>Avg Air Set</th>
+                    <th>Avg Bit Pr</th>
+                    <th>Avg Impact</th>
+                </tr>
             </thead>
             <tbody id="fleet-summary-body"></tbody>
         </table>
@@ -83,7 +94,7 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycby_qvVEV2T-DN0zKT9Rnkqwl3B7ciuIA8wARKRp8s7TzOvZaEVJxUbTRSjEZNfB3PtJ/exec";
+    const API = "https://script.google.com/macros/s/AKfycbzgxu1G_dFFilqphqZyVajHWyrfvYQmmABRg6vzzXkICeiiCsLmtnPeAHBmp4afD8Tl/exec";
     let chart = null, globalData = null;
 
     window.onload = async () => {
@@ -124,22 +135,38 @@
         globalData = await dRes.json();
         const summary = await sRes.json();
 
+        // Update Mini Counters
         if(summary.length > 0) {
             document.getElementById('v-fleet-load').innerText = (summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0) / summary.length).toFixed(1) + "%";
             document.getElementById('v-fleet-oil').innerText = (summary.reduce((s, r) => s + parseFloat(r.avgOil), 0) / summary.length).toFixed(1) + "b";
-            document.getElementById('v-avg-airset').innerText = (summary.reduce((s, r) => s + parseFloat(r.avgAirSet), 0) / summary.length).toFixed(1);
-            document.getElementById('v-avg-impact').innerText = (summary.reduce((s, r) => s + parseFloat(r.avgImpact), 0) / summary.length).toFixed(1);
+            document.getElementById('v-avg-airset').innerText = (summary.reduce((s, r) => s + parseFloat(r.avgAirSet || 0), 0) / summary.length).toFixed(1);
+            document.getElementById('v-avg-impact').innerText = (summary.reduce((s, r) => s + parseFloat(r.avgImpact || 0), 0) / summary.length).toFixed(1);
             document.getElementById('v-active-rigs').innerText = summary.length;
             
-            const eff = (summary.reduce((s, r) => s + parseFloat(r.avgBitPr), 0) / summary.reduce((s, r) => s + parseFloat(r.avgAirSet), 0) * 100);
-            document.getElementById('v-air-eff').innerText = isNaN(eff) ? "0%" : eff.toFixed(1) + "%";
+            const totalBit = summary.reduce((s, r) => s + parseFloat(r.avgBitPr || 0), 0);
+            const totalSet = summary.reduce((s, r) => s + parseFloat(r.avgAirSet || 0), 0);
+            const eff = (totalBit / totalSet * 100);
+            document.getElementById('v-air-eff').innerText = isNaN(eff) || !isFinite(eff) ? "0%" : eff.toFixed(1) + "%";
         }
 
         document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
         document.getElementById('fleet-summary-body').innerHTML = summary.map(row => `
-            <tr><td><b>${row.id}</b></td><td>${row.model}</td><td>${row.monthlyAudits}</td><td>${row.avgLoad}%</td><td>${row.avgAirSet}</td><td>${row.avgBitPr}</td><td>${row.avgImpact}</td></tr>`).join('');
+            <tr>
+                <td><b>${row.id}</b></td>
+                <td>${row.model}</td>
+                <td>${row.monthlyAudits}</td>
+                <td>${row.avgLoad}%</td>
+                <td>${row.avgAirSet}</td>
+                <td>${row.avgBitPr}</td>
+                <td>${row.avgImpact}</td>
+            </tr>`).join('');
         
         drawChart();
+    }
+
+    function exportToExcel() {
+        let table = document.getElementById("summary-tbl"), url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
+        let link = document.createElement('a'); link.download = "Fleet_Summary.xls"; link.href = url; link.click();
     }
 
     function drawChart() {
@@ -147,36 +174,49 @@
         if(chart) chart.destroy();
         const d = globalData.monthlyData;
         
-        let datasets = [], labels = [], scales = {
-            y: { type: 'linear', display: true, position: 'left', grid: { color: '#333' } },
-            y1: { type: 'linear', display: false, position: 'right', grid: { drawOnChartArea: false } }
+        let datasets = [], labels = d.map(x => x.date);
+        let scales = {
+            y: { type: 'linear', display: true, position: 'left', grid: { color: '#333' }, title: { display: true, text: 'Primary Values', color: '#888' } },
+            y1: { type: 'linear', display: false, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Secondary Scale', color: '#888' } }
         };
 
         if(mode === 'hydro_impact') {
-            // HYDRAULIC DRILL MODE: Impact (AG) as X-Axis
             scales.y1.display = true;
-            const sorted = [...d].sort((a,b) => a.highImpact - b.highImpact);
-            labels = sorted.map(x => x.highImpact);
+            scales.y.title.text = 'Feed & Damper Pressure (Bar)';
+            scales.y1.title.text = 'Impact Pressure (Bar)';
             datasets = [
-                { label: 'Feed Pr High Impact (AD)', data: sorted.map(x => x.feedPrHigh), borderColor: '#ff5722', yAxisID: 'y' },
-                { label: 'Damper Pressure High (AH)', data: sorted.map(x => x.damperPrHigh), borderColor: '#3498db', yAxisID: 'y1' }
+                { label: 'Feed Pressure', data: d.map(x => x.feedPrHigh), borderColor: '#ff5722', yAxisID: 'y', tension: 0.3 },
+                { label: 'Damper Pressure', data: d.map(x => x.damperPrHigh), borderColor: '#3498db', yAxisID: 'y', tension: 0.3 },
+                { label: 'Impact Pressure', data: d.map(x => x.highImpact), borderColor: '#f1c40f', yAxisID: 'y1', borderDash: [5, 5], tension: 0.3 }
             ];
-        } else if(mode === 'dth_air') {
-            // DTH MODE: Set vs Bit Pressure (S vs T)
-            labels = d.map(x => x.date);
+        } else if(mode === 'setBit') {
+            scales.y.title.text = 'Air Pressure (PSI/Bar)';
             datasets = [
-                { label: 'Full Air Set PrAir (S)', data: d.map(x => x.fullAirSet), borderColor: '#2ecc71', backgroundColor: 'rgba(46, 204, 113, 0.2)', fill: true },
-                { label: 'Pressure Full (T)', data: d.map(x => x.pressureFull), borderColor: '#e74c3c', fill: false }
+                { label: 'Full Air Set', data: d.map(x => x.fullAirSet), borderColor: '#2ecc71', backgroundColor: 'rgba(46, 204, 113, 0.1)', fill: true, tension: 0.3 },
+                { label: 'Bit Pressure', data: d.map(x => x.pressureFull), borderColor: '#e74c3c', fill: false, tension: 0.3 }
             ];
         } else if(mode === 'tempVsOil') {
             scales.y1.display = true;
-            labels = d.map(x => x.date);
-            datasets = [{ label: 'Temp °C', data: d.map(x => x.engTemp), borderColor: '#e74c3c', yAxisID: 'y' },
-                        { label: 'Oil bar', data: d.map(x => x.engOil), borderColor: '#2ecc71', yAxisID: 'y1' }];
+            scales.y.title.text = 'Temperature (°C)';
+            scales.y1.title.text = 'Oil Pressure (Bar)';
+            datasets = [
+                { label: 'Engine Temp', data: d.map(x => x.engTemp), borderColor: '#e74c3c', yAxisID: 'y', tension: 0.3 },
+                { label: 'Oil Pressure', data: d.map(x => x.engOil), borderColor: '#2ecc71', yAxisID: 'y1', tension: 0.3 }
+            ];
+        } else if(mode === 'compVsRpm') {
+            scales.y1.display = true;
+            scales.y.title.text = 'Engine RPM';
+            scales.y1.title.text = 'Comp Temp (°C)';
+            datasets = [
+                { label: 'Engine RPM', data: d.map(x => x.engRpm), borderColor: '#9b59b6', yAxisID: 'y', tension: 0.3 },
+                { label: 'Comp Temp', data: d.map(x => x.compLow), borderColor: '#e67e22', yAxisID: 'y1', tension: 0.3 }
+            ];
         } else {
-            labels = d.map(x => x.date);
-            datasets = [{ label: 'Eng Load %', data: d.map(x => x.engLoad), borderColor: '#f1c40f' },
-                        { label: 'Comp %', data: d.map(x => x.compPerc), borderColor: '#3498db' }];
+            scales.y.title.text = 'Percentage (%)';
+            datasets = [
+                { label: 'Engine Load', data: d.map(x => x.engLoad), borderColor: '#f1c40f', tension: 0.3 },
+                { label: 'Compressor Load', data: d.map(x => x.compPerc), borderColor: '#3498db', tension: 0.3 }
+            ];
         }
 
         chart = new Chart(ctx, { 
@@ -185,8 +225,11 @@
             options: { 
                 responsive: true, 
                 maintainAspectRatio: false, 
+                interaction: { mode: 'index', intersect: false },
                 scales: scales,
-                plugins: { legend: { labels: { color: '#fff', font: { size: 10 } } } }
+                plugins: { 
+                    legend: { position: 'top', labels: { color: '#fff', usePointStyle: true, font: { size: 11 } } }
+                }
             } 
         });
     }
