@@ -11,7 +11,6 @@
         .header { display: flex; justify-content: space-between; border-bottom: 3px solid var(--ey); padding-bottom: 10px; margin-bottom: 20px; }
         .main-layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 20px; }
         .sidebar, .chart-area, .warning-sidebar { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        .warning-sidebar { border: 1px solid var(--red); height: 750px; overflow-y: auto; }
         .summary-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #111; font-size: 0.8rem; }
         .summary-table th, .summary-table td { padding: 10px; border: 1px solid #333; text-align: center; }
         .summary-table th { background: #222; color: var(--ey); text-transform: uppercase; font-size: 0.65rem; }
@@ -19,6 +18,7 @@
         .mini-stats { margin-top: 25px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .mini-card { background: #222; padding: 12px; border-radius: 4px; text-align: center; border: 1px solid #333; }
         .mini-card span { font-size: 1.1rem; font-weight: bold; color: var(--ey); }
+        .warning-sidebar { border: 1px solid var(--red); height: 750px; overflow-y: auto; }
         .alert-card { background: #222; padding: 12px; margin-bottom: 12px; border-left: 5px solid var(--red); border-radius: 4px; font-size: 0.8rem; text-align: left; }
         .live-dot { height: 10px; width: 10px; background: var(--green); border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); } 100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); } }
@@ -51,6 +51,7 @@
             <option value="tempVsOil">Engine Temp vs Oil Pressure</option>
             <option value="setBit">Set Air vs Bit Pressure</option>
             <option value="hydro_impact">Impact vs Feed & Damper</option>
+            <option value="compVsRpm">Comp Temp vs Engine RPM</option>
         </select>
 
         <div class="mini-stats">
@@ -136,8 +137,8 @@
             document.getElementById('v-avg-airset').innerText = (summary.reduce((s, r) => s + parseFloat(r.avgAirSet || 0), 0) / summary.length).toFixed(1);
             
             const totalBit = summary.reduce((s, r) => s + parseFloat(r.avgBitPr || 0), 0);
-            const totalSet = summary.reduce((s, r) => s + parseFloat(r.avgAirSet || 0), 0);
-            document.getElementById('v-air-eff').innerText = totalSet > 0 ? ((totalBit/totalSet)*100).toFixed(1) + "%" : "0%";
+            const totalSet = summary.reduce((s, r) => s + parseFloat(r.avgAirSet || 0), 1);
+            document.getElementById('v-air-eff').innerText = ((totalBit/totalSet)*100).toFixed(1) + "%";
         }
 
         document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
@@ -152,6 +153,11 @@
         drawChart();
     }
 
+    function exportToExcel() {
+        let table = document.getElementById("summary-tbl"), url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
+        let link = document.createElement('a'); link.download = "Fleet_Summary.xls"; link.href = url; link.click();
+    }
+
     function drawChart() {
         const mode = document.getElementById('chartMode').value, ctx = document.getElementById('mainChart').getContext('2d');
         if(chart) chart.destroy();
@@ -161,11 +167,9 @@
 
         if(mode === 'hydro_impact') {
             scales.y1.display = true;
-            datasets = [
-                { label: 'Feed Pr', data: d.map(x => x.feedPrHigh), borderColor: '#ff5722', yAxisID: 'y' },
-                { label: 'Damper Pr', data: d.map(x => x.damperPrHigh), borderColor: '#3498db', yAxisID: 'y' },
-                { label: 'Impact Pr', data: d.map(x => x.highImpact), borderColor: '#f1c40f', yAxisID: 'y1', borderDash: [5,5] }
-            ];
+            datasets = [{ label: 'Feed Pr', data: d.map(x => x.feedPrHigh), borderColor: '#ff5722', yAxisID: 'y' },
+                        { label: 'Damper Pr', data: d.map(x => x.damperPrHigh), borderColor: '#3498db', yAxisID: 'y' },
+                        { label: 'Impact Pr', data: d.map(x => x.highImpact), borderColor: '#f1c40f', yAxisID: 'y1', borderDash: [5,5] }];
         } else if(mode === 'setBit') {
             datasets = [{ label: 'Air Set', data: d.map(x => x.fullAirSet), borderColor: '#2ecc71', fill: true, backgroundColor: 'rgba(46,204,113,0.1)' },
                         { label: 'Bit Pr', data: d.map(x => x.pressureFull), borderColor: '#e74c3c' }];
@@ -173,6 +177,10 @@
             scales.y1.display = true;
             datasets = [{ label: 'Temp °C', data: d.map(x => x.engTemp), borderColor: '#e74c3c', yAxisID: 'y' },
                         { label: 'Oil bar', data: d.map(x => x.engOil), borderColor: '#2ecc71', yAxisID: 'y1' }];
+        } else if(mode === 'compVsRpm') {
+            scales.y1.display = true;
+            datasets = [{ label: 'RPM', data: d.map(x => x.engRpm), borderColor: '#9b59b6', yAxisID: 'y' },
+                        { label: 'Comp Temp', data: d.map(x => x.compLow), borderColor: '#e67e22', yAxisID: 'y1' }];
         } else {
             datasets = [{ label: 'Load %', data: d.map(x => x.engLoad), borderColor: '#f1c40f' },
                         { label: 'Comp %', data: d.map(x => x.compPerc), borderColor: '#3498db' }];
