@@ -9,21 +9,30 @@
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 20px; opacity:0; transition: 0.5s; }
         .authorized { opacity: 1 !important; }
         .header { display: flex; justify-content: space-between; border-bottom: 3px solid var(--ey); padding-bottom: 10px; margin-bottom: 20px; }
+        
+        /* Layout Grid */
         .main-layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 20px; }
         .sidebar, .chart-area, .warning-sidebar { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        .warning-sidebar { border: 1px solid var(--red); height: 750px; overflow-y: auto; }
+        
+        /* Blinking Live Dot Animation */
         .live-dot { height: 12px; width: 12px; background: var(--green); border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; margin-right: 8px; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); } 100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); } }
-        .summary-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #111; font-size: 0.8rem; }
-        .summary-table th, .summary-table td { padding: 10px; border: 1px solid #333; text-align: center; }
-        .summary-table th { background: #222; color: var(--ey); text-transform: uppercase; font-size: 0.65rem; }
-        select, input { width: 100%; padding: 12px; margin-top: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; box-sizing: border-box; }
+        
+        /* Sidebar Counters */
         .mini-stats { margin-top: 25px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .mini-card { background: #222; padding: 12px; border-radius: 4px; text-align: center; border: 1px solid #333; }
         .mini-card small { color: #888; display: block; margin-bottom: 5px; font-size: 0.7rem; }
         .mini-card span { font-size: 1.1rem; font-weight: bold; color: var(--ey); }
+
+        /* Tables & Alerts */
+        .summary-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #111; font-size: 0.8rem; }
+        .summary-table th, .summary-table td { padding: 10px; border: 1px solid #333; text-align: center; }
+        .summary-table th { background: #222; color: var(--ey); text-transform: uppercase; font-size: 0.65rem; }
+        .warning-sidebar { border: 1px solid var(--red); height: 750px; overflow-y: auto; }
         .alert-card { background: #222; padding: 12px; margin-bottom: 12px; border-left: 5px solid var(--red); border-radius: 4px; font-size: 0.8rem; text-align: left; }
-        button { width: 100%; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 15px; color: white; transition: 0.3s; }
+        
+        select, input { width: 100%; padding: 12px; margin-top: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 15px; color: white; }
     </style>
 </head>
 <body>
@@ -70,7 +79,7 @@
         <div style="height:350px;"><canvas id="mainChart"></canvas></div>
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:30px;">
             <h3 style="color:var(--ey); margin:0;">FLEET PERFORMANCE SUMMARY</h3>
-            <input type="text" id="rigSearch" onkeyup="filterTable()" placeholder="Search Rig ID..." style="width:200px; padding:8px; margin:0; border:1px solid #444; background:#222; color:#fff;">
+            <input type="text" id="rigSearch" onkeyup="filterTable()" placeholder="Search Rig ID..." style="width:200px;">
         </div>
         <table class="summary-table" id="summary-tbl">
             <thead>
@@ -88,15 +97,17 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbwaByb_mdej3pFCcxx-BPlsPq7ou6fQgFEpFkUqlIWU8wxeV8DkBr4pN-UFVGsP8QTj/exec";
+    const API = "https://script.google.com/macros/s/AKfycbzozLg0PSsH6gv6ehK3BQThQF9GXY715uwXT_AXlrLB6mep5jvyBXxoiv6dBBweXGJx/exec";
     let chart = null, globalData = null;
 
     window.onload = async () => {
-        const u = prompt("Management ID"), p = prompt("Password");
-        const res = await fetch(`${API}?get=login&user=${u}&pass=${p}`);
+        const u = prompt("Management ID");
+        const p = prompt("Password");
+        // Using encodeURIComponent to ensure symbols like @ don't break the URL
+        const res = await fetch(`${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`);
         const data = await res.json();
         if(data.success) { document.body.classList.add('authorized'); init(); } 
-        else { alert("Access Denied"); location.reload(); }
+        else { alert("Invalid Credentials."); location.reload(); }
     };
 
     async function init() {
@@ -126,6 +137,7 @@
         globalData = await dRes.json();
         const summary = await sRes.json(), alerts = await wRes.json();
         
+        // Update Side Counters
         if(summary.length > 0) {
             document.getElementById('v-fleet-load').innerText = (summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0) / summary.length).toFixed(1) + "%";
             document.getElementById('v-active-rigs').innerText = summary.length;
@@ -150,7 +162,7 @@
 
     function exportToExcel() {
         let table = document.getElementById("summary-tbl"), url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
-        let link = document.createElement('a'); link.download = "Fleet_Summary.xls"; link.href = url; link.click();
+        let link = document.createElement('a'); link.download = "Epiroc_Fleet_Summary.xls"; link.href = url; link.click();
     }
 
     function drawChart() {
@@ -158,11 +170,11 @@
         if(chart) chart.destroy();
         let labels = d.map(x => x.date), datasets = [], scales = { 
             y: { position: 'left', title: {display: true, text: 'Values'}, grid: {color: '#333'} }, 
-            y1: { position: 'right', title: {display: true, text: 'Alternate Scale'}, grid: {drawOnChartArea: false} } 
+            y1: { position: 'right', title: {display: true, text: 'High Range'}, grid: {drawOnChartArea: false} } 
         };
 
         if(mode === 'tempVsOil') {
-            scales.y.title.text = 'Oil Pressure (bar)';
+            scales.y.title.text = 'Oil (bar)';
             scales.y1.title.text = 'Temp (°C) / RPM';
             datasets = [
                 { label: 'Oil bar', data: d.map(x => x.engOil), borderColor: '#2ecc71', yAxisID: 'y', tension: 0.4, borderWidth: 3 },
@@ -182,11 +194,11 @@
                 { label: 'Bit Pr', data: d.map(x => x.pressureFull), borderColor: '#e74c3c', tension: 0.3 }
             ];
         } else if(mode === 'hydro_impact') {
-            scales.y.title.text = 'Hydraulic Pressure (bar)';
+            scales.y.title.text = 'Hydraulic (bar)';
             datasets = [
-                { label: 'Impact Pr', data: d.map(x => x.highImpact), borderColor: '#f1c40f', yAxisID: 'y', tension: 0.4 },
-                { label: 'Feed Pr', data: d.map(x => x.feedPrHigh), borderColor: '#ff5722', yAxisID: 'y' },
-                { label: 'Damper Pr', data: d.map(x => x.damperPrHigh), borderColor: '#3498db', yAxisID: 'y' }
+                { label: 'Impact', data: d.map(x => x.highImpact), borderColor: '#f1c40f', tension: 0.4 },
+                { label: 'Feed', data: d.map(x => x.feedPrHigh), borderColor: '#ff5722' },
+                { label: 'Damper', data: d.map(x => x.damperPrHigh), borderColor: '#3498db' }
             ];
         }
         chart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, scales } });
