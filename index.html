@@ -19,7 +19,7 @@
         .mini-stats { margin-top: 25px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .mini-card { background: #222; padding: 12px; border-radius: 4px; text-align: center; border: 1px solid #333; }
         .mini-card span { font-size: 1.1rem; font-weight: bold; color: var(--ey); }
-        .alert-card { background: #222; padding: 12px; margin-bottom: 12px; border-left: 5px solid var(--red); border-radius: 4px; font-size: 0.8rem; text-align: left; }
+        .alert-card { background: #222; padding: 12px; margin-bottom: 12px; border-left: 5px solid var(--red); border-radius: 4px; font-size: 0.8rem; }
     </style>
 </head>
 <body>
@@ -64,7 +64,10 @@
 
     <div class="chart-area">
         <div style="height:350px;"><canvas id="mainChart"></canvas></div>
-        <h3 style="color:var(--ey); margin-top:30px;">FLEET PERFORMANCE SUMMARY</h3>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:30px;">
+            <h3 style="color:var(--ey); margin:0;">FLEET PERFORMANCE SUMMARY</h3>
+            <input type="text" id="rigSearch" onkeyup="filterTable()" placeholder="Search Rig ID..." style="width:200px; padding:8px; margin:0; border:1px solid #444; background:#222; color:#fff;">
+        </div>
         <table class="summary-table" id="summary-tbl">
             <thead>
                 <tr>
@@ -84,7 +87,7 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbwEkrCln9fQereLnqlhWOYcIziPB9IvPIZX6ezc1ZxgJooQVGZpQ2ByJVcydPyaLxsR/exec";
+    const API = "https://script.google.com/macros/s/AKfycbx6PcWjQNCfgen7DOnieOdxoeULlMOt3StzroaRyE0kMgFXcHBEGdZfIhWMhDB7Lbw/exec";
     let chart = null, globalData = null;
 
     window.onload = async () => {
@@ -105,7 +108,7 @@
 
     async function updateRigDropdown() {
         const model = document.getElementById('modelSelect').value;
-        const res = await fetch(`${API}?get=list&model=${encodeURIComponent(model)}&v=${Date.now()}`);
+        const res = await fetch(`${API}?get=list&model=${encodeURIComponent(model)}`);
         const rigs = await res.json();
         document.getElementById('rigSelect').innerHTML = rigs.map(id => `<option value="${id}">${id}</option>`).join('');
         refresh();
@@ -114,22 +117,19 @@
     async function refresh() {
         const rig = document.getElementById('rigSelect').value, month = document.getElementById('monthFilter').value, model = document.getElementById('modelSelect').value;
         if(!rig) return;
-
         const [dRes, sRes, wRes] = await Promise.all([
             fetch(`${API}?fleetId=${encodeURIComponent(rig)}&month=${month}&v=${Date.now()}`),
             fetch(`${API}?get=fleet_summary&month=${month}&model=${model}&v=${Date.now()}`),
             fetch(`${API}?get=warnings&v=${Date.now()}`)
         ]);
-
         globalData = await dRes.json();
         const summary = await sRes.json(), alerts = await wRes.json();
-
+        
         if(summary.length > 0) {
             document.getElementById('v-fleet-load').innerText = (summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0) / summary.length).toFixed(1) + "%";
             document.getElementById('v-active-rigs').innerText = summary.length;
             document.getElementById('v-avg-airset').innerText = (summary.reduce((s, r) => s + parseFloat(r.avgAirSet || 0), 0) / summary.length).toFixed(1);
-            const totalBit = summary.reduce((s, r) => s + parseFloat(r.avgBitPr || 0), 0);
-            const totalSet = summary.reduce((s, r) => s + parseFloat(r.avgAirSet || 0), 0.1); 
+            const totalBit = summary.reduce((s, r) => s + parseFloat(r.avgBitPr || 0), 0), totalSet = summary.reduce((s, r) => s + parseFloat(r.avgAirSet || 0), 0.1); 
             document.getElementById('v-air-eff').innerText = ((totalBit/totalSet)*100).toFixed(1) + "%";
         }
 
@@ -139,10 +139,17 @@
         
         document.getElementById('alert-list').innerHTML = alerts.length ? alerts.map(a => `
             <div class="alert-card"><b>${a.id}</b> <span style="float:right;">${a.time}</span><br>
-            ${a.temp > a.tempLimit ? `<span style="color:var(--red)">⚠️ High Temp: ${a.temp}°C (Limit: ${a.tempLimit})</span><br>` : ''}
-            ${a.oil < a.oilLimit ? `<span style="color:var(--red)">⚠️ Low Oil: ${a.oil}b (Limit: ${a.oilLimit})</span>` : ''}</div>`).join('') : "<p style='color:var(--green); text-align:center;'>✅ Fleet Healthy</p>";
-
+            ${a.temp > a.tempLimit ? `<span style="color:var(--red)">⚠️ High Temp: ${a.temp}°C (L: ${a.tempLimit})</span><br>` : ''}
+            ${a.oil < a.oilLimit ? `<span style="color:var(--red)">⚠️ Low Oil: ${a.oil}b (L: ${a.oilLimit})</span>` : ''}</div>`).join('') : "<p style='color:var(--green); text-align:center;'>✅ Fleet Healthy</p>";
         drawChart();
+    }
+
+    function filterTable() {
+        var input = document.getElementById("rigSearch"), filter = input.value.toUpperCase(), table = document.getElementById("summary-tbl"), tr = table.getElementsByTagName("tr");
+        for (var i = 2; i < tr.length; i++) {
+            var td = tr[i].getElementsByTagName("td")[0];
+            if (td) { tr[i].style.display = (td.textContent || td.innerText).toUpperCase().indexOf(filter) > -1 ? "" : "none"; }
+        }
     }
 
     function exportToExcel() {
@@ -154,36 +161,21 @@
         const mode = document.getElementById('chartMode').value, ctx = document.getElementById('mainChart').getContext('2d');
         if(chart) chart.destroy();
         const d = globalData.monthlyData;
-        let datasets = [], labels = d.map(x => x.date);
-        let scales = { 
-            y: { position: 'left', grid: {color: '#333'}, title: {display: true, text: 'Values', color: '#888'} }, 
-            y1: { position: 'right', display: false, grid: {drawOnChartArea: false}, title: {display: true, text: 'Engine RPM', color: '#888'} } 
-        };
-
+        let datasets = [], labels = d.map(x => x.date), scales = { y: { position: 'left', grid: {color: '#333'} }, y1: { position: 'right', display: false, grid: {drawOnChartArea: false} } };
         if(mode === 'tempVsOil') {
             scales.y1.display = true;
-            datasets = [
-                { label: 'Temp °C', data: d.map(x => x.engTemp), borderColor: '#e74c3c', yAxisID: 'y' },
-                { label: 'Oil bar', data: d.map(x => x.engOil), borderColor: '#2ecc71', yAxisID: 'y' },
-                { label: 'RPM', data: d.map(x => x.engRpm), borderColor: '#9b59b6', yAxisID: 'y1', borderDash: [5,5] }
-            ];
+            datasets = [{ label: 'Temp °C', data: d.map(x => x.engTemp), borderColor: '#e74c3c', yAxisID: 'y' },
+                        { label: 'Oil bar', data: d.map(x => x.engOil), borderColor: '#2ecc71', yAxisID: 'y' },
+                        { label: 'RPM', data: d.map(x => x.engRpm), borderColor: '#9b59b6', yAxisID: 'y1', borderDash: [5,5] }];
         } else if(mode === 'hydro_impact') {
             scales.y1.display = true;
-            datasets = [
-                { label: 'Feed Pr', data: d.map(x => x.feedPrHigh), borderColor: '#ff5722', yAxisID: 'y' },
-                { label: 'Damper Pr', data: d.map(x => x.damperPrHigh), borderColor: '#3498db', yAxisID: 'y' },
-                { label: 'Impact Pr', data: d.map(x => x.highImpact), borderColor: '#f1c40f', yAxisID: 'y1', borderDash: [5,5] }
-            ];
+            datasets = [{ label: 'Feed Pr', data: d.map(x => x.feedPrHigh), borderColor: '#ff5722', yAxisID: 'y' },
+                        { label: 'Damper Pr', data: d.map(x => x.damperPrHigh), borderColor: '#3498db', yAxisID: 'y' },
+                        { label: 'Impact Pr', data: d.map(x => x.highImpact), borderColor: '#f1c40f', yAxisID: 'y1', borderDash: [5,5] }];
         } else if(mode === 'setBit') {
-            datasets = [
-                { label: 'Air Set', data: d.map(x => x.fullAirSet), borderColor: '#2ecc71', fill: true, backgroundColor: 'rgba(46,204,113,0.1)' },
-                { label: 'Bit Pr', data: d.map(x => x.pressureFull), borderColor: '#e74c3c' }
-            ];
+            datasets = [{ label: 'Air Set', data: d.map(x => x.fullAirSet), borderColor: '#2ecc71' }, { label: 'Bit Pr', data: d.map(x => x.pressureFull), borderColor: '#e74c3c' }];
         } else {
-            datasets = [
-                { label: 'Load %', data: d.map(x => x.engLoad), borderColor: '#f1c40f' },
-                { label: 'Comp %', data: d.map(x => x.compPerc), borderColor: '#3498db' }
-            ];
+            datasets = [{ label: 'Load %', data: d.map(x => x.engLoad), borderColor: '#f1c40f' }, { label: 'Comp %', data: d.map(x => x.compPerc), borderColor: '#3498db' }];
         }
         chart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, scales } });
     }
