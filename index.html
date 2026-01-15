@@ -11,6 +11,7 @@
         .header { display: flex; justify-content: space-between; border-bottom: 3px solid var(--ey); padding-bottom: 10px; margin-bottom: 20px; }
         .main-layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 20px; }
         .sidebar, .chart-area, .warning-sidebar { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .warning-sidebar { border: 1px solid var(--red); height: 750px; overflow-y: auto; }
         .summary-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #111; font-size: 0.8rem; }
         .summary-table th, .summary-table td { padding: 10px; border: 1px solid #333; text-align: center; }
         .summary-table th { background: #222; color: var(--ey); text-transform: uppercase; font-size: 0.65rem; }
@@ -18,7 +19,6 @@
         .mini-stats { margin-top: 25px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .mini-card { background: #222; padding: 12px; border-radius: 4px; text-align: center; border: 1px solid #333; }
         .mini-card span { font-size: 1.1rem; font-weight: bold; color: var(--ey); }
-        .warning-sidebar { border: 1px solid var(--red); height: 750px; overflow-y: auto; }
         .alert-card { background: #222; padding: 12px; margin-bottom: 12px; border-left: 5px solid var(--red); border-radius: 4px; font-size: 0.8rem; text-align: left; }
         .live-dot { height: 10px; width: 10px; background: var(--green); border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); } 100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); } }
@@ -51,7 +51,6 @@
             <option value="tempVsOil">Engine Temp vs Oil Pressure</option>
             <option value="setBit">Set Air vs Bit Pressure</option>
             <option value="hydro_impact">Impact vs Feed & Damper</option>
-            <option value="compVsRpm">Comp Temp vs Engine RPM</option>
         </select>
 
         <div class="mini-stats">
@@ -89,7 +88,7 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbwVJb_gdVw9Mm1p93XCSQCnZtlqxSkXmRlpzow7Mnfau4ztSQdx-_wh7o28cxG5Hjs/exec";
+    const API = "https://script.google.com/macros/s/AKfycbyrG4JY_jUNTK2Y9wfCPFUxBeEa8YVH5d8s1v5BSSgtxGLxCHiyE5GCScQyeHuY6f9K/exec";
     let chart = null, globalData = null;
 
     window.onload = async () => {
@@ -131,24 +130,32 @@
         globalData = await dRes.json();
         const summary = await sRes.json(), alerts = await wRes.json();
 
+        // Update Stats
         if(summary.length > 0) {
             document.getElementById('v-fleet-load').innerText = (summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0) / summary.length).toFixed(1) + "%";
             document.getElementById('v-active-rigs').innerText = summary.length;
             document.getElementById('v-avg-airset').innerText = (summary.reduce((s, r) => s + parseFloat(r.avgAirSet || 0), 0) / summary.length).toFixed(1);
             
             const totalBit = summary.reduce((s, r) => s + parseFloat(r.avgBitPr || 0), 0);
-            const totalSet = summary.reduce((s, r) => s + parseFloat(r.avgAirSet || 0), 1);
+            const totalSet = summary.reduce((s, r) => s + parseFloat(r.avgAirSet || 0), 0.1); // Avoid div zero
             document.getElementById('v-air-eff').innerText = ((totalBit/totalSet)*100).toFixed(1) + "%";
         }
 
         document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
-        document.getElementById('fleet-summary-body').innerHTML = summary.map(row => `
-            <tr><td><b>${row.id}</b></td><td>${row.monthlyAudits}</td><td>${row.avgLoad}%</td><td>${row.avgTemp}</td><td>${row.avgOil}</td><td>${row.avgFuel}</td><td>${row.avgAirSet}</td><td>${row.avgBitPr}</td><td>${row.avgImpact}</td></tr>`).join('');
         
+        // Render Table Body
+        document.getElementById('fleet-summary-body').innerHTML = summary.map(row => `
+            <tr>
+                <td><b>${row.id}</b></td><td>${row.monthlyAudits}</td>
+                <td>${row.avgLoad}%</td><td>${row.avgTemp}</td><td>${row.avgOil}</td><td>${row.avgFuel}</td>
+                <td>${row.avgAirSet}</td><td>${row.avgBitPr}</td><td>${row.avgImpact}</td>
+            </tr>`).join('');
+        
+        // Render Warnings
         document.getElementById('alert-list').innerHTML = alerts.length ? alerts.map(a => `
             <div class="alert-card"><b>${a.id}</b> <span style="float:right;">${a.time}</span><br>
-            ${a.temp > a.tempLimit ? `<span style="color:var(--red)">⚠️ High Temp: ${a.temp}°C > ${a.tempLimit}</span><br>` : ''}
-            ${a.oil < a.oilLimit ? `<span style="color:var(--red)">⚠️ Low Oil: ${a.oil}b < ${a.oilLimit}</span>` : ''}</div>`).join('') : "<p style='color:var(--green); text-align:center;'>✅ Fleet Healthy</p>";
+            ${a.temp > a.tempLimit ? `<span style="color:var(--red)">⚠️ High Temp: ${a.temp}°C (L: ${a.tempLimit})</span><br>` : ''}
+            ${a.oil < a.oilLimit ? `<span style="color:var(--red)">⚠️ Low Oil: ${a.oil}b (L: ${a.oilLimit})</span>` : ''}</div>`).join('') : "<p style='color:var(--green); text-align:center;'>✅ Fleet Healthy</p>";
 
         drawChart();
     }
@@ -167,27 +174,30 @@
 
         if(mode === 'hydro_impact') {
             scales.y1.display = true;
-            datasets = [{ label: 'Feed Pr', data: d.map(x => x.feedPrHigh), borderColor: '#ff5722', yAxisID: 'y' },
-                        { label: 'Damper Pr', data: d.map(x => x.damperPrHigh), borderColor: '#3498db', yAxisID: 'y' },
-                        { label: 'Impact Pr', data: d.map(x => x.highImpact), borderColor: '#f1c40f', yAxisID: 'y1', borderDash: [5,5] }];
+            datasets = [
+                { label: 'Feed Pressure', data: d.map(x => x.feedPrHigh), borderColor: '#ff5722', yAxisID: 'y' },
+                { label: 'Damper Pressure', data: d.map(x => x.damperPrHigh), borderColor: '#3498db', yAxisID: 'y' },
+                { label: 'Impact Pressure', data: d.map(x => x.highImpact), borderColor: '#f1c40f', yAxisID: 'y1', borderDash: [5,5] }
+            ];
         } else if(mode === 'setBit') {
-            datasets = [{ label: 'Air Set', data: d.map(x => x.fullAirSet), borderColor: '#2ecc71', fill: true, backgroundColor: 'rgba(46,204,113,0.1)' },
-                        { label: 'Bit Pr', data: d.map(x => x.pressureFull), borderColor: '#e74c3c' }];
+            datasets = [
+                { label: 'Air Set', data: d.map(x => x.fullAirSet), borderColor: '#2ecc71', fill: true, backgroundColor: 'rgba(46,204,113,0.1)' },
+                { label: 'Bit Pressure', data: d.map(x => x.pressureFull), borderColor: '#e74c3c' }
+            ];
         } else if(mode === 'tempVsOil') {
             scales.y1.display = true;
-            datasets = [{ label: 'Temp °C', data: d.map(x => x.engTemp), borderColor: '#e74c3c', yAxisID: 'y' },
-                        { label: 'Oil bar', data: d.map(x => x.engOil), borderColor: '#2ecc71', yAxisID: 'y1' }];
-        } else if(mode === 'compVsRpm') {
-            scales.y1.display = true;
-            datasets = [{ label: 'RPM', data: d.map(x => x.engRpm), borderColor: '#9b59b6', yAxisID: 'y' },
-                        { label: 'Comp Temp', data: d.map(x => x.compLow), borderColor: '#e67e22', yAxisID: 'y1' }];
+            datasets = [
+                { label: 'Temp °C', data: d.map(x => x.engTemp), borderColor: '#e74c3c', yAxisID: 'y' },
+                { label: 'Oil bar', data: d.map(x => x.engOil), borderColor: '#2ecc71', yAxisID: 'y1' }
+            ];
         } else {
-            datasets = [{ label: 'Load %', data: d.map(x => x.engLoad), borderColor: '#f1c40f' },
-                        { label: 'Comp %', data: d.map(x => x.compPerc), borderColor: '#3498db' }];
+            datasets = [
+                { label: 'Load %', data: d.map(x => x.engLoad), borderColor: '#f1c40f' },
+                { label: 'Comp %', data: d.map(x => x.compPerc), borderColor: '#3498db' }
+            ];
         }
         chart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, scales } });
     }
 </script>
 </body>
 </html>
-
