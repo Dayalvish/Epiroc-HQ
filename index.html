@@ -48,9 +48,9 @@
         <label style="display:block; margin-top:15px;">Analysis Mode</label>
         <select id="chartMode" onchange="drawChart()">
             <option value="loadVsComp">Load vs Compressor %</option>
-            <option value="tempVsOil">Engine Temp vs Oil Pressure</option>
-            <option value="setBit">Set Air vs Bit Pressure</option>
-            <option value="hydro_impact">Impact vs Feed & Damper</option>
+            <option value="tempVsOil">Engine Analysis: Temp / Oil / RPM</option>
+            <option value="setBit">DTH: Set vs Bit Pressure</option>
+            <option value="hydro_impact">Hydraulic: Impact vs Feed & Damper</option>
         </select>
 
         <div class="mini-stats">
@@ -61,7 +61,6 @@
         </div>
 
         <button onclick="window.print()" style="width:100%; padding:12px; background:var(--red); color:white; border:none; border-radius:4px; cursor:pointer; margin-top:25px; font-weight:bold;">📄 GENERATE PDF</button>
-        <button onclick="exportToExcel()" style="width:100%; padding:12px; background:#27ae60; color:white; border:none; border-radius:4px; cursor:pointer; margin-top:10px; font-weight:bold;">📊 EXCEL EXPORT</button>
     </div>
 
     <div class="chart-area">
@@ -70,10 +69,8 @@
         <table class="summary-table" id="summary-tbl">
             <thead>
                 <tr>
-                    <th rowspan="2">Rig ID</th>
-                    <th rowspan="2">Audits</th>
-                    <th colspan="4">Engine Health</th>
-                    <th colspan="3">Drilling Productivity</th>
+                    <th rowspan="2">Rig ID</th><th rowspan="2">Audits</th>
+                    <th colspan="4">Engine Health</th><th colspan="3">Drilling Productivity</th>
                 </tr>
                 <tr>
                     <th>Load %</th><th>Temp °C</th><th>Oil bar</th><th>Fuel bar</th>
@@ -88,7 +85,7 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbyIOJe9cvdAkY0h-Y9cCHqITTANpE9dpU3rxF31RWztuyEj5h3-K4lG9s6FgNjaLttr/exec";
+    const API = "https://script.google.com/macros/s/AKfycbwjPfW-T4mmtNFATLutFtw3RDkzGHDl84ZMZwU9dIZ1BhvrrPOcA-goEilT84TTyzKV/exec";
     let chart = null, globalData = null;
 
     window.onload = async () => {
@@ -130,39 +127,26 @@
         globalData = await dRes.json();
         const summary = await sRes.json(), alerts = await wRes.json();
 
-        // Update Stats
         if(summary.length > 0) {
             document.getElementById('v-fleet-load').innerText = (summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0) / summary.length).toFixed(1) + "%";
             document.getElementById('v-active-rigs').innerText = summary.length;
             document.getElementById('v-avg-airset').innerText = (summary.reduce((s, r) => s + parseFloat(r.avgAirSet || 0), 0) / summary.length).toFixed(1);
             
             const totalBit = summary.reduce((s, r) => s + parseFloat(r.avgBitPr || 0), 0);
-            const totalSet = summary.reduce((s, r) => s + parseFloat(r.avgAirSet || 0), 0.1); // Avoid div zero
+            const totalSet = summary.reduce((s, r) => s + parseFloat(r.avgAirSet || 0), 0.1); 
             document.getElementById('v-air-eff').innerText = ((totalBit/totalSet)*100).toFixed(1) + "%";
         }
 
         document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
-        
-        // Render Table Body
         document.getElementById('fleet-summary-body').innerHTML = summary.map(row => `
-            <tr>
-                <td><b>${row.id}</b></td><td>${row.monthlyAudits}</td>
-                <td>${row.avgLoad}%</td><td>${row.avgTemp}</td><td>${row.avgOil}</td><td>${row.avgFuel}</td>
-                <td>${row.avgAirSet}</td><td>${row.avgBitPr}</td><td>${row.avgImpact}</td>
-            </tr>`).join('');
+            <tr><td><b>${row.id}</b></td><td>${row.monthlyAudits}</td><td>${row.avgLoad}%</td><td>${row.avgTemp}</td><td>${row.avgOil}</td><td>${row.avgFuel}</td><td>${row.avgAirSet}</td><td>${row.avgBitPr}</td><td>${row.avgImpact}</td></tr>`).join('');
         
-        // Render Warnings
         document.getElementById('alert-list').innerHTML = alerts.length ? alerts.map(a => `
             <div class="alert-card"><b>${a.id}</b> <span style="float:right;">${a.time}</span><br>
-            ${a.temp > a.tempLimit ? `<span style="color:var(--red)">⚠️ High Temp: ${a.temp}°C (L: ${a.tempLimit})</span><br>` : ''}
-            ${a.oil < a.oilLimit ? `<span style="color:var(--red)">⚠️ Low Oil: ${a.oil}b (L: ${a.oilLimit})</span>` : ''}</div>`).join('') : "<p style='color:var(--green); text-align:center;'>✅ Fleet Healthy</p>";
+            ${a.temp > a.tempLimit ? `<span style="color:var(--red)">⚠️ High Temp: ${a.temp}°C > ${a.tempLimit}</span><br>` : ''}
+            ${a.oil < a.oilLimit ? `<span style="color:var(--red)">⚠️ Low Oil: ${a.oil}b < ${a.oilLimit}</span>` : ''}</div>`).join('') : "<p style='color:var(--green); text-align:center;'>✅ Fleet Healthy</p>";
 
         drawChart();
-    }
-
-    function exportToExcel() {
-        let table = document.getElementById("summary-tbl"), url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
-        let link = document.createElement('a'); link.download = "Fleet_Summary.xls"; link.href = url; link.click();
     }
 
     function drawChart() {
@@ -170,25 +154,29 @@
         if(chart) chart.destroy();
         const d = globalData.monthlyData;
         let datasets = [], labels = d.map(x => x.date);
-        let scales = { y: { position: 'left', grid: {color: '#333'} }, y1: { position: 'right', display: false, grid: {drawOnChartArea: false} } };
+        let scales = { 
+            y: { position: 'left', grid: {color: '#333'}, title: {display: true, text: 'Values', color: '#888'} }, 
+            y1: { position: 'right', display: false, grid: {drawOnChartArea: false}, title: {display: true, text: 'Secondary Axis', color: '#888'} } 
+        };
 
-        if(mode === 'hydro_impact') {
+        if(mode === 'tempVsOil') {
             scales.y1.display = true;
             datasets = [
-                { label: 'Feed Pressure', data: d.map(x => x.feedPrHigh), borderColor: '#ff5722', yAxisID: 'y' },
-                { label: 'Damper Pressure', data: d.map(x => x.damperPrHigh), borderColor: '#3498db', yAxisID: 'y' },
-                { label: 'Impact Pressure', data: d.map(x => x.highImpact), borderColor: '#f1c40f', yAxisID: 'y1', borderDash: [5,5] }
+                { label: 'Temp °C', data: d.map(x => x.engTemp), borderColor: '#e74c3c', yAxisID: 'y' },
+                { label: 'Oil bar', data: d.map(x => x.engOil), borderColor: '#2ecc71', yAxisID: 'y' },
+                { label: 'RPM', data: d.map(x => x.engRpm), borderColor: '#9b59b6', yAxisID: 'y1', borderDash: [5,5] }
+            ];
+        } else if(mode === 'hydro_impact') {
+            scales.y1.display = true;
+            datasets = [
+                { label: 'Feed Pr', data: d.map(x => x.feedPrHigh), borderColor: '#ff5722', yAxisID: 'y' },
+                { label: 'Damper Pr', data: d.map(x => x.damperPrHigh), borderColor: '#3498db', yAxisID: 'y' },
+                { label: 'Impact Pr', data: d.map(x => x.highImpact), borderColor: '#f1c40f', yAxisID: 'y1', borderDash: [5,5] }
             ];
         } else if(mode === 'setBit') {
             datasets = [
                 { label: 'Air Set', data: d.map(x => x.fullAirSet), borderColor: '#2ecc71', fill: true, backgroundColor: 'rgba(46,204,113,0.1)' },
-                { label: 'Bit Pressure', data: d.map(x => x.pressureFull), borderColor: '#e74c3c' }
-            ];
-        } else if(mode === 'tempVsOil') {
-            scales.y1.display = true;
-            datasets = [
-                { label: 'Temp °C', data: d.map(x => x.engTemp), borderColor: '#e74c3c', yAxisID: 'y' },
-                { label: 'Oil bar', data: d.map(x => x.engOil), borderColor: '#2ecc71', yAxisID: 'y1' }
+                { label: 'Bit Pr', data: d.map(x => x.pressureFull), borderColor: '#e74c3c' }
             ];
         } else {
             datasets = [
@@ -201,4 +189,3 @@
 </script>
 </body>
 </html>
-
