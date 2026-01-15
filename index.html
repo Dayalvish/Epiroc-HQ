@@ -84,7 +84,7 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbwAuxJ_RPYs1yfzDHp6QxS9g9JJVjFaLKxIT3zHHGcmZS6mwIJvi00ApDtT7Vpv2ysN/exec";
+    const API = "https://script.google.com/macros/s/AKfycbwEkrCln9fQereLnqlhWOYcIziPB9IvPIZX6ezc1ZxgJooQVGZpQ2ByJVcydPyaLxsR/exec";
     let chart = null, globalData = null;
 
     window.onload = async () => {
@@ -105,21 +105,20 @@
 
     async function updateRigDropdown() {
         const model = document.getElementById('modelSelect').value;
-        const res = await fetch(`${API}?get=list&model=${encodeURIComponent(model)}`);
+        const res = await fetch(`${API}?get=list&model=${encodeURIComponent(model)}&v=${Date.now()}`);
         const rigs = await res.json();
         document.getElementById('rigSelect').innerHTML = rigs.map(id => `<option value="${id}">${id}</option>`).join('');
         refresh();
     }
 
     async function refresh() {
-        const rig = document.getElementById('rigSelect').value, model = document.getElementById('modelSelect').value;
-        // Clean the month input to remove commas or spaces just in case
-        let month = document.getElementById('monthFilter').value;
-        
+        const rig = document.getElementById('rigSelect').value, month = document.getElementById('monthFilter').value, model = document.getElementById('modelSelect').value;
+        if(!rig) return;
+
         const [dRes, sRes, wRes] = await Promise.all([
-            fetch(`${API}?fleetId=${encodeURIComponent(rig)}&month=${month}`),
-            fetch(`${API}?get=fleet_summary&month=${month}&model=${model}`),
-            fetch(`${API}?get=warnings`)
+            fetch(`${API}?fleetId=${encodeURIComponent(rig)}&month=${month}&v=${Date.now()}`),
+            fetch(`${API}?get=fleet_summary&month=${month}&model=${model}&v=${Date.now()}`),
+            fetch(`${API}?get=warnings&v=${Date.now()}`)
         ]);
 
         globalData = await dRes.json();
