@@ -9,28 +9,19 @@
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 20px; opacity:0; transition: 0.5s; }
         .authorized { opacity: 1 !important; }
         .header { display: flex; justify-content: space-between; border-bottom: 3px solid var(--ey); padding-bottom: 10px; margin-bottom: 20px; }
-        
-        /* Layout Grid */
         .main-layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 20px; }
         .sidebar, .chart-area, .warning-sidebar { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        
-        /* Blinking Live Dot Animation */
         .live-dot { height: 12px; width: 12px; background: var(--green); border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; margin-right: 8px; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); } 100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); } }
-        
-        /* Sidebar Counters */
         .mini-stats { margin-top: 25px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .mini-card { background: #222; padding: 12px; border-radius: 4px; text-align: center; border: 1px solid #333; }
         .mini-card small { color: #888; display: block; margin-bottom: 5px; font-size: 0.7rem; }
         .mini-card span { font-size: 1.1rem; font-weight: bold; color: var(--ey); }
-
-        /* Tables & Alerts */
         .summary-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #111; font-size: 0.8rem; }
         .summary-table th, .summary-table td { padding: 10px; border: 1px solid #333; text-align: center; }
         .summary-table th { background: #222; color: var(--ey); text-transform: uppercase; font-size: 0.65rem; }
         .warning-sidebar { border: 1px solid var(--red); height: 750px; overflow-y: auto; }
         .alert-card { background: #222; padding: 12px; margin-bottom: 12px; border-left: 5px solid var(--red); border-radius: 4px; font-size: 0.8rem; text-align: left; }
-        
         select, input { width: 100%; padding: 12px; margin-top: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; box-sizing: border-box; }
         button { width: 100%; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 15px; color: white; }
     </style>
@@ -97,21 +88,37 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbyA7rRq-VCBwKcP0IBaa1hO6h0P8-prK4xpa2YukGWtUQmEVapvSzkJFsplFn1ajArx/exec";
+    // UPDATE THIS URL WITH YOUR NEW DEPLOYMENT LINK
+    const API = "https://script.google.com/macros/s/AKfycbw41FwfZ1KiYbhGVItJl8vkhE_ksVIQqvVh-TtWoqC4GxtsJw69spc7_o0Y3iV8BZzu/exec";
     let chart = null, globalData = null;
 
     window.onload = async () => {
         const u = prompt("Management ID");
         const p = prompt("Password");
-        // Using encodeURIComponent to ensure symbols like @ don't break the URL
         const res = await fetch(`${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`);
         const data = await res.json();
-        if(data.success) { document.body.classList.add('authorized'); init(); } 
-        else { alert("Invalid Credentials."); location.reload(); }
+        
+        if(data.success) { 
+            // Save hierarchy context to session
+            sessionStorage.setItem('role', data.role);
+            sessionStorage.setItem('region', data.region);
+            sessionStorage.setItem('siteView', data.siteView);
+            
+            document.body.classList.add('authorized'); 
+            init(); 
+        } else { 
+            alert("Invalid Credentials."); location.reload(); 
+        }
     };
 
+    // Helper to build URL with hierarchical parameters
+    function getFullUrl(params) {
+        const baseParams = `userRegion=${sessionStorage.getItem('region')}&siteView=${sessionStorage.getItem('siteView')}`;
+        return `${API}?${params}&${baseParams}&v=${Date.now()}`;
+    }
+
     async function init() {
-        const mRes = await fetch(`${API}?get=model_list`);
+        const mRes = await fetch(getFullUrl("get=model_list"));
         const mList = await mRes.json();
         document.getElementById('modelSelect').innerHTML = '<option value="">All Models</option>' + mList.map(m => `<option value="${m}">${m}</option>`).join('');
         await updateRigDropdown(); 
@@ -120,29 +127,34 @@
 
     async function updateRigDropdown() {
         const model = document.getElementById('modelSelect').value;
-        const res = await fetch(`${API}?get=list&model=${encodeURIComponent(model)}`);
+        const res = await fetch(getFullUrl(`get=list&model=${encodeURIComponent(model)}`));
         const rigs = await res.json();
         document.getElementById('rigSelect').innerHTML = rigs.map(id => `<option value="${id}">${id}</option>`).join('');
         refresh();
     }
 
     async function refresh() {
-        const rig = document.getElementById('rigSelect').value, month = document.getElementById('monthFilter').value, model = document.getElementById('modelSelect').value;
+        const rig = document.getElementById('rigSelect').value;
+        const month = document.getElementById('monthFilter').value;
+        const model = document.getElementById('modelSelect').value;
         if(!rig) return;
+
         const [dRes, sRes, wRes] = await Promise.all([
-            fetch(`${API}?fleetId=${encodeURIComponent(rig)}&month=${month}&v=${Date.now()}`),
-            fetch(`${API}?get=fleet_summary&month=${month}&model=${model}&v=${Date.now()}`),
-            fetch(`${API}?get=warnings&v=${Date.now()}`)
+            fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}`)),
+            fetch(getFullUrl(`get=fleet_summary&month=${month}&model=${model}`)),
+            fetch(getFullUrl(`get=warnings`))
         ]);
+
         globalData = await dRes.json();
-        const summary = await sRes.json(), alerts = await wRes.json();
+        const summary = await sRes.json();
+        const alerts = await wRes.json();
         
-        // Update Side Counters
         if(summary.length > 0) {
             document.getElementById('v-fleet-load').innerText = (summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0) / summary.length).toFixed(1) + "%";
             document.getElementById('v-active-rigs').innerText = summary.length;
             document.getElementById('v-avg-airset').innerText = (summary.reduce((s, r) => s + parseFloat(r.avgAirSet || 0), 0) / summary.length).toFixed(1);
-            const totalBit = summary.reduce((s, r) => s + parseFloat(r.avgBitPr || 0), 0), totalSet = summary.reduce((s, r) => s + parseFloat(r.avgAirSet || 0), 0.1); 
+            const totalBit = summary.reduce((s, r) => s + parseFloat(r.avgBitPr || 0), 0);
+            const totalSet = summary.reduce((s, r) => s + parseFloat(r.avgAirSet || 0), 0.1); 
             document.getElementById('v-air-eff').innerText = ((totalBit/totalSet)*100).toFixed(1) + "%";
         }
 
@@ -166,7 +178,9 @@
     }
 
     function drawChart() {
-        const mode = document.getElementById('chartMode').value, ctx = document.getElementById('mainChart').getContext('2d'), d = globalData.monthlyData;
+        const mode = document.getElementById('chartMode').value;
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        const d = globalData.monthlyData;
         if(chart) chart.destroy();
         let labels = d.map(x => x.date), datasets = [], scales = { 
             y: { position: 'left', title: {display: true, text: 'Values'}, grid: {color: '#333'} }, 
@@ -206,4 +220,3 @@
 </script>
 </body>
 </html>
-
