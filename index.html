@@ -6,115 +6,166 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root { --ey: #f1c40f; --bg: #0d0d0d; --card: #1a1a1a; --red: #ff4d4d; --green: #2ecc71; --blue: #3498db; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 20px; opacity:0; transition: 0.5s; }
-        .authorized { opacity: 1 !important; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 20px; overflow: hidden; }
+        
+        /* MODERN LOGIN OVERLAY */
+        #login-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg); display: flex; justify-content: center; align-items: center; z-index: 9999;
+        }
+        .login-box {
+            background: var(--card); padding: 40px; border-radius: 12px; 
+            border-top: 5px solid var(--ey); width: 350px; text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+        .login-box img { margin-bottom: 20px; }
+        .login-box input { 
+            width: 100%; padding: 12px; margin: 10px 0; 
+            background: #222; border: 1px solid #444; color: #fff; border-radius: 4px; 
+        }
+        .login-box button { 
+            width: 100%; padding: 12px; background: var(--ey); color: #000; 
+            border: none; font-weight: bold; border-radius: 4px; cursor: pointer; margin-top: 10px;
+        }
+
+        /* DASHBOARD LAYOUT */
+        #dashboard-content { opacity: 0; transition: 0.8s; pointer-events: none; }
+        .authorized #dashboard-content { opacity: 1; pointer-events: auto; }
+        .authorized #login-overlay { display: none; }
+
         .header { display: flex; justify-content: space-between; border-bottom: 3px solid var(--ey); padding-bottom: 10px; margin-bottom: 20px; }
         .main-layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 20px; }
         .sidebar, .chart-area, .warning-sidebar { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        
         .live-dot { height: 12px; width: 12px; background: var(--green); border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; margin-right: 8px; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); } 100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); } }
-        .mini-stats { margin-top: 25px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .mini-card { background: #222; padding: 12px; border-radius: 4px; text-align: center; border: 1px solid #333; }
-        .mini-card small { color: #888; display: block; margin-bottom: 5px; font-size: 0.7rem; }
-        .mini-card span { font-size: 1.1rem; font-weight: bold; color: var(--ey); }
+        
         .summary-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #111; font-size: 0.8rem; }
         .summary-table th, .summary-table td { padding: 10px; border: 1px solid #333; text-align: center; }
         .summary-table th { background: #222; color: var(--ey); text-transform: uppercase; font-size: 0.65rem; }
+        
         .warning-sidebar { border: 1px solid var(--red); height: 750px; overflow-y: auto; }
-        .alert-card { background: #222; padding: 12px; margin-bottom: 12px; border-left: 5px solid var(--red); border-radius: 4px; font-size: 0.8rem; text-align: left; }
+        .alert-card { background: #222; padding: 12px; margin-bottom: 12px; border-left: 5px solid var(--red); border-radius: 4px; font-size: 0.8rem; }
+        
+        .mini-stats { margin-top: 25px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .mini-card { background: #222; padding: 12px; border-radius: 4px; text-align: center; border: 1px solid #333; }
+        .mini-card small { color: #888; display: block; font-size: 0.7rem; }
+        .mini-card span { font-size: 1.1rem; font-weight: bold; color: var(--ey); }
+        
         select, input { width: 100%; padding: 12px; margin-top: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 15px; color: white; }
+        .btn-red { background: var(--red); color: white; border:none; padding:12px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%; margin-top:10px;}
+        .btn-green { background: #27ae60; color: white; border:none; padding:12px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%; margin-top:10px;}
     </style>
 </head>
 <body>
 
-<div class="header">
-    <div>
-        <h1 style="margin:0;">EPIROC CENTRAL PARAMETER VISUALIZER</h1>
-        <div style="font-size:0.9rem;"><span class="live-dot"></span>LIVE STATUS | <span id="last-sync">--:--:--</span></div>
+<div id="login-overlay">
+    <div class="login-box">
+        <img src="https://raw.githubusercontent.com/Dayalvish/Epiroc-dash/main/Picture1.png" height="50">
+        <h3 style="color:var(--ey); margin-bottom:20px;">SYSTEM ACCESS</h3>
+        <input type="text" id="userIn" placeholder="User ID">
+        <input type="password" id="passIn" placeholder="Password">
+        <button onclick="handleLogin()">AUTHORIZE ACCESS</button>
+        <p id="login-msg" style="color:var(--red); font-size:0.8rem; margin-top:15px;"></p>
     </div>
-    <img src="https://raw.githubusercontent.com/Dayalvish/Epiroc-dash/main/Picture1.png" height="55">
 </div>
 
-<div class="main-layout">
-    <div class="sidebar">
-        <label>Model Classification</label>
-        <select id="modelSelect" onchange="updateRigDropdown()"><option value="">All Models</option></select>
-        
-        <label style="display:block; margin-top:15px;">Target Rig ID</label>
-        <select id="rigSelect" onchange="refresh()"><option>Loading...</option></select>
-        
-        <label style="display:block; margin-top:15px;">Target Month & Year</label>
-        <input type="month" id="monthFilter" onchange="refresh()">
-        
-        <label style="display:block; margin-top:15px;">Analysis Mode</label>
-        <select id="chartMode" onchange="drawChart()">
-            <option value="tempVsOil">Engine Analysis: Temp / Oil / RPM</option>
-            <option value="loadVsComp">Load vs Compressor %</option>
-            <option value="setBit">DTH: Set vs Bit Pressure</option>
-            <option value="hydro_impact">Hydraulic: Impact vs Feed & Damper</option>
-        </select>
-
-        <div class="mini-stats">
-            <div class="mini-card"><small>Fleet Avg Load</small><span id="v-fleet-load">--</span></div>
-            <div class="mini-card"><small>Active Assets</small><span id="v-active-rigs">--</span></div>
-            <div class="mini-card"><small>Avg Air Set</small><span id="v-avg-airset">--</span></div>
-            <div class="mini-card"><small>Air Efficiency</small><span id="v-air-eff">--</span></div>
+<div id="dashboard-content">
+    <div class="header">
+        <div>
+            <h1 style="margin:0;">EPIROC CENTRAL VISUALIZER</h1>
+            <div style="font-size:0.9rem;"><span class="live-dot"></span>LIVE STATUS | <span id="last-sync">--:--:--</span></div>
         </div>
-
-        <button onclick="window.print()" style="background:var(--red);">📄 GENERATE PDF</button>
-        <button onclick="exportToExcel()" style="background:#27ae60;">📊 EXCEL EXPORT</button>
+        <img src="https://raw.githubusercontent.com/Dayalvish/Epiroc-dash/main/Picture1.png" height="55">
     </div>
 
-    <div class="chart-area">
-        <div style="height:350px;"><canvas id="mainChart"></canvas></div>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:30px;">
-            <h3 style="color:var(--ey); margin:0;">FLEET PERFORMANCE SUMMARY</h3>
-            <input type="text" id="rigSearch" onkeyup="filterTable()" placeholder="Search Rig ID..." style="width:200px;">
-        </div>
-        <table class="summary-table" id="summary-tbl">
-            <thead>
-                <tr><th rowspan="2">Rig ID</th><th rowspan="2">Audits</th><th colspan="4">Engine Health</th><th colspan="3">Productivity</th></tr>
-                <tr><th>Load %</th><th>Temp °C</th><th>Oil bar</th><th>Fuel bar</th><th>Air Set</th><th>Bit Pr</th><th>Impact</th></tr>
-            </thead>
-            <tbody id="fleet-summary-body"></tbody>
-        </table>
-    </div>
+    <div class="main-layout">
+        <div class="sidebar">
+            <label>Model Classification</label>
+            <select id="modelSelect" onchange="updateRigDropdown()"><option value="">All Models</option></select>
+            
+            <label style="display:block; margin-top:15px;">Target Rig ID</label>
+            <select id="rigSelect" onchange="refresh()"><option>Loading...</option></select>
+            
+            <label style="display:block; margin-top:15px;">Target Month</label>
+            <input type="month" id="monthFilter" onchange="refresh()">
+            
+            <label style="display:block; margin-top:15px;">Analysis Mode</label>
+            <select id="chartMode" onchange="drawChart()">
+                <option value="tempVsOil">Engine: Temp/Oil/RPM</option>
+                <option value="loadVsComp">Load vs Compressor %</option>
+                <option value="setBit">DTH: Set vs Bit Pressure</option>
+                <option value="hydro_impact">Hydraulic: Impact/Feed/Damper</option>
+            </select>
 
-    <div class="warning-sidebar">
-        <h3 style="color:var(--red); margin:0 0 15px 0; border-bottom: 1px solid #333; padding-bottom: 10px;">⚠️ TRIGGER ALERTS</h3>
-        <div id="alert-list">Scanning fleet...</div>
+            <div class="mini-stats">
+                <div class="mini-card"><small>Fleet Avg Load</small><span id="v-fleet-load">--</span></div>
+                <div class="mini-card"><small>Active Assets</small><span id="v-active-rigs">--</span></div>
+                <div class="mini-card"><small>Avg Air Set</small><span id="v-avg-airset">--</span></div>
+                <div class="mini-card"><small>Air Efficiency</small><span id="v-air-eff">--</span></div>
+            </div>
+
+            <button onclick="window.print()" class="btn-red">📄 GENERATE PDF</button>
+            <button onclick="exportToExcel()" class="btn-green">📊 EXCEL EXPORT</button>
+        </div>
+
+        <div class="chart-area">
+            <div style="height:350px;"><canvas id="mainChart"></canvas></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:30px;">
+                <h3 style="color:var(--ey); margin:0;">FLEET PERFORMANCE SUMMARY</h3>
+                <input type="text" id="rigSearch" onkeyup="filterTable()" placeholder="Search Rig ID..." style="width:200px;">
+            </div>
+            <table class="summary-table" id="summary-tbl">
+                <thead>
+                    <tr><th rowspan="2">Rig ID</th><th rowspan="2">Audits</th><th colspan="4">Engine Health</th><th colspan="3">Productivity</th></tr>
+                    <tr><th>Load %</th><th>Temp °C</th><th>Oil bar</th><th>Fuel bar</th><th>Air Set</th><th>Bit Pr</th><th>Impact</th></tr>
+                </thead>
+                <tbody id="fleet-summary-body"></tbody>
+            </table>
+        </div>
+
+        <div class="warning-sidebar">
+            <h3 style="color:var(--red); margin:0 0 15px 0; border-bottom: 1px solid #333; padding-bottom: 10px;">⚠️ TRIGGER ALERTS</h3>
+            <div id="alert-list">Scanning...</div>
+        </div>
     </div>
 </div>
 
 <script>
-    // UPDATE THIS URL WITH YOUR NEW DEPLOYMENT LINK
-    const API = "https://script.google.com/macros/s/AKfycbw41FwfZ1KiYbhGVItJl8vkhE_ksVIQqvVh-TtWoqC4GxtsJw69spc7_o0Y3iV8BZzu/exec";
+    const API = "https://script.google.com/macros/s/AKfycbw41FwfZ1KiYbhGVItJl8vkhE_ksVIQqvVh-TtWoqC4GxtsJw69spc7_o0Y3iV8BZzu/exec"; // PASTE YOUR NEW URL HERE
     let chart = null, globalData = null;
 
-    window.onload = async () => {
-        const u = prompt("Management ID");
-        const p = prompt("Password");
-        const res = await fetch(`${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`);
-        const data = await res.json();
+    async function handleLogin() {
+        const u = document.getElementById('userIn').value;
+        const p = document.getElementById('passIn').value;
+        const msg = document.getElementById('login-msg');
         
-        if(data.success) { 
-            // Save hierarchy context to session
-            sessionStorage.setItem('role', data.role);
-            sessionStorage.setItem('region', data.region);
-            sessionStorage.setItem('siteView', data.siteView);
+        msg.innerText = "Authenticating...";
+        
+        try {
+            const res = await fetch(`${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`);
+            const data = await res.json();
             
-            document.body.classList.add('authorized'); 
-            init(); 
-        } else { 
-            alert("Invalid Credentials."); location.reload(); 
+            if(data.success) {
+                sessionStorage.setItem('role', data.role);
+                sessionStorage.setItem('region', data.region);
+                sessionStorage.setItem('siteView', data.siteView);
+                
+                document.body.classList.add('authorized');
+                document.body.style.overflow = "auto";
+                init();
+            } else {
+                msg.innerText = "Invalid User ID or Password.";
+            }
+        } catch(e) {
+            msg.innerText = "Connection Error. Check API URL.";
         }
-    };
+    }
 
-    // Helper to build URL with hierarchical parameters
     function getFullUrl(params) {
-        const baseParams = `userRegion=${sessionStorage.getItem('region')}&siteView=${sessionStorage.getItem('siteView')}`;
-        return `${API}?${params}&${baseParams}&v=${Date.now()}`;
+        const r = sessionStorage.getItem('region');
+        const s = sessionStorage.getItem('siteView');
+        return `${API}?${params}&userRegion=${r}&siteView=${s}&v=${Date.now()}`;
     }
 
     async function init() {
