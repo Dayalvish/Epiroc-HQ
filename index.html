@@ -8,7 +8,7 @@
         :root { --ey: #f1c40f; --bg: #0d0d0d; --card: #1a1a1a; --red: #ff4d4d; --green: #2ecc71; --blue: #3498db; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 20px; overflow: hidden; }
         
-        /* MODERN LOGIN OVERLAY */
+        /* 1. MODERN DUAL-ROW LOGIN OVERLAY */
         #login-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: var(--bg); display: flex; justify-content: center; align-items: center; z-index: 9999;
@@ -18,26 +18,27 @@
             border-top: 5px solid var(--ey); width: 350px; text-align: center;
             box-shadow: 0 10px 30px rgba(0,0,0,0.8);
         }
-        .login-box img { margin-bottom: 20px; }
         .login-box input { 
             width: 100%; padding: 12px; margin: 10px 0; 
-            background: #222; border: 1px solid #444; color: #fff; border-radius: 4px; 
+            background: #222; border: 1px solid #444; color: #fff; border-radius: 4px; box-sizing: border-box;
         }
         .login-box button { 
             width: 100%; padding: 12px; background: var(--ey); color: #000; 
             border: none; font-weight: bold; border-radius: 4px; cursor: pointer; margin-top: 10px;
         }
 
-        /* DASHBOARD LAYOUT */
+        /* 2. DASHBOARD CONTENT (HIDDEN UNTIL AUTHORIZED) */
         #dashboard-content { opacity: 0; transition: 0.8s; pointer-events: none; }
         .authorized #dashboard-content { opacity: 1; pointer-events: auto; }
         .authorized #login-overlay { display: none; }
 
         .header { display: flex; justify-content: space-between; border-bottom: 3px solid var(--ey); padding-bottom: 10px; margin-bottom: 20px; }
+        .user-badge { background: var(--ey); color: #000; padding: 4px 12px; border-radius: 15px; font-weight: bold; font-size: 0.8rem; margin-right: 15px; }
+
         .main-layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 20px; }
         .sidebar, .chart-area, .warning-sidebar { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
         
-        .live-dot { height: 12px; width: 12px; background: var(--green); border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; margin-right: 8px; }
+        .live-dot { height: 12px; width: 12px; background: var(--green); border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; margin-right: 8px; vertical-align: middle; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); } 100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); } }
         
         .summary-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #111; font-size: 0.8rem; }
@@ -45,11 +46,11 @@
         .summary-table th { background: #222; color: var(--ey); text-transform: uppercase; font-size: 0.65rem; }
         
         .warning-sidebar { border: 1px solid var(--red); height: 750px; overflow-y: auto; }
-        .alert-card { background: #222; padding: 12px; margin-bottom: 12px; border-left: 5px solid var(--red); border-radius: 4px; font-size: 0.8rem; }
+        .alert-card { background: #222; padding: 12px; margin-bottom: 12px; border-left: 5px solid var(--red); border-radius: 4px; font-size: 0.8rem; text-align: left; }
         
         .mini-stats { margin-top: 25px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .mini-card { background: #222; padding: 12px; border-radius: 4px; text-align: center; border: 1px solid #333; }
-        .mini-card small { color: #888; display: block; font-size: 0.7rem; }
+        .mini-card small { color: #888; display: block; font-size: 0.7rem; margin-bottom: 4px; }
         .mini-card span { font-size: 1.1rem; font-weight: bold; color: var(--ey); }
         
         select, input { width: 100%; padding: 12px; margin-top: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; box-sizing: border-box; }
@@ -62,11 +63,11 @@
 <div id="login-overlay">
     <div class="login-box">
         <img src="https://raw.githubusercontent.com/Dayalvish/Epiroc-dash/main/Picture1.png" height="50">
-        <h3 style="color:var(--ey); margin-bottom:20px;">SYSTEM ACCESS</h3>
-        <input type="text" id="userIn" placeholder="User ID">
-        <input type="password" id="passIn" placeholder="Password">
-        <button onclick="handleLogin()">AUTHORIZE ACCESS</button>
-        <p id="login-msg" style="color:var(--red); font-size:0.8rem; margin-top:15px;"></p>
+        <h3 style="color:var(--ey); margin-bottom:20px; letter-spacing: 1px;">SYSTEM ACCESS</h3>
+        <input type="text" id="userIn" placeholder="Enter User ID">
+        <input type="password" id="passIn" placeholder="Enter Password">
+        <button id="loginBtn" onclick="handleLogin()">AUTHORIZE ACCESS</button>
+        <p id="login-msg" style="color:var(--red); font-size:0.8rem; margin-top:15px; font-weight: bold;"></p>
     </div>
 </div>
 
@@ -74,7 +75,11 @@
     <div class="header">
         <div>
             <h1 style="margin:0;">EPIROC CENTRAL VISUALIZER</h1>
-            <div style="font-size:0.9rem;"><span class="live-dot"></span>LIVE STATUS | <span id="last-sync">--:--:--</span></div>
+            <div style="font-size:0.9rem;">
+                <span class="live-dot"></span>
+                <span id="id-badge" class="user-badge">IDENTIFYING...</span>
+                LIVE STATUS | <span id="last-sync">--:--:--</span>
+            </div>
         </div>
         <img src="https://raw.githubusercontent.com/Dayalvish/Epiroc-dash/main/Picture1.png" height="55">
     </div>
@@ -92,10 +97,10 @@
             
             <label style="display:block; margin-top:15px;">Analysis Mode</label>
             <select id="chartMode" onchange="drawChart()">
-                <option value="tempVsOil">Engine: Temp/Oil/RPM</option>
-                <option value="loadVsComp">Load vs Compressor %</option>
-                <option value="setBit">DTH: Set vs Bit Pressure</option>
-                <option value="hydro_impact">Hydraulic: Impact/Feed/Damper</option>
+                <option value="tempVsOil">Trend: Temp / Oil / RPM (Last 10)</option>
+                <option value="loadVsComp">Monthly: Load vs Compressor %</option>
+                <option value="setBit">Monthly: Set vs Bit Pressure</option>
+                <option value="hydro_impact">Monthly: Impact/Feed/Damper</option>
             </select>
 
             <div class="mini-stats">
@@ -132,40 +137,47 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbw41FwfZ1KiYbhGVItJl8vkhE_ksVIQqvVh-TtWoqC4GxtsJw69spc7_o0Y3iV8BZzu/exec"; // PASTE YOUR NEW URL HERE
+    const API = "https://script.google.com/macros/s/AKfycbwwcdbbq_beEkOI51Obh1ewkIsATSldtA0l0gZaDndy8DU5zrLROhc8H557XxVGIuVi/exec"; // REPLACE THIS
     let chart = null, globalData = null;
 
+    // --- 1. HANDLE LOGIN (Dual Row Logic) ---
     async function handleLogin() {
         const u = document.getElementById('userIn').value;
         const p = document.getElementById('passIn').value;
         const msg = document.getElementById('login-msg');
         
-        msg.innerText = "Authenticating...";
+        msg.innerText = "Verifying Credentials...";
         
         try {
             const res = await fetch(`${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`);
             const data = await res.json();
             
             if(data.success) {
+                // Save Hierarchy Session
                 sessionStorage.setItem('role', data.role);
                 sessionStorage.setItem('region', data.region);
                 sessionStorage.setItem('siteView', data.siteView);
                 
+                // Update User Identity Badge
+                const identity = `${data.role}: ${data.region} ${data.siteView !== 'All' ? '['+data.siteView+']' : ''}`;
+                document.getElementById('id-badge').innerText = identity;
+
                 document.body.classList.add('authorized');
                 document.body.style.overflow = "auto";
                 init();
             } else {
-                msg.innerText = "Invalid User ID or Password.";
+                msg.innerText = "Authentication Failed. Please try again.";
             }
         } catch(e) {
-            msg.innerText = "Connection Error. Check API URL.";
+            msg.innerText = "Connection Failed. Check API Deployment.";
         }
     }
 
+    // Helper to auto-attach Hierarchy Headers to every request
     function getFullUrl(params) {
         const r = sessionStorage.getItem('region');
         const s = sessionStorage.getItem('siteView');
-        return `${API}?${params}&userRegion=${r}&siteView=${s}&v=${Date.now()}`;
+        return `${API}?${params}&userRegion=${encodeURIComponent(r)}&siteView=${encodeURIComponent(s)}&v=${Date.now()}`;
     }
 
     async function init() {
@@ -215,6 +227,48 @@
         drawChart();
     }
 
+    function drawChart() {
+        const mode = document.getElementById('chartMode').value;
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        if(chart) chart.destroy();
+
+        // LOGIC: Use 'history' for Trend mode, 'monthlyData' for others
+        const isTrend = mode === 'tempVsOil';
+        const d = isTrend ? globalData.history : globalData.monthlyData;
+        
+        let labels = d.map(x => x.date), datasets = [], scales = { 
+            y: { position: 'left', grid: {color: '#333'} }, 
+            y1: { position: 'right', grid: {drawOnChartArea: false} } 
+        };
+
+        if(mode === 'tempVsOil') {
+            datasets = [
+                { label: 'Oil bar', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'y', tension: 0.4 },
+                { label: 'Temp °C', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'y1', tension: 0.3 },
+                { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#9b59b6', yAxisID: 'y1', borderDash: [5,5] }
+            ];
+        } else if(mode === 'loadVsComp') {
+            scales.y1.display = false;
+            datasets = [
+                { label: 'Load %', data: d.map(x => x.engLoad), borderColor: '#f1c40f' },
+                { label: 'Comp %', data: d.map(x => x.compPerc), borderColor: '#3498db' }
+            ];
+        } else if(mode === 'setBit') {
+            scales.y1.display = false;
+            datasets = [
+                { label: 'Air Set', data: d.map(x => x.fullAirSet), borderColor: '#2ecc71' },
+                { label: 'Bit Pr', data: d.map(x => x.pressureFull), borderColor: '#e74c3c' }
+            ];
+        } else if(mode === 'hydro_impact') {
+            datasets = [
+                { label: 'Impact', data: d.map(x => x.highImpact), borderColor: '#f1c40f' },
+                { label: 'Feed', data: d.map(x => x.feedPrHigh), borderColor: '#ff5722' },
+                { label: 'Damper', data: d.map(x => x.damperPrHigh), borderColor: '#3498db' }
+            ];
+        }
+        chart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, scales } });
+    }
+
     function filterTable() {
         var input = document.getElementById("rigSearch"), filter = input.value.toUpperCase(), tr = document.getElementById("summary-tbl").getElementsByTagName("tr");
         for (var i = 2; i < tr.length; i++) {
@@ -226,47 +280,6 @@
     function exportToExcel() {
         let table = document.getElementById("summary-tbl"), url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
         let link = document.createElement('a'); link.download = "Epiroc_Fleet_Summary.xls"; link.href = url; link.click();
-    }
-
-    function drawChart() {
-        const mode = document.getElementById('chartMode').value;
-        const ctx = document.getElementById('mainChart').getContext('2d');
-        const d = globalData.monthlyData;
-        if(chart) chart.destroy();
-        let labels = d.map(x => x.date), datasets = [], scales = { 
-            y: { position: 'left', title: {display: true, text: 'Values'}, grid: {color: '#333'} }, 
-            y1: { position: 'right', title: {display: true, text: 'High Range'}, grid: {drawOnChartArea: false} } 
-        };
-
-        if(mode === 'tempVsOil') {
-            scales.y.title.text = 'Oil (bar)';
-            scales.y1.title.text = 'Temp (°C) / RPM';
-            datasets = [
-                { label: 'Oil bar', data: d.map(x => x.engOil), borderColor: '#2ecc71', yAxisID: 'y', tension: 0.4, borderWidth: 3 },
-                { label: 'Temp °C', data: d.map(x => x.engTemp), borderColor: '#e74c3c', yAxisID: 'y1', tension: 0.3 },
-                { label: 'RPM', data: d.map(x => x.engRpm), borderColor: '#9b59b6', yAxisID: 'y1', borderDash: [5,5] }
-            ];
-        } else if(mode === 'loadVsComp') {
-            scales.y1.display = false;
-            datasets = [
-                { label: 'Load %', data: d.map(x => x.engLoad), borderColor: '#f1c40f', tension: 0.3 },
-                { label: 'Comp %', data: d.map(x => x.compPerc), borderColor: '#3498db', tension: 0.3 }
-            ];
-        } else if(mode === 'setBit') {
-            scales.y1.display = false;
-            datasets = [
-                { label: 'Air Set', data: d.map(x => x.fullAirSet), borderColor: '#2ecc71', tension: 0.3 },
-                { label: 'Bit Pr', data: d.map(x => x.pressureFull), borderColor: '#e74c3c', tension: 0.3 }
-            ];
-        } else if(mode === 'hydro_impact') {
-            scales.y.title.text = 'Hydraulic (bar)';
-            datasets = [
-                { label: 'Impact', data: d.map(x => x.highImpact), borderColor: '#f1c40f', tension: 0.4 },
-                { label: 'Feed', data: d.map(x => x.feedPrHigh), borderColor: '#ff5722' },
-                { label: 'Damper', data: d.map(x => x.damperPrHigh), borderColor: '#3498db' }
-            ];
-        }
-        chart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, scales } });
     }
 </script>
 </body>
