@@ -103,19 +103,44 @@
                 <option value="hydro_impact">Hydraulic: Impact/Feed/Damper</option>
             </select>
 
-            return createJsonResponse({
+           return createJsonResponse({
       monthlyAuditCount: mRows.length,
-      thresholds: { model: tRow[1] || "N/A", maxTemp: tRow[2] || "N/A", minOil: tRow[3] || "N/A", maxFuel: tRow[4] || "N/A" },
-      vitals: { boostPr: latest[10] || 0, fuelPr: latest[13] || 0, receiverPr: latest[14] || 0, hydOilTemp: latest[25] || 0 },
-      history: rRowsFull.slice(-10).map(r => ({ date: Utilities.formatDate(new Date(r[6]), "GMT+5:30", "dd-MMM"), rpm: r[7], temp: r[8], oil: r[11] })),
+      thresholds: { 
+        model: tRow[1] || "N/A", 
+        maxTemp: tRow[2] || "N/A", 
+        minOil: tRow[3] || "N/A", 
+        maxFuel: tRow[4] || "N/A" 
+      },
+      vitals: { 
+        boostPr: latest[10] || 0,      // Column K
+        fuelPr: latest[13] || 0,       // Column N
+        receiverPr: latest[14] || 0,   // Column O
+        hydOilTemp: latest[25] || 0    // Column Z
+      },
+      history: rRowsFull.slice(-10).map(r => ({ 
+        date: Utilities.formatDate(new Date(r[6]), "GMT+5:30", "dd-MMM"), 
+        rpm: r[7], 
+        temp: r[8], 
+        oil: r[11] 
+      })),
       monthlyData: mRows.map(r => ({
         date: Utilities.formatDate(new Date(r[6]), "GMT+5:30", "dd-MMM"),
-        engRpm: r[7], engTemp: r[8], engOil: r[11], engLoad: r[9], compPerc: r[21],
-        fullAirSet: r[18], pressureFull: r[19], 
-        feedPrHigh: r[29], highImpact: r[32], damperPrHigh: r[33] 
+        engRpm: r[7], 
+        engTemp: r[8], 
+        engOil: r[11], 
+        engLoad: r[9], 
+        compPerc: r[21],
+        fullAirSet: r[18], 
+        pressureFull: r[19], 
+        feedPrHigh: r[29],     // Column AD
+        highImpact: r[32],     // Column AG
+        damperPrHigh: r[33]    // Column AH
       }))
     });
-  } catch (err) { return createJsonResponse({ error: err.message }); }
+
+  } catch (err) { 
+    return createJsonResponse({ error: err.message }); 
+  }
 }
 
             <button onclick="window.print()" class="btn-red">📄 GENERATE PDF</button>
@@ -302,4 +327,5 @@
 </script>
 </body>
 </html>
+
 
