@@ -36,8 +36,23 @@
         .user-badge { background: var(--ey); color: #000; padding: 4px 12px; border-radius: 15px; font-weight: bold; font-size: 0.85rem; margin-right: 15px; }
 
         .main-layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 20px; }
-        .sidebar, .chart-area, .warning-sidebar { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .sidebar, .chart-area, .warning-sidebar { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); height: 85vh; overflow-y: auto; }
         
+        /* MACHINE VITAL TABLE STYLING */
+        .vital-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #111; border: 1px solid #333; }
+        .vital-table td { padding: 10px; border-bottom: 1px solid #333; font-size: 0.8rem; }
+        .v-label { color: #888; text-transform: uppercase; font-size: 0.65rem; }
+        .v-value { text-align: right; color: var(--ey); font-weight: bold; font-size: 0.95rem; }
+
+        /* AUDIT WARNING POPUP */
+        #auditWarning {
+            display: none; position: fixed; top: 15%; left: 50%; transform: translateX(-50%);
+            background: var(--red); color: white; padding: 15px 30px; border-radius: 8px;
+            font-weight: bold; z-index: 10000; box-shadow: 0 0 20px rgba(255, 77, 77, 0.6);
+            animation: blinker 1s linear infinite; text-align: center;
+        }
+        @keyframes blinker { 50% { opacity: 0; } }
+
         .live-dot { height: 12px; width: 12px; background: var(--green); border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; margin-right: 8px; vertical-align: middle; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); } 100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); } }
         
@@ -45,16 +60,16 @@
         .summary-table th, .summary-table td { padding: 10px; border: 1px solid #333; text-align: center; }
         .summary-table th { background: #222; color: var(--ey); text-transform: uppercase; font-size: 0.65rem; }
         
-        .warning-sidebar { border: 1px solid var(--red); height: 750px; overflow-y: auto; }
+        .warning-sidebar { border: 1px solid var(--red); }
         .alert-card { background: #222; padding: 12px; margin-bottom: 12px; border-left: 5px solid var(--red); border-radius: 4px; font-size: 0.8rem; text-align: left; }
         
-        .mini-stats { margin-top: 25px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .mini-card { background: #222; padding: 12px; border-radius: 4px; text-align: center; border: 1px solid #333; }
-        .mini-card small { color: #888; display: block; font-size: 0.7rem; margin-bottom: 4px; }
-        .mini-card span { font-size: 1.1rem; font-weight: bold; color: var(--ey); }
+        .mini-stats { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .mini-stats .mini-card { background: #222; padding: 10px; border-radius: 4px; text-align: center; border: 1px solid #333; }
+        .mini-card small { color: #888; display: block; font-size: 0.65rem; margin-bottom: 4px; }
+        .mini-card span { font-size: 1rem; font-weight: bold; color: var(--ey); }
         
         select, input { width: 100%; padding: 12px; margin-top: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; box-sizing: border-box; }
-        .btn-red { background: var(--red); color: white; border:none; padding:12px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%; margin-top:10px;}
+        .btn-red { background: var(--red); color: white; border:none; padding:12px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%; margin-top:15px;}
         .btn-green { background: #27ae60; color: white; border:none; padding:12px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%; margin-top:10px;}
     </style>
 </head>
@@ -66,12 +81,14 @@
         <h3 style="color:var(--ey); margin-bottom:20px; letter-spacing: 1px;">SYSTEM ACCESS</h3>
         <input type="text" id="userIn" placeholder="User ID">
         <input type="password" id="passIn" placeholder="Password">
-        <button id="loginBtn" onclick="handleLogin()">AUTHORIZE ACCESS</button>
+        <button onclick="handleLogin()">AUTHORIZE ACCESS</button>
         <p id="login-msg" style="color:var(--red); font-size:0.8rem; margin-top:15px; font-weight: bold;"></p>
     </div>
 </div>
 
 <div id="dashboard-content">
+    <div id="auditWarning">⚠️ RIG HAS NOT COVERED MANDATORY MINIMUM AUDITS (< 15)</div>
+
     <div class="header">
         <div>
             <h1 style="margin:0;">EPIROC CENTRAL VISUALIZER</h1>
@@ -94,34 +111,26 @@
             
             <label style="display:block; margin-top:15px;">Target Month</label>
             <input type="month" id="monthFilter" onchange="refresh()">
+
+            <h4 style="color:var(--ey); margin: 25px 0 5px 0; font-size: 0.85rem; border-bottom: 1px solid #333; padding-bottom: 5px;">MACHINE VITALS</h4>
+            <table class="vital-table">
+                <tr><td class="v-label">Boost Pressure</td><td id="v-boost" class="v-value">--</td></tr>
+                <tr><td class="v-label">Fuel Pressure</td><td id="v-fuel" class="v-value">--</td></tr>
+                <tr><td class="v-label">Receiver Pr</td><td id="v-receiver" class="v-value">--</td></tr>
+                <tr><td class="v-label">Hyd-Oil Temp</td><td id="v-hyd-temp" class="v-value">--</td></tr>
+            </table>
             
-            <label style="display:block; margin-top:15px;">Analysis Mode</label>
+            <label style="display:block; margin-top:20px;">Analysis Mode</label>
             <select id="chartMode" onchange="drawChart()">
-                <option value="tempVsOil">Trend: Temp / Oil / RPM (Last 10 Audits)</option>
+                <option value="tempVsOil">Trend: Temp / Oil / RPM (Last 10)</option>
                 <option value="loadVsComp">Load vs Compressor %</option>
-                <option value="setBit">DTH: Set vs Bit Pressure</option>
                 <option value="hydro_impact">Hydraulic: Impact/Feed/Damper</option>
             </select>
 
-           <h4 style="color:var(--ey); margin: 25px 0 5px 0; font-size: 0.85rem; border-bottom: 1px solid #333; padding-bottom: 5px; letter-spacing: 1px;">MACHINE VITALS</h4>
-<table style="width: 100%; border-collapse: collapse; background: #111; border: 1px solid #333;">
-    <tr>
-        <td style="padding: 10px; border-bottom: 1px solid #333; color: #888; font-size: 0.7rem; text-transform: uppercase;">Boost Pressure</td>
-        <td id="v-boost" style="padding: 10px; border-bottom: 1px solid #333; text-align: right; color: var(--ey); font-weight: bold; font-size: 0.95rem;">--</td>
-    </tr>
-    <tr>
-        <td style="padding: 10px; border-bottom: 1px solid #333; color: #888; font-size: 0.7rem; text-transform: uppercase;">Fuel Pressure</td>
-        <td id="v-fuel" style="padding: 10px; border-bottom: 1px solid #333; text-align: right; color: var(--ey); font-weight: bold; font-size: 0.95rem;">--</td>
-    </tr>
-    <tr>
-        <td style="padding: 10px; border-bottom: 1px solid #333; color: #888; font-size: 0.7rem; text-transform: uppercase;">Receiver Pr</td>
-        <td id="v-receiver" style="padding: 10px; border-bottom: 1px solid #333; text-align: right; color: var(--ey); font-weight: bold; font-size: 0.95rem;">--</td>
-    </tr>
-    <tr>
-        <td style="padding: 10px; border-bottom: 1px solid #333; color: #888; font-size: 0.7rem; text-transform: uppercase;">Hyd-Oil Temp</td>
-        <td id="v-hyd-temp" style="padding: 10px; border-bottom: 1px solid #333; text-align: right; color: var(--ey); font-weight: bold; font-size: 0.95rem;">--</td>
-    </tr>
-</table>
+            <div class="mini-stats">
+                <div class="mini-card"><small>Fleet Avg Load</small><span id="v-fleet-load">--</span></div>
+                <div class="mini-card"><small>Active Assets</small><span id="v-active-rigs">--</span></div>
+            </div>
 
             <button onclick="window.print()" class="btn-red">📄 GENERATE PDF</button>
             <button onclick="exportToExcel()" class="btn-green">📊 EXCEL EXPORT</button>
@@ -150,56 +159,36 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbwoSsqk46eMD4hvnHdKUw3io9Vv5iyZTWf7cU0JsPusio-q_ob55lRQhncu9biwjC8f/exec"; // PASTE NEW DEPLOYMENT URL HERE
+    const API = "https://script.google.com/macros/s/AKfycbwoSsqk46eMD4hvnHdKUw3io9Vv5iyZTWf7cU0JsPusio-q_ob55lRQhncu9biwjC8f/exec"; 
     let chart = null, globalData = null;
 
-    // --- 1. HANDLE LOGIN (Captures Column C Logger Detail) ---
     async function handleLogin() {
         const u = document.getElementById('userIn').value;
         const p = document.getElementById('passIn').value;
         const msg = document.getElementById('login-msg');
-        
         msg.innerText = "Authenticating...";
-        
         try {
             const res = await fetch(`${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`);
             const data = await res.json();
-            
             if(data.success) {
-                // PERSIST HIERARCHY DETAILS
-                sessionStorage.setItem('role', data.role);
-                sessionStorage.setItem('region', data.region);
-                sessionStorage.setItem('siteView', data.siteView);
-                sessionStorage.setItem('logger', data.logger);
-                
-                // DISPLAY IDENTITY: Username-LoggerDetail (Col C)
+                sessionStorage.setItem('region', data.region); sessionStorage.setItem('siteView', data.siteView); sessionStorage.setItem('user', u); sessionStorage.setItem('logger', data.logger);
                 document.getElementById('id-badge').innerText = `${u}-${data.logger}`;
-
-                document.body.classList.add('authorized');
-                document.body.style.overflow = "auto";
-                init();
-            } else {
-                msg.innerText = "Invalid ID or Password.";
-            }
-        } catch(e) {
-            msg.innerText = "Connection Failed. Check API.";
-        }
+                document.body.classList.add('authorized'); init();
+            } else { msg.innerText = "Invalid Login."; }
+        } catch(e) { msg.innerText = "Connection Failed."; }
     }
 
-    // HELPER: Ensures userRegion and siteView are sent to GS for EVERY request
     function getFullUrl(params) {
-    const reg = sessionStorage.getItem('region');
-    const site = sessionStorage.getItem('siteView');
-    // These two parameters allow the GS script to filter ParameterDb correctly
-    return `${API}?${params}&userRegion=${encodeURIComponent(reg)}&siteView=${encodeURIComponent(site)}&v=${Date.now()}`;
-}
+        const reg = sessionStorage.getItem('region'), site = sessionStorage.getItem('siteView'), u = sessionStorage.getItem('user');
+        return `${API}?${params}&userRegion=${encodeURIComponent(reg)}&siteView=${encodeURIComponent(site)}&user=${encodeURIComponent(u)}&v=${Date.now()}`;
+    }
 
     async function init() {
+        const now = new Date(); document.getElementById('monthFilter').value = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
         const mRes = await fetch(getFullUrl("get=model_list"));
         const mList = await mRes.json();
         document.getElementById('modelSelect').innerHTML = '<option value="">All Models</option>' + mList.map(m => `<option value="${m}">${m}</option>`).join('');
         await updateRigDropdown(); 
-        setInterval(refresh, 60000); 
     }
 
     async function updateRigDropdown() {
@@ -211,167 +200,52 @@
     }
 
     async function refresh() {
-    const rig = document.getElementById('rigSelect').value;
-    const month = document.getElementById('monthFilter').value;
-    const model = document.getElementById('modelSelect').value;
-    if (!rig) return;
+        const rig = document.getElementById('rigSelect').value, month = document.getElementById('monthFilter').value, model = document.getElementById('modelSelect').value;
+        if(!rig) return;
+        const [dRes, sRes] = await Promise.all([fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}`)), fetch(getFullUrl(`get=fleet_summary&month=${month}&model=${model}`))]);
+        globalData = await dRes.json(); const summary = await sRes.json();
 
-    // Show a loader if you have one, or just proceed with fetch
-    try {
-        // FETCHING DATA - Sending region/site/user for security and speed
-        const [dRes, sRes] = await Promise.all([
-            fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}`)),
-            fetch(getFullUrl(`get=fleet_summary&month=${month}&model=${model}`))
-        ]);
-
-        globalData = await dRes.json();
-        const summary = await sRes.json();
-
-        // --- 1. POPULATE SIDEBAR VITAL DATA TABLE ---
-        if (globalData.vitals) {
-            document.getElementById('v-boost').innerText = globalData.vitals.boostPr || "0";
-            document.getElementById('v-fuel').innerText = globalData.vitals.fuelPr || "0";
-            document.getElementById('v-receiver').innerText = globalData.vitals.receiverPr || "0";
-            document.getElementById('v-hyd-temp').innerText = (globalData.vitals.hydOilTemp || "0") + "°C";
+        // 1. Vitals Sidebar
+        if(globalData.vitals) {
+            document.getElementById('v-boost').innerText = globalData.vitals.boostPr;
+            document.getElementById('v-fuel').innerText = globalData.vitals.fuelPr;
+            document.getElementById('v-receiver').innerText = globalData.vitals.receiverPr;
+            document.getElementById('v-hyd-temp').innerText = globalData.vitals.hydOilTemp + "°C";
         }
 
-        // --- 2. AUDIT COMPLIANCE WARNING (30 SECONDS) ---
-        const auditAlert = document.getElementById('auditWarning');
-        if (globalData.monthlyAuditCount < 15) {
-            auditAlert.style.display = 'block';
-            setTimeout(() => { auditAlert.style.display = 'none'; }, 30000);
-        } else {
-            auditAlert.style.display = 'none';
-        }
+        // 2. Audit Warning
+        document.getElementById('auditWarning').style.display = globalData.monthlyAuditCount < 15 ? 'block' : 'none';
+        if(globalData.monthlyAuditCount < 15) setTimeout(() => document.getElementById('auditWarning').style.display = 'none', 30000);
 
-        // --- 3. UPDATE MINI-STAT CARDS ---
-        if (summary.length > 0) {
-            const avgLoad = (summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0) / summary.length).toFixed(1);
-            document.getElementById('v-fleet-load').innerText = avgLoad + "%";
-            document.getElementById('v-active-rigs').innerText = summary.length;
-            
-            const avgAir = (summary.reduce((s, r) => s + parseFloat(r.avgAirSet || 0), 0) / summary.length).toFixed(1);
-            document.getElementById('v-avg-airset').innerText = avgAir;
-            
-            const totalBit = summary.reduce((s, r) => s + parseFloat(r.avgBitPr || 0), 0);
-            const totalSet = summary.reduce((s, r) => s + parseFloat(r.avgAirSet || 0), 0.1); 
-            document.getElementById('v-air-eff').innerText = ((totalBit / totalSet) * 100).toFixed(1) + "%";
-        }
-
-        // --- 4. UPDATE MAIN SUMMARY TABLE ---
+        // 3. Stats & Table
+        document.getElementById('v-fleet-load').innerText = (summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0) / (summary.length || 1)).toFixed(1) + "%";
+        document.getElementById('v-active-rigs').innerText = summary.length;
         document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
-        document.getElementById('fleet-summary-body').innerHTML = summary.map(r => `
-            <tr>
-                <td><b>${r.id}</b></td>
-                <td>${r.monthlyAudits}</td>
-                <td>${r.avgLoad}%</td>
-                <td>${r.avgTemp}</td>
-                <td>${r.avgOil}</td>
-                <td>${r.avgFuel}</td>
-                <td>${r.avgAirSet}</td>
-                <td>${r.avgBitPr}</td>
-                <td>${r.avgImpact}</td>
-            </tr>`).join('');
-
-        // --- 5. REFRESH CHART ---
-        drawChart();
-
-    } catch (error) {
-        console.error("Data Refresh Error:", error);
-    }
-}
-
-        // FETCHING ALL DATA - NOW FILTERED BY REGION/SITE AT GS LEVEL
-        const [dRes, sRes, wRes] = await Promise.all([
-            fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}`)),
-            fetch(getFullUrl(`get=fleet_summary&month=${month}&model=${model}`)),
-            fetch(getFullUrl(`get=warnings`))
-        ]);
-
-        globalData = await dRes.json();
-        const summary = await sRes.json();
-        const alerts = await wRes.json();
-        
-        // UPDATE STAT CARDS
-        if(summary.length > 0) {
-            document.getElementById('v-fleet-load').innerText = (summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0) / summary.length).toFixed(1) + "%";
-            document.getElementById('v-active-rigs').innerText = summary.length;
-            document.getElementById('v-avg-airset').innerText = (summary.reduce((s, r) => s + parseFloat(r.avgAirSet || 0), 0) / summary.length).toFixed(1);
-            const totalBit = summary.reduce((s, r) => s + parseFloat(r.avgBitPr || 0), 0);
-            const totalSet = summary.reduce((s, r) => s + parseFloat(r.avgAirSet || 0), 0.1); 
-            document.getElementById('v-air-eff').innerText = ((totalBit/totalSet)*100).toFixed(1) + "%";
-        }
-
-        document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
-        
-        // POPULATE FILTERED SUMMARY TABLE
         document.getElementById('fleet-summary-body').innerHTML = summary.map(r => `<tr><td><b>${r.id}</b></td><td>${r.monthlyAudits}</td><td>${r.avgLoad}%</td><td>${r.avgTemp}</td><td>${r.avgOil}</td><td>${r.avgFuel}</td><td>${r.avgAirSet}</td><td>${r.avgBitPr}</td><td>${r.avgImpact}</td></tr>`).join('');
-        
-        // POPULATE FILTERED WARNINGS
-        document.getElementById('alert-list').innerHTML = alerts.length ? alerts.map(a => `<div class="alert-card"><b>${a.id}</b> <span style="float:right;">${a.time}</span><br><small>${a.temp > a.tempLimit ? 'High Temp: '+a.temp+'°C' : 'Low Oil: '+a.oil+'b'}</small></div>`).join('') : "✅ Fleet Healthy";
-        
         drawChart();
     }
 
     function drawChart() {
-        const mode = document.getElementById('chartMode').value;
-        const ctx = document.getElementById('mainChart').getContext('2d');
+        const mode = document.getElementById('chartMode').value, ctx = document.getElementById('mainChart').getContext('2d');
         if(chart) chart.destroy();
-
-        // LOGIC: Use 'history' (Last 10 Audits) for Trend mode, 'monthlyData' for others
         const isTrend = mode === 'tempVsOil';
         const d = isTrend ? globalData.history : globalData.monthlyData;
-        
         if(!d || d.length === 0) return;
-
-        let labels = d.map(x => x.date), datasets = [], scales = { 
-            y: { position: 'left', grid: {color: '#333'} }, 
-            y1: { position: 'right', grid: {drawOnChartArea: false} } 
-        };
-
-        if(mode === 'tempVsOil') {
-            datasets = [
-                { label: 'Oil bar', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'y', tension: 0.4 },
-                { label: 'Temp °C', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'y1', tension: 0.3 },
-                { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#9b59b6', yAxisID: 'y1', borderDash: [5,5] }
-            ];
-        } else if(mode === 'loadVsComp') {
-            scales.y1.display = false;
-            datasets = [
-                { label: 'Load %', data: d.map(x => x.engLoad), borderColor: '#f1c40f' },
-                { label: 'Comp %', data: d.map(x => x.compPerc), borderColor: '#3498db' }
-            ];
-        } else if(mode === 'setBit') {
-            scales.y1.display = false;
-            datasets = [
-                { label: 'Air Set', data: d.map(x => x.fullAirSet), borderColor: '#2ecc71' },
-                { label: 'Bit Pr', data: d.map(x => x.pressureFull), borderColor: '#e74c3c' }
-            ];
+        let datasets = [];
+        if(isTrend) {
+            datasets = [{ label: 'Oil', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'y' }, { label: 'Temp', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'y1' }];
         } else if(mode === 'hydro_impact') {
-    datasets = [
-        { label: 'Impact Pr', data: d.map(x => x.highImpact), borderColor: '#f1c40f' },
-        { label: 'Feed Pr', data: d.map(x => x.feedPrHigh), borderColor: '#ff5722' },
-        { label: 'Damper Pr', data: d.map(x => x.damperPrHigh), borderColor: '#3498db' }
-    ];
-}
-        chart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, scales } });
-    }
-
-    function filterTable() {
-        var input = document.getElementById("rigSearch"), filter = input.value.toUpperCase(), tr = document.getElementById("summary-tbl").getElementsByTagName("tr");
-        for (var i = 2; i < tr.length; i++) {
-            var td = tr[i].getElementsByTagName("td")[0];
-            if (td) { tr[i].style.display = (td.textContent || td.innerText).toUpperCase().indexOf(filter) > -1 ? "" : "none"; }
+            datasets = [{ label: 'Impact', data: d.map(x => x.highImpact), borderColor: '#f1c40f' }, { label: 'Feed', data: d.map(x => x.feedPrHigh), borderColor: '#ff5722' }, { label: 'Damper', data: d.map(x => x.damperPrHigh), borderColor: '#3498db' }];
+        } else if(mode === 'loadVsComp') {
+            datasets = [{ label: 'Load %', data: d.map(x => x.engLoad), borderColor: '#f1c40f' }, { label: 'Comp %', data: d.map(x => x.compPerc), borderColor: '#3498db' }];
         }
+        chart = new Chart(ctx, { type: 'line', data: { labels: d.map(x => x.date), datasets }, options: { responsive: true, maintainAspectRatio: false } });
     }
 
     function exportToExcel() {
         let table = document.getElementById("summary-tbl"), url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
-        let link = document.createElement('a'); link.download = "Epiroc_Fleet_Summary.xls"; link.href = url; link.click();
+        let link = document.createElement('a'); link.download = "Epiroc_Summary.xls"; link.href = url; link.click();
     }
 </script>
 </body>
 </html>
-
-
-
