@@ -8,7 +8,7 @@
         :root { --ey: #f1c40f; --bg: #0d0d0d; --card: #1a1a1a; --red: #ff4d4d; --green: #2ecc71; --blue: #3498db; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 20px; overflow: hidden; }
         
-        /* 1. MODERN DUAL-ROW LOGIN OVERLAY */
+        /* LOGIN OVERLAY */
         #login-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: var(--bg); display: flex; justify-content: center; align-items: center; z-index: 9999;
@@ -27,11 +27,12 @@
             border: none; font-weight: bold; border-radius: 4px; cursor: pointer; margin-top: 10px;
         }
 
-        /* 2. DASHBOARD CONTENT (HIDDEN UNTIL AUTHORIZED) */
+        /* CONTENT VISIBILITY */
         #dashboard-content { opacity: 0; transition: 0.8s; pointer-events: none; }
         .authorized #dashboard-content { opacity: 1; pointer-events: auto; }
         .authorized #login-overlay { display: none; }
 
+        /* HEADER & BADGE */
         .header { display: flex; justify-content: space-between; border-bottom: 3px solid var(--ey); padding-bottom: 10px; margin-bottom: 20px; }
         .user-badge { background: var(--ey); color: #000; padding: 4px 12px; border-radius: 15px; font-weight: bold; font-size: 0.8rem; margin-right: 15px; }
 
@@ -63,10 +64,10 @@
 <div id="login-overlay">
     <div class="login-box">
         <img src="https://raw.githubusercontent.com/Dayalvish/Epiroc-dash/main/Picture1.png" height="50">
-        <h3 style="color:var(--ey); margin-bottom:20px; letter-spacing: 1px;">SYSTEM ACCESS</h3>
+        <h3 style="color:var(--ey); margin-bottom:20px;">SYSTEM ACCESS</h3>
         <input type="text" id="userIn" placeholder="Enter User ID">
         <input type="password" id="passIn" placeholder="Enter Password">
-        <button id="loginBtn" onclick="handleLogin()">AUTHORIZE ACCESS</button>
+        <button onclick="handleLogin()">AUTHORIZE ACCESS</button>
         <p id="login-msg" style="color:var(--red); font-size:0.8rem; margin-top:15px; font-weight: bold;"></p>
     </div>
 </div>
@@ -98,9 +99,9 @@
             <label style="display:block; margin-top:15px;">Analysis Mode</label>
             <select id="chartMode" onchange="drawChart()">
                 <option value="tempVsOil">Trend: Temp / Oil / RPM (Last 10)</option>
-                <option value="loadVsComp">Monthly: Load vs Compressor %</option>
-                <option value="setBit">Monthly: Set vs Bit Pressure</option>
-                <option value="hydro_impact">Monthly: Impact/Feed/Damper</option>
+                <option value="loadVsComp">Load vs Compressor %</option>
+                <option value="setBit">DTH: Set vs Bit Pressure</option>
+                <option value="hydro_impact">Hydraulic: Impact/Feed/Damper</option>
             </select>
 
             <div class="mini-stats">
@@ -140,7 +141,7 @@
     const API = "https://script.google.com/macros/s/AKfycbwwcdbbq_beEkOI51Obh1ewkIsATSldtA0l0gZaDndy8DU5zrLROhc8H557XxVGIuVi/exec"; // REPLACE THIS
     let chart = null, globalData = null;
 
-    // --- 1. HANDLE LOGIN (Dual Row Logic) ---
+    // --- 1. LOGIN HANDLER ---
     async function handleLogin() {
         const u = document.getElementById('userIn').value;
         const p = document.getElementById('passIn').value;
@@ -153,27 +154,26 @@
             const data = await res.json();
             
             if(data.success) {
-                // Save Hierarchy Session
+                // PERSIST HIERARCHY IN SESSION
                 sessionStorage.setItem('role', data.role);
                 sessionStorage.setItem('region', data.region);
                 sessionStorage.setItem('siteView', data.siteView);
                 
-                // Update User Identity Badge
-                const identity = `${data.role}: ${data.region} ${data.siteView !== 'All' ? '['+data.siteView+']' : ''}`;
-                document.getElementById('id-badge').innerText = identity;
+                // UPDATE IDENTITY BADGE
+                document.getElementById('id-badge').innerText = `${data.role}: ${data.region} ${data.siteView !== 'All' ? '['+data.siteView+']' : ''}`;
 
                 document.body.classList.add('authorized');
                 document.body.style.overflow = "auto";
                 init();
             } else {
-                msg.innerText = "Authentication Failed. Please try again.";
+                msg.innerText = "Authentication Failed.";
             }
         } catch(e) {
-            msg.innerText = "Connection Failed. Check API Deployment.";
+            msg.innerText = "Connection Error.";
         }
     }
 
-    // Helper to auto-attach Hierarchy Headers to every request
+    // HELPER: Ensures userRegion and siteView are sent to the GS code every time
     function getFullUrl(params) {
         const r = sessionStorage.getItem('region');
         const s = sessionStorage.getItem('siteView');
@@ -202,6 +202,7 @@
         const model = document.getElementById('modelSelect').value;
         if(!rig) return;
 
+        // FETCH ALL DATA (PRE-FILTERED BY GS SCRIPT)
         const [dRes, sRes, wRes] = await Promise.all([
             fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}`)),
             fetch(getFullUrl(`get=fleet_summary&month=${month}&model=${model}`)),
@@ -212,6 +213,7 @@
         const summary = await sRes.json();
         const alerts = await wRes.json();
         
+        // UPDATE SIDE STATS
         if(summary.length > 0) {
             document.getElementById('v-fleet-load').innerText = (summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0) / summary.length).toFixed(1) + "%";
             document.getElementById('v-active-rigs').innerText = summary.length;
@@ -222,8 +224,13 @@
         }
 
         document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+        
+        // POPULATE SUMMARY TABLE
         document.getElementById('fleet-summary-body').innerHTML = summary.map(r => `<tr><td><b>${r.id}</b></td><td>${r.monthlyAudits}</td><td>${r.avgLoad}%</td><td>${r.avgTemp}</td><td>${r.avgOil}</td><td>${r.avgFuel}</td><td>${r.avgAirSet}</td><td>${r.avgBitPr}</td><td>${r.avgImpact}</td></tr>`).join('');
+        
+        // POPULATE WARNINGS
         document.getElementById('alert-list').innerHTML = alerts.length ? alerts.map(a => `<div class="alert-card"><b>${a.id}</b> <span style="float:right;">${a.time}</span><br><small>${a.temp > a.tempLimit ? 'High Temp: '+a.temp+'°C' : 'Low Oil: '+a.oil+'b'}</small></div>`).join('') : "✅ Fleet Healthy";
+        
         drawChart();
     }
 
@@ -232,7 +239,7 @@
         const ctx = document.getElementById('mainChart').getContext('2d');
         if(chart) chart.destroy();
 
-        // LOGIC: Use 'history' for Trend mode, 'monthlyData' for others
+        // Use 'history' for Trend mode, 'monthlyData' for others
         const isTrend = mode === 'tempVsOil';
         const d = isTrend ? globalData.history : globalData.monthlyData;
         
