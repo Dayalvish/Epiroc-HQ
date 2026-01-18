@@ -137,7 +137,7 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbzKoRIqY9N9RBDwqLtXgzbxQZqXaq6arKkG3dCcAR9lfy9rBvE8Ka0EpTJW_cAh9zVg/exec"; // PASTE NEW DEPLOYMENT URL HERE
+    const API = "https://script.google.com/macros/s/AKfycbymeOsfLpCplJD3QeY9epjV8kVNNgZflwLyYAHJ5gTS81Z0xdNG8NJ1u53P6IRP0o2Y/exec"; // PASTE NEW DEPLOYMENT URL HERE
     let chart = null, globalData = null;
 
     // --- 1. HANDLE LOGIN (Captures Column C Logger Detail) ---
@@ -175,10 +175,11 @@
 
     // HELPER: Ensures userRegion and siteView are sent to GS for EVERY request
     function getFullUrl(params) {
-        const r = sessionStorage.getItem('region');
-        const s = sessionStorage.getItem('siteView');
-        return `${API}?${params}&userRegion=${encodeURIComponent(r)}&siteView=${encodeURIComponent(s)}&v=${Date.now()}`;
-    }
+    const reg = sessionStorage.getItem('region');
+    const site = sessionStorage.getItem('siteView');
+    // These two parameters allow the GS script to filter ParameterDb correctly
+    return `${API}?${params}&userRegion=${encodeURIComponent(reg)}&siteView=${encodeURIComponent(site)}&v=${Date.now()}`;
+}
 
     async function init() {
         const mRes = await fetch(getFullUrl("get=model_list"));
@@ -293,3 +294,4 @@
 </script>
 </body>
 </html>
+
