@@ -2,327 +2,227 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>EPIROC CENTRAL PARAMETER VISUALIZER</title>
+    <title>Epiroc Fleet Visualizer - Production</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --ey: #f1c40f; --bg: #0d0d0d; --card: #1a1a1a; --red: #ff4d4d; --green: #2ecc71; --blue: #3498db; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 20px; overflow: hidden; }
+        :root { --bg: #0b0b0b; --panel: #141414; --gold: #f1c40f; --text: #eee; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; height: 100vh; overflow: hidden; }
         
-        /* 1. MODERN LOGIN OVERLAY */
-        #login-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: var(--bg); display: flex; justify-content: center; align-items: center; z-index: 9999;
-        }
-        .login-box {
-            background: var(--card); padding: 40px; border-radius: 12px; 
-            border-top: 5px solid var(--ey); width: 350px; text-align: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-        }
-        .login-box input { 
-            width: 100%; padding: 12px; margin: 10px 0; 
-            background: #222; border: 1px solid #444; color: #fff; border-radius: 4px; box-sizing: border-box;
-        }
-        .login-box button { 
-            width: 100%; padding: 12px; background: var(--ey); color: #000; 
-            border: none; font-weight: bold; border-radius: 4px; cursor: pointer; margin-top: 10px;
-        }
+        /* Sidebar Styles */
+        #sidebar { width: 280px; background: var(--panel); border-right: 1px solid #333; padding: 20px; display: flex; flex-direction: column; overflow-y: auto; }
+        .logo { font-size: 1.5rem; font-weight: bold; color: var(--gold); margin-bottom: 25px; text-align: center; }
+        select, input { width: 100%; padding: 10px; background: #222; color: #fff; border: 1px solid #444; margin-bottom: 15px; border-radius: 4px; }
+        
+        /* Vital Table Styles */
+        .section-title { color: var(--gold); font-size: 0.9rem; margin: 15px 0 5px 0; border-bottom: 1px solid #333; padding-bottom: 3px; }
+        .vital-table { width: 100%; border-collapse: collapse; background: #1a1a1a; }
+        .vital-table td { padding: 8px; border-bottom: 1px solid #222; font-size: 0.85rem; color: #ccc; }
+        .vital-val { text-align: right; color: var(--gold) !important; font-weight: bold; }
 
-        /* 2. DASHBOARD CONTENT VISIBILITY */
-        #dashboard-content { opacity: 0; transition: 0.8s; pointer-events: none; }
-        .authorized #dashboard-content { opacity: 1; pointer-events: auto; }
-        .authorized #login-overlay { display: none; }
+        /* Warning Popup */
+        .warning-popup {
+            display: none; position: fixed; top: 15%; left: 50%; transform: translateX(-50%);
+            background: #e74c3c; color: white; padding: 15px 30px; border-radius: 8px;
+            font-weight: bold; z-index: 10000; box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            animation: blinker 0.8s linear infinite;
+        }
+        @keyframes blinker { 50% { opacity: 0; } }
 
-        .header { display: flex; justify-content: space-between; border-bottom: 3px solid var(--ey); padding-bottom: 10px; margin-bottom: 20px; }
-        .user-badge { background: var(--ey); color: #000; padding: 4px 12px; border-radius: 15px; font-weight: bold; font-size: 0.85rem; margin-right: 15px; }
+        /* Main Content */
+        #main { flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; }
+        .chart-container { background: var(--panel); padding: 15px; border-radius: 8px; border: 1px solid #222; flex: 1; min-height: 350px; }
+        .summary-box { background: var(--panel); border-radius: 8px; padding: 15px; }
+        table.fleet-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        table.fleet-table th { background: #222; color: var(--gold); text-align: left; padding: 10px; }
+        table.fleet-table td { padding: 8px; border-bottom: 1px solid #222; }
 
-        .main-layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 20px; }
-        .sidebar, .chart-area, .warning-sidebar { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        
-        .live-dot { height: 12px; width: 12px; background: var(--green); border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; margin-right: 8px; vertical-align: middle; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); } 100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); } }
-        
-        .summary-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #111; font-size: 0.8rem; }
-        .summary-table th, .summary-table td { padding: 10px; border: 1px solid #333; text-align: center; }
-        .summary-table th { background: #222; color: var(--ey); text-transform: uppercase; font-size: 0.65rem; }
-        
-        .warning-sidebar { border: 1px solid var(--red); height: 750px; overflow-y: auto; }
-        .alert-card { background: #222; padding: 12px; margin-bottom: 12px; border-left: 5px solid var(--red); border-radius: 4px; font-size: 0.8rem; text-align: left; }
-        
-        .mini-stats { margin-top: 25px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .mini-card { background: #222; padding: 12px; border-radius: 4px; text-align: center; border: 1px solid #333; }
-        .mini-card small { color: #888; display: block; font-size: 0.7rem; margin-bottom: 4px; }
-        .mini-card span { font-size: 1.1rem; font-weight: bold; color: var(--ey); }
-        
-        select, input { width: 100%; padding: 12px; margin-top: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; box-sizing: border-box; }
-        .btn-red { background: var(--red); color: white; border:none; padding:12px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%; margin-top:10px;}
-        .btn-green { background: #27ae60; color: white; border:none; padding:12px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%; margin-top:10px;}
+        /* Overlays */
+        #loginScreen { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; z-index: 10001; }
+        .login-box { background: #141414; padding: 40px; border-radius: 12px; border: 1px solid var(--gold); width: 320px; }
+        #loader { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9999; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
 
-<div id="login-overlay">
-    <div class="login-box">
-        <img src="https://raw.githubusercontent.com/Dayalvish/Epiroc-dash/main/Picture1.png" height="50">
-        <h3 style="color:var(--ey); margin-bottom:20px; letter-spacing: 1px;">SYSTEM ACCESS</h3>
-        <input type="text" id="userIn" placeholder="User ID">
-        <input type="password" id="passIn" placeholder="Password">
-        <button id="loginBtn" onclick="handleLogin()">AUTHORIZE ACCESS</button>
-        <p id="login-msg" style="color:var(--red); font-size:0.8rem; margin-top:15px; font-weight: bold;"></p>
-    </div>
-</div>
-
-<div id="dashboard-content">
-    <div class="header">
-        <div>
-            <h1 style="margin:0;">EPIROC CENTRAL VISUALIZER</h1>
-            <div style="font-size:0.9rem;">
-                <span class="live-dot"></span>
-                <span id="id-badge" class="user-badge">IDENTIFYING...</span>
-                LIVE STATUS | <span id="last-sync">--:--:--</span>
-            </div>
-        </div>
-        <img src="https://raw.githubusercontent.com/Dayalvish/Epiroc-dash/main/Picture1.png" height="55">
-    </div>
-
-    <div class="main-layout">
-        <div class="sidebar">
-            <label>Model Classification</label>
-            <select id="modelSelect" onchange="updateRigDropdown()"><option value="">All Models</option></select>
-            
-            <label style="display:block; margin-top:15px;">Target Rig ID</label>
-            <select id="rigSelect" onchange="refresh()"><option>Loading...</option></select>
-            
-            <label style="display:block; margin-top:15px;">Target Month</label>
-            <input type="month" id="monthFilter" onchange="refresh()">
-            
-            <label style="display:block; margin-top:15px;">Analysis Mode</label>
-            <select id="chartMode" onchange="drawChart()">
-                <option value="tempVsOil">Trend: Temp / Oil / RPM (Last 10 Audits)</option>
-                <option value="loadVsComp">Load vs Compressor %</option>
-                <option value="setBit">DTH: Set vs Bit Pressure</option>
-                <option value="hydro_impact">Hydraulic: Impact/Feed/Damper</option>
-            </select>
-
-            <div class="sidebar-section">
-    <h3 style="color: #f1c40f; margin-bottom: 10px; border-bottom: 1px solid #444;">VITAL DATA</h3>
-    <div class="counter-grid">
-        <div class="counter-card">
-            <span class="label">Boost Pressure (K)</span>
-            <div id="vitalBoost" class="value">--</div>
-        </div>
-        <div class="counter-card">
-            <span class="label">Fuel Pressure (N)</span>
-            <div id="vitalFuel" class="value">--</div>
-        </div>
-        <div class="counter-card">
-            <span class="label">Receiver Pr (O)</span>
-            <div id="vitalReceiver" class="value">--</div>
-        </div>
-        <div class="counter-card">
-            <span class="label">Hyd-Oil Temp (Z)</span>
-            <div id="vitalHydTemp" class="value">--</div>
+    <div id="loginScreen">
+        <div class="login-box">
+            <div class="logo">EPIROC ACCESS</div>
+            <input type="text" id="user" placeholder="Username">
+            <input type="password" id="pass" placeholder="Password">
+            <button onclick="login()" style="width:100%; padding:10px; background:var(--gold); border:none; font-weight:bold; cursor:pointer;">LOGIN</button>
         </div>
     </div>
-</div>
 
-            <button onclick="window.print()" class="btn-red">📄 GENERATE PDF</button>
-            <button onclick="exportToExcel()" class="btn-green">📊 EXCEL EXPORT</button>
-        </div>
+    <div id="loader">🔄 FETCHING RIG DATA...</div>
+    <div id="auditWarning" class="warning-popup">⚠️ Rig Has not covered mandatory minimum Audits</div>
 
-        <div class="chart-area">
-            <div style="height:350px;"><canvas id="mainChart"></canvas></div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:30px;">
-                <h3 style="color:var(--ey); margin:0;">FLEET PERFORMANCE SUMMARY</h3>
-                <input type="text" id="rigSearch" onkeyup="filterTable()" placeholder="Search Rig ID..." style="width:200px;">
-            </div>
-            <table class="summary-table" id="summary-tbl">
-                <thead>
-                    <tr><th rowspan="2">Rig ID</th><th rowspan="2">Audits</th><th colspan="4">Engine Health</th><th colspan="3">Productivity</th></tr>
-                    <tr><th>Load %</th><th>Temp °C</th><th>Oil bar</th><th>Fuel bar</th><th>Air Set</th><th>Bit Pr</th><th>Impact</th></tr>
-                </thead>
-                <tbody id="fleet-summary-body"></tbody>
+    <aside id="sidebar">
+        <div class="logo">EPIROC VIZ</div>
+        <div id="badge" style="font-size: 0.8rem; text-align: center; margin-bottom: 20px; color: #888;"></div>
+        
+        <label>Month</label>
+        <input type="month" id="targetMonth" onchange="loadFleetSummary()">
+
+        <label>Model Classification</label>
+        <select id="modelSelect" onchange="loadRigList()"><option>Loading...</option></select>
+
+        <label>Target Rig ID</label>
+        <select id="rigSelect" onchange="loadRigDetails()"><option>Select Model First</option></select>
+
+        <div class="vital-section">
+            <h3 class="section-title">VITAL DATA</h3>
+            <table class="vital-table">
+                <tr><td>Boost Pressure</td><td id="vBoost" class="vital-val">--</td></tr>
+                <tr><td>Fuel Pressure</td><td id="vFuel" class="vital-val">--</td></tr>
+                <tr><td>Receiver Pr</td><td id="vReceiver" class="vital-val">--</td></tr>
+                <tr><td>Hyd-Oil Temp</td><td id="vHydTemp" class="vital-val">--</td></tr>
             </table>
         </div>
+    </aside>
 
-        <div class="warning-sidebar">
-            <h3 style="color:var(--red); margin:0 0 15px 0; border-bottom: 1px solid #333; padding-bottom: 10px;">⚠️ TRIGGER ALERTS</h3>
-            <div id="alert-list">Scanning...</div>
+    <main id="main">
+        <div class="chart-container">
+            <select id="analysisMode" onchange="loadRigDetails()" style="width: 250px; float: right;">
+                <option value="engine_temp">Engine: Temp & RPM</option>
+                <option value="load_comp">Load vs Compressor %</option>
+                <option value="hydro_impact">Hydraulic: Impact/Feed/Damper</option>
+            </select>
+            <canvas id="mainChart"></canvas>
         </div>
-    </div>
-</div>
+        <div class="summary-box">
+            <h3 style="color:var(--gold); margin-top:0;">Fleet Performance Summary</h3>
+            <div style="overflow-x: auto;">
+                <table class="fleet-table" id="summaryTable">
+                    <thead>
+                        <tr>
+                            <th>Rig ID</th><th>Audits</th><th>Avg Load</th><th>Avg Temp</th><th>Avg Fuel</th><th>Avg Bit</th><th>Avg Impact</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
 
-<script>
-    const API = "https://script.google.com/macros/s/AKfycbzdTvK84wSBrAKmvNUf2DpC0zCZ8HaDYt1UD41IWv6PY6mrGuUvl-loWTO6bm-FDvV4/exec"; // PASTE NEW DEPLOYMENT URL HERE
-    let chart = null, globalData = null;
+    <script>
+        const API = "https://script.google.com/macros/s/AKfycbyp-cUeZm1LeFQ6pkYsmfI2EKQAVxFw16NCBNE24B22L_USeEBIMfEbRgtv5KK2LhZM/exec";
+        let session = {};
+        let myChart = null;
 
-    // --- 1. HANDLE LOGIN (Captures Column C Logger Detail) ---
-    async function handleLogin() {
-        const u = document.getElementById('userIn').value;
-        const p = document.getElementById('passIn').value;
-        const msg = document.getElementById('login-msg');
-        
-        msg.innerText = "Authenticating...";
-        
-        try {
-            const res = await fetch(`${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`);
+        async function login() {
+            const user = document.getElementById('user').value;
+            const pass = document.getElementById('pass').value;
+            const res = await fetch(`${API}?get=login&user=${user}&pass=${pass}`);
+            const data = await res.json();
+            if(data.success) {
+                session = data;
+                session.username = user;
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('badge').innerText = `Logged in as: ${data.logger}`;
+                initDashboard();
+            } else { alert("Invalid Credentials"); }
+        }
+
+        function initDashboard() {
+            const today = new Date();
+            const month = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, '0');
+            document.getElementById('targetMonth').value = month;
+            loadModels();
+            loadFleetSummary();
+        }
+
+        async function loadModels() {
+            const res = await fetch(`${API}?get=model_list&userRegion=${session.region}&siteView=${session.siteView}&user=${session.username}`);
+            const models = await res.json();
+            let html = '<option value="All Models">All Models</option>';
+            models.forEach(m => html += `<option value="${m}">${m}</option>`);
+            document.getElementById('modelSelect').innerHTML = html;
+        }
+
+        async function loadRigList() {
+            const model = document.getElementById('modelSelect').value;
+            const res = await fetch(`${API}?get=list&model=${model}&userRegion=${session.region}&siteView=${session.siteView}&user=${session.username}`);
+            const rigs = await res.json();
+            let html = '<option value="">Select Rig</option>';
+            rigs.forEach(r => html += `<option value="${r}">${r}</option>`);
+            document.getElementById('rigSelect').innerHTML = html;
+        }
+
+        async function loadFleetSummary() {
+            document.getElementById('loader').style.display = 'flex';
+            const month = document.getElementById('targetMonth').value;
+            const model = document.getElementById('modelSelect').value;
+            const res = await fetch(`${API}?get=fleet_summary&month=${month}&model=${model}&userRegion=${session.region}&siteView=${session.siteView}&user=${session.username}`);
             const data = await res.json();
             
-            if(data.success) {
-                // PERSIST HIERARCHY DETAILS
-                sessionStorage.setItem('role', data.role);
-                sessionStorage.setItem('region', data.region);
-                sessionStorage.setItem('siteView', data.siteView);
-                sessionStorage.setItem('logger', data.logger);
-                
-                // DISPLAY IDENTITY: Username-LoggerDetail (Col C)
-                document.getElementById('id-badge').innerText = `${u}-${data.logger}`;
+            let html = '';
+            data.forEach(r => {
+                html += `<tr>
+                    <td>${r.id}</td><td>${r.monthlyAudits}</td><td>${r.avgLoad}%</td>
+                    <td>${r.avgTemp}°C</td><td>${r.avgFuel} l/h</td><td>${r.avgBitPr} bar</td><td>${r.avgImpact} bar</td>
+                </tr>`;
+            });
+            document.getElementById('summaryTable').querySelector('tbody').innerHTML = html;
+            document.getElementById('loader').style.display = 'none';
+        }
 
-                document.body.classList.add('authorized');
-                document.body.style.overflow = "auto";
-                init();
-            } else {
-                msg.innerText = "Invalid ID or Password.";
+        async function loadRigDetails() {
+            const rig = document.getElementById('rigSelect').value;
+            if(!rig) return;
+            document.getElementById('loader').style.display = 'flex';
+            const month = document.getElementById('targetMonth').value;
+            const res = await fetch(`${API}?get=details&fleetId=${rig}&month=${month}&userRegion=${session.region}&siteView=${session.siteView}&user=${session.username}`);
+            const data = await res.json();
+
+            // Vital Data Table
+            if(data.vitals) {
+                document.getElementById('vBoost').innerText = data.vitals.boostPr;
+                document.getElementById('vFuel').innerText = data.vitals.fuelPr;
+                document.getElementById('vReceiver').innerText = data.vitals.receiverPr;
+                document.getElementById('vHydTemp').innerText = data.vitals.hydOilTemp + "°C";
             }
-        } catch(e) {
-            msg.innerText = "Connection Failed. Check API.";
-        }
-    }
 
-    // HELPER: Ensures userRegion and siteView are sent to GS for EVERY request
-    function getFullUrl(params) {
-    const reg = sessionStorage.getItem('region');
-    const site = sessionStorage.getItem('siteView');
-    // These two parameters allow the GS script to filter ParameterDb correctly
-    return `${API}?${params}&userRegion=${encodeURIComponent(reg)}&siteView=${encodeURIComponent(site)}&v=${Date.now()}`;
-}
+            // Audit Warning
+            const warning = document.getElementById('auditWarning');
+            if(data.monthlyAuditCount < 15) {
+                warning.style.display = 'block';
+                setTimeout(() => warning.style.display = 'none', 30000);
+            } else { warning.style.display = 'none'; }
 
-    async function init() {
-        const mRes = await fetch(getFullUrl("get=model_list"));
-        const mList = await mRes.json();
-        document.getElementById('modelSelect').innerHTML = '<option value="">All Models</option>' + mList.map(m => `<option value="${m}">${m}</option>`).join('');
-        await updateRigDropdown(); 
-        setInterval(refresh, 60000); 
-    }
-
-    async function updateRigDropdown() {
-        const model = document.getElementById('modelSelect').value;
-        const res = await fetch(getFullUrl(`get=list&model=${encodeURIComponent(model)}`));
-        const rigs = await res.json();
-        document.getElementById('rigSelect').innerHTML = rigs.map(id => `<option value="${id}">${id}</option>`).join('');
-        refresh();
-    }
-
-    async function refresh() {
-        const rig = document.getElementById('rigSelect').value;
-        const month = document.getElementById('monthFilter').value;
-        const model = document.getElementById('modelSelect').value;
-        if(!rig) return;
-
-        // FETCHING ALL DATA - NOW FILTERED BY REGION/SITE AT GS LEVEL
-        const [dRes, sRes, wRes] = await Promise.all([
-            fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}`)),
-            fetch(getFullUrl(`get=fleet_summary&month=${month}&model=${model}`)),
-            fetch(getFullUrl(`get=warnings`))
-        ]);
-
-        globalData = await dRes.json();
-        const summary = await sRes.json();
-        const alerts = await wRes.json();
-        
-        // UPDATE STAT CARDS
-        if(summary.length > 0) {
-            document.getElementById('v-fleet-load').innerText = (summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0) / summary.length).toFixed(1) + "%";
-            document.getElementById('v-active-rigs').innerText = summary.length;
-            document.getElementById('v-avg-airset').innerText = (summary.reduce((s, r) => s + parseFloat(r.avgAirSet || 0), 0) / summary.length).toFixed(1);
-            const totalBit = summary.reduce((s, r) => s + parseFloat(r.avgBitPr || 0), 0);
-            const totalSet = summary.reduce((s, r) => s + parseFloat(r.avgAirSet || 0), 0.1); 
-            document.getElementById('v-air-eff').innerText = ((totalBit/totalSet)*100).toFixed(1) + "%";
+            drawChart(data.monthlyData);
+            document.getElementById('loader').style.display = 'none';
         }
 
-        document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
-        
-        // POPULATE FILTERED SUMMARY TABLE
-        document.getElementById('fleet-summary-body').innerHTML = summary.map(r => `<tr><td><b>${r.id}</b></td><td>${r.monthlyAudits}</td><td>${r.avgLoad}%</td><td>${r.avgTemp}</td><td>${r.avgOil}</td><td>${r.avgFuel}</td><td>${r.avgAirSet}</td><td>${r.avgBitPr}</td><td>${r.avgImpact}</td></tr>`).join('');
-        
-        // POPULATE FILTERED WARNINGS
-        document.getElementById('alert-list').innerHTML = alerts.length ? alerts.map(a => `<div class="alert-card"><b>${a.id}</b> <span style="float:right;">${a.time}</span><br><small>${a.temp > a.tempLimit ? 'High Temp: '+a.temp+'°C' : 'Low Oil: '+a.oil+'b'}</small></div>`).join('') : "✅ Fleet Healthy";
-        
-        drawChart();
-    }
+        function drawChart(rows) {
+            const mode = document.getElementById('analysisMode').value;
+            const labels = rows.map(r => r.date);
+            let datasets = [];
 
-    function drawChart() {
-        const mode = document.getElementById('chartMode').value;
-        const ctx = document.getElementById('mainChart').getContext('2d');
-        if(chart) chart.destroy();
+            if(mode === 'engine_temp') {
+                datasets = [
+                    { label: 'RPM', data: rows.map(r => r.engRpm), borderColor: '#f1c40f', yAxisID: 'y' },
+                    { label: 'Temp', data: rows.map(r => r.engTemp), borderColor: '#e74c3c', yAxisID: 'y1' }
+                ];
+            } else if(mode === 'load_comp') {
+                datasets = [
+                    { label: 'Load %', data: rows.map(r => r.engLoad), borderColor: '#2ecc71' },
+                    { label: 'Compressor %', data: rows.map(r => r.compPerc), borderColor: '#3498db' }
+                ];
+            } else if(mode === 'hydro_impact') {
+                datasets = [
+                    { label: 'Impact', data: rows.map(r => r.highImpact), borderColor: '#f1c40f' },
+                    { label: 'Feed', data: rows.map(r => r.feedPrHigh), borderColor: '#e67e22' },
+                    { label: 'Damper', data: rows.map(r => r.damperPrHigh), borderColor: '#3498db' }
+                ];
+            }
 
-        // LOGIC: Use 'history' (Last 10 Audits) for Trend mode, 'monthlyData' for others
-        const isTrend = mode === 'tempVsOil';
-        const d = isTrend ? globalData.history : globalData.monthlyData;
-        
-        if(!d || d.length === 0) return;
-
-        let labels = d.map(x => x.date), datasets = [], scales = { 
-            y: { position: 'left', grid: {color: '#333'} }, 
-            y1: { position: 'right', grid: {drawOnChartArea: false} } 
-        };
-
-        if(mode === 'tempVsOil') {
-            datasets = [
-                { label: 'Oil bar', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'y', tension: 0.4 },
-                { label: 'Temp °C', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'y1', tension: 0.3 },
-                { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#9b59b6', yAxisID: 'y1', borderDash: [5,5] }
-            ];
-        } else if(mode === 'loadVsComp') {
-            scales.y1.display = false;
-            datasets = [
-                { label: 'Load %', data: d.map(x => x.engLoad), borderColor: '#f1c40f' },
-                { label: 'Comp %', data: d.map(x => x.compPerc), borderColor: '#3498db' }
-            ];
-        } else if(mode === 'setBit') {
-            scales.y1.display = false;
-            datasets = [
-                { label: 'Air Set', data: d.map(x => x.fullAirSet), borderColor: '#2ecc71' },
-                { label: 'Bit Pr', data: d.map(x => x.pressureFull), borderColor: '#e74c3c' }
-            ];
-        } else if(mode === 'hydro_impact') {
-    datasets = [
-        { label: 'Impact Pr', data: d.map(x => x.highImpact), borderColor: '#f1c40f' },
-        { label: 'Feed Pr', data: d.map(x => x.feedPrHigh), borderColor: '#ff5722' },
-        { label: 'Damper Pr', data: d.map(x => x.damperPrHigh), borderColor: '#3498db' }
-    ];
-}
-        chart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, scales } });
-    }
-
-    function filterTable() {
-        var input = document.getElementById("rigSearch"), filter = input.value.toUpperCase(), tr = document.getElementById("summary-tbl").getElementsByTagName("tr");
-        for (var i = 2; i < tr.length; i++) {
-            var td = tr[i].getElementsByTagName("td")[0];
-            if (td) { tr[i].style.display = (td.textContent || td.innerText).toUpperCase().indexOf(filter) > -1 ? "" : "none"; }
+            if(myChart) myChart.destroy();
+            myChart = new Chart(document.getElementById('mainChart'), {
+                type: 'line',
+                data: { labels, datasets },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y1: { position: 'right', grid: { display: false } } } }
+            });
         }
-    }
-
-    function exportToExcel() {
-        let table = document.getElementById("summary-tbl"), url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
-        let link = document.createElement('a'); link.download = "Epiroc_Fleet_Summary.xls"; link.href = url; link.click();
-    }
-</script>
+    </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
