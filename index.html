@@ -103,12 +103,27 @@
                 <option value="hydro_impact">Hydraulic: Impact/Feed/Damper</option>
             </select>
 
-            <div class="mini-stats">
-                <div class="mini-card"><small>Fleet Avg Load</small><span id="v-fleet-load">--</span></div>
-                <div class="mini-card"><small>Active Assets</small><span id="v-active-rigs">--</span></div>
-                <div class="mini-card"><small>Avg Air Set</small><span id="v-avg-airset">--</span></div>
-                <div class="mini-card"><small>Air Efficiency</small><span id="v-air-eff">--</span></div>
-            </div>
+            <div class="sidebar-section">
+    <h3 style="color: #f1c40f; margin-bottom: 10px; border-bottom: 1px solid #444;">VITAL DATA</h3>
+    <div class="counter-grid">
+        <div class="counter-card">
+            <span class="label">Boost Pressure (K)</span>
+            <div id="vitalBoost" class="value">--</div>
+        </div>
+        <div class="counter-card">
+            <span class="label">Fuel Pressure (N)</span>
+            <div id="vitalFuel" class="value">--</div>
+        </div>
+        <div class="counter-card">
+            <span class="label">Receiver Pr (O)</span>
+            <div id="vitalReceiver" class="value">--</div>
+        </div>
+        <div class="counter-card">
+            <span class="label">Hyd-Oil Temp (Z)</span>
+            <div id="vitalHydTemp" class="value">--</div>
+        </div>
+    </div>
+</div>
 
             <button onclick="window.print()" class="btn-red">📄 GENERATE PDF</button>
             <button onclick="exportToExcel()" class="btn-green">📊 EXCEL EXPORT</button>
@@ -137,7 +152,7 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbzbm1qVEGDI-Q1aQQVhd7GJl0605x_Og4vatsnph3zZjAbuam_YZq9EEOUUpgDrAHHg/exec"; // PASTE NEW DEPLOYMENT URL HERE
+    const API = "https://script.google.com/macros/s/AKfycbzdTvK84wSBrAKmvNUf2DpC0zCZ8HaDYt1UD41IWv6PY6mrGuUvl-loWTO6bm-FDvV4/exec"; // PASTE NEW DEPLOYMENT URL HERE
     let chart = null, globalData = null;
 
     // --- 1. HANDLE LOGIN (Captures Column C Logger Detail) ---
@@ -294,6 +309,7 @@
 </script>
 </body>
 </html>
+
 
 
 
