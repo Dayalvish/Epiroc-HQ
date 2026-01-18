@@ -103,45 +103,25 @@
                 <option value="hydro_impact">Hydraulic: Impact/Feed/Damper</option>
             </select>
 
-           return createJsonResponse({
-      monthlyAuditCount: mRows.length,
-      thresholds: { 
-        model: tRow[1] || "N/A", 
-        maxTemp: tRow[2] || "N/A", 
-        minOil: tRow[3] || "N/A", 
-        maxFuel: tRow[4] || "N/A" 
-      },
-      vitals: { 
-        boostPr: latest[10] || 0,      // Column K
-        fuelPr: latest[13] || 0,       // Column N
-        receiverPr: latest[14] || 0,   // Column O
-        hydOilTemp: latest[25] || 0    // Column Z
-      },
-      history: rRowsFull.slice(-10).map(r => ({ 
-        date: Utilities.formatDate(new Date(r[6]), "GMT+5:30", "dd-MMM"), 
-        rpm: r[7], 
-        temp: r[8], 
-        oil: r[11] 
-      })),
-      monthlyData: mRows.map(r => ({
-        date: Utilities.formatDate(new Date(r[6]), "GMT+5:30", "dd-MMM"),
-        engRpm: r[7], 
-        engTemp: r[8], 
-        engOil: r[11], 
-        engLoad: r[9], 
-        compPerc: r[21],
-        fullAirSet: r[18], 
-        pressureFull: r[19], 
-        feedPrHigh: r[29],     // Column AD
-        highImpact: r[32],     // Column AG
-        damperPrHigh: r[33]    // Column AH
-      }))
-    });
-
-  } catch (err) { 
-    return createJsonResponse({ error: err.message }); 
-  }
-}
+           <h4 style="color:var(--ey); margin: 25px 0 5px 0; font-size: 0.85rem; border-bottom: 1px solid #333; padding-bottom: 5px; letter-spacing: 1px;">MACHINE VITALS</h4>
+<table style="width: 100%; border-collapse: collapse; background: #111; border: 1px solid #333;">
+    <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #333; color: #888; font-size: 0.7rem; text-transform: uppercase;">Boost Pressure</td>
+        <td id="v-boost" style="padding: 10px; border-bottom: 1px solid #333; text-align: right; color: var(--ey); font-weight: bold; font-size: 0.95rem;">--</td>
+    </tr>
+    <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #333; color: #888; font-size: 0.7rem; text-transform: uppercase;">Fuel Pressure</td>
+        <td id="v-fuel" style="padding: 10px; border-bottom: 1px solid #333; text-align: right; color: var(--ey); font-weight: bold; font-size: 0.95rem;">--</td>
+    </tr>
+    <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #333; color: #888; font-size: 0.7rem; text-transform: uppercase;">Receiver Pr</td>
+        <td id="v-receiver" style="padding: 10px; border-bottom: 1px solid #333; text-align: right; color: var(--ey); font-weight: bold; font-size: 0.95rem;">--</td>
+    </tr>
+    <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #333; color: #888; font-size: 0.7rem; text-transform: uppercase;">Hyd-Oil Temp</td>
+        <td id="v-hyd-temp" style="padding: 10px; border-bottom: 1px solid #333; text-align: right; color: var(--ey); font-weight: bold; font-size: 0.95rem;">--</td>
+    </tr>
+</table>
 
             <button onclick="window.print()" class="btn-red">📄 GENERATE PDF</button>
             <button onclick="exportToExcel()" class="btn-green">📊 EXCEL EXPORT</button>
@@ -231,10 +211,75 @@
     }
 
     async function refresh() {
-        const rig = document.getElementById('rigSelect').value;
-        const month = document.getElementById('monthFilter').value;
-        const model = document.getElementById('modelSelect').value;
-        if(!rig) return;
+    const rig = document.getElementById('rigSelect').value;
+    const month = document.getElementById('monthFilter').value;
+    const model = document.getElementById('modelSelect').value;
+    if (!rig) return;
+
+    // Show a loader if you have one, or just proceed with fetch
+    try {
+        // FETCHING DATA - Sending region/site/user for security and speed
+        const [dRes, sRes] = await Promise.all([
+            fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}`)),
+            fetch(getFullUrl(`get=fleet_summary&month=${month}&model=${model}`))
+        ]);
+
+        globalData = await dRes.json();
+        const summary = await sRes.json();
+
+        // --- 1. POPULATE SIDEBAR VITAL DATA TABLE ---
+        if (globalData.vitals) {
+            document.getElementById('v-boost').innerText = globalData.vitals.boostPr || "0";
+            document.getElementById('v-fuel').innerText = globalData.vitals.fuelPr || "0";
+            document.getElementById('v-receiver').innerText = globalData.vitals.receiverPr || "0";
+            document.getElementById('v-hyd-temp').innerText = (globalData.vitals.hydOilTemp || "0") + "°C";
+        }
+
+        // --- 2. AUDIT COMPLIANCE WARNING (30 SECONDS) ---
+        const auditAlert = document.getElementById('auditWarning');
+        if (globalData.monthlyAuditCount < 15) {
+            auditAlert.style.display = 'block';
+            setTimeout(() => { auditAlert.style.display = 'none'; }, 30000);
+        } else {
+            auditAlert.style.display = 'none';
+        }
+
+        // --- 3. UPDATE MINI-STAT CARDS ---
+        if (summary.length > 0) {
+            const avgLoad = (summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0) / summary.length).toFixed(1);
+            document.getElementById('v-fleet-load').innerText = avgLoad + "%";
+            document.getElementById('v-active-rigs').innerText = summary.length;
+            
+            const avgAir = (summary.reduce((s, r) => s + parseFloat(r.avgAirSet || 0), 0) / summary.length).toFixed(1);
+            document.getElementById('v-avg-airset').innerText = avgAir;
+            
+            const totalBit = summary.reduce((s, r) => s + parseFloat(r.avgBitPr || 0), 0);
+            const totalSet = summary.reduce((s, r) => s + parseFloat(r.avgAirSet || 0), 0.1); 
+            document.getElementById('v-air-eff').innerText = ((totalBit / totalSet) * 100).toFixed(1) + "%";
+        }
+
+        // --- 4. UPDATE MAIN SUMMARY TABLE ---
+        document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+        document.getElementById('fleet-summary-body').innerHTML = summary.map(r => `
+            <tr>
+                <td><b>${r.id}</b></td>
+                <td>${r.monthlyAudits}</td>
+                <td>${r.avgLoad}%</td>
+                <td>${r.avgTemp}</td>
+                <td>${r.avgOil}</td>
+                <td>${r.avgFuel}</td>
+                <td>${r.avgAirSet}</td>
+                <td>${r.avgBitPr}</td>
+                <td>${r.avgImpact}</td>
+            </tr>`).join('');
+
+        // --- 5. REFRESH CHART ---
+        drawChart();
+
+    } catch (error) {
+        console.error("Data Refresh Error:", error);
+    }
+}
 
         // FETCHING ALL DATA - NOW FILTERED BY REGION/SITE AT GS LEVEL
         const [dRes, sRes, wRes] = await Promise.all([
@@ -327,5 +372,6 @@
 </script>
 </body>
 </html>
+
 
 
