@@ -137,7 +137,7 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbyFzz2idV9W3DmDtp-l6kE8XlxcrJDHRWBc3llhpjCcxOjrgDX9MNqrLCcKq1z8wLgn/exec"; // PASTE NEW DEPLOYMENT URL HERE
+    const API = "https://script.google.com/macros/s/AKfycby4-0hzmFeYFBsLUtCZKTNBFf4lLCqLI8JeBix-LAHAT4N7gUuMttMlYvFuIwi2a8EN/exec"; // PASTE NEW DEPLOYMENT URL HERE
     let chart = null, globalData = null;
 
     // --- 1. HANDLE LOGIN (Captures Column C Logger Detail) ---
@@ -270,12 +270,12 @@
                 { label: 'Bit Pr', data: d.map(x => x.pressureFull), borderColor: '#e74c3c' }
             ];
         } else if(mode === 'hydro_impact') {
-            datasets = [
-                { label: 'Impact', data: d.map(x => x.highImpact), borderColor: '#f1c40f' },
-                { label: 'Feed', data: d.map(x => x.feedPrHigh), borderColor: '#ff5722' },
-                { label: 'Damper', data: d.map(x => x.damperPrHigh), borderColor: '#3498db' }
-            ];
-        }
+    datasets = [
+        { label: 'Impact Pr', data: d.map(x => x.highImpact), borderColor: '#f1c40f' },
+        { label: 'Feed Pr', data: d.map(x => x.feedPrHigh), borderColor: '#ff5722' },
+        { label: 'Damper Pr', data: d.map(x => x.damperPrHigh), borderColor: '#3498db' }
+    ];
+}
         chart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, scales } });
     }
 
@@ -294,6 +294,7 @@
 </script>
 </body>
 </html>
+
 
 
 
