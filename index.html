@@ -8,7 +8,7 @@
         :root { --ey: #f1c40f; --bg: #0d0d0d; --card: #1a1a1a; --red: #ff4d4d; --green: #2ecc71; --blue: #3498db; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 20px; overflow: hidden; }
         
-        /* LOGIN OVERLAY */
+        /* 1. MODERN LOGIN OVERLAY */
         #login-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: var(--bg); display: flex; justify-content: center; align-items: center; z-index: 9999;
@@ -27,14 +27,13 @@
             border: none; font-weight: bold; border-radius: 4px; cursor: pointer; margin-top: 10px;
         }
 
-        /* CONTENT VISIBILITY */
+        /* 2. DASHBOARD CONTENT VISIBILITY */
         #dashboard-content { opacity: 0; transition: 0.8s; pointer-events: none; }
         .authorized #dashboard-content { opacity: 1; pointer-events: auto; }
         .authorized #login-overlay { display: none; }
 
-        /* HEADER & BADGE */
         .header { display: flex; justify-content: space-between; border-bottom: 3px solid var(--ey); padding-bottom: 10px; margin-bottom: 20px; }
-        .user-badge { background: var(--ey); color: #000; padding: 4px 12px; border-radius: 15px; font-weight: bold; font-size: 0.8rem; margin-right: 15px; }
+        .user-badge { background: var(--ey); color: #000; padding: 4px 12px; border-radius: 15px; font-weight: bold; font-size: 0.85rem; margin-right: 15px; }
 
         .main-layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 20px; }
         .sidebar, .chart-area, .warning-sidebar { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
@@ -64,10 +63,10 @@
 <div id="login-overlay">
     <div class="login-box">
         <img src="https://raw.githubusercontent.com/Dayalvish/Epiroc-dash/main/Picture1.png" height="50">
-        <h3 style="color:var(--ey); margin-bottom:20px;">SYSTEM ACCESS</h3>
-        <input type="text" id="userIn" placeholder="Enter User ID">
-        <input type="password" id="passIn" placeholder="Enter Password">
-        <button onclick="handleLogin()">AUTHORIZE ACCESS</button>
+        <h3 style="color:var(--ey); margin-bottom:20px; letter-spacing: 1px;">SYSTEM ACCESS</h3>
+        <input type="text" id="userIn" placeholder="User ID">
+        <input type="password" id="passIn" placeholder="Password">
+        <button id="loginBtn" onclick="handleLogin()">AUTHORIZE ACCESS</button>
         <p id="login-msg" style="color:var(--red); font-size:0.8rem; margin-top:15px; font-weight: bold;"></p>
     </div>
 </div>
@@ -98,7 +97,7 @@
             
             <label style="display:block; margin-top:15px;">Analysis Mode</label>
             <select id="chartMode" onchange="drawChart()">
-                <option value="tempVsOil">Trend: Temp / Oil / RPM (Last 10)</option>
+                <option value="tempVsOil">Trend: Temp / Oil / RPM (Last 10 Audits)</option>
                 <option value="loadVsComp">Load vs Compressor %</option>
                 <option value="setBit">DTH: Set vs Bit Pressure</option>
                 <option value="hydro_impact">Hydraulic: Impact/Feed/Damper</option>
@@ -138,42 +137,43 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbyE-Lqbrd_gSYkK4_98vJFwAUF-nkrWUFnb4plZdXr5XKjxrCVsQt8sYr7qkHZ9Fvil/exec"; // REPLACE THIS
+    const API = "https://script.google.com/macros/s/AKfycbzKoRIqY9N9RBDwqLtXgzbxQZqXaq6arKkG3dCcAR9lfy9rBvE8Ka0EpTJW_cAh9zVg/exec"; // PASTE NEW DEPLOYMENT URL HERE
     let chart = null, globalData = null;
 
-    // --- 1. LOGIN HANDLER ---
+    // --- 1. HANDLE LOGIN (Captures Column C Logger Detail) ---
     async function handleLogin() {
         const u = document.getElementById('userIn').value;
         const p = document.getElementById('passIn').value;
         const msg = document.getElementById('login-msg');
         
-        msg.innerText = "Verifying Credentials...";
+        msg.innerText = "Authenticating...";
         
         try {
             const res = await fetch(`${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`);
             const data = await res.json();
             
             if(data.success) {
-                // PERSIST HIERARCHY IN SESSION
+                // PERSIST HIERARCHY DETAILS
                 sessionStorage.setItem('role', data.role);
                 sessionStorage.setItem('region', data.region);
                 sessionStorage.setItem('siteView', data.siteView);
+                sessionStorage.setItem('logger', data.logger);
                 
-                // UPDATE IDENTITY BADGE
-                document.getElementById('id-badge').innerText = `${data.role}: ${data.region} ${data.siteView !== 'All' ? '['+data.siteView+']' : ''}`;
+                // DISPLAY IDENTITY: Username-LoggerDetail (Col C)
+                document.getElementById('id-badge').innerText = `${u}-${data.logger}`;
 
                 document.body.classList.add('authorized');
                 document.body.style.overflow = "auto";
                 init();
             } else {
-                msg.innerText = "Authentication Failed.";
+                msg.innerText = "Invalid ID or Password.";
             }
         } catch(e) {
-            msg.innerText = "Connection Error.";
+            msg.innerText = "Connection Failed. Check API.";
         }
     }
 
-    // HELPER: Ensures userRegion and siteView are sent to the GS code every time
+    // HELPER: Ensures userRegion and siteView are sent to GS for EVERY request
     function getFullUrl(params) {
         const r = sessionStorage.getItem('region');
         const s = sessionStorage.getItem('siteView');
@@ -202,7 +202,7 @@
         const model = document.getElementById('modelSelect').value;
         if(!rig) return;
 
-        // FETCH ALL DATA (PRE-FILTERED BY GS SCRIPT)
+        // FETCHING ALL DATA - NOW FILTERED BY REGION/SITE AT GS LEVEL
         const [dRes, sRes, wRes] = await Promise.all([
             fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}`)),
             fetch(getFullUrl(`get=fleet_summary&month=${month}&model=${model}`)),
@@ -213,7 +213,7 @@
         const summary = await sRes.json();
         const alerts = await wRes.json();
         
-        // UPDATE SIDE STATS
+        // UPDATE STAT CARDS
         if(summary.length > 0) {
             document.getElementById('v-fleet-load').innerText = (summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0) / summary.length).toFixed(1) + "%";
             document.getElementById('v-active-rigs').innerText = summary.length;
@@ -225,10 +225,10 @@
 
         document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
         
-        // POPULATE SUMMARY TABLE
+        // POPULATE FILTERED SUMMARY TABLE
         document.getElementById('fleet-summary-body').innerHTML = summary.map(r => `<tr><td><b>${r.id}</b></td><td>${r.monthlyAudits}</td><td>${r.avgLoad}%</td><td>${r.avgTemp}</td><td>${r.avgOil}</td><td>${r.avgFuel}</td><td>${r.avgAirSet}</td><td>${r.avgBitPr}</td><td>${r.avgImpact}</td></tr>`).join('');
         
-        // POPULATE WARNINGS
+        // POPULATE FILTERED WARNINGS
         document.getElementById('alert-list').innerHTML = alerts.length ? alerts.map(a => `<div class="alert-card"><b>${a.id}</b> <span style="float:right;">${a.time}</span><br><small>${a.temp > a.tempLimit ? 'High Temp: '+a.temp+'°C' : 'Low Oil: '+a.oil+'b'}</small></div>`).join('') : "✅ Fleet Healthy";
         
         drawChart();
@@ -239,10 +239,12 @@
         const ctx = document.getElementById('mainChart').getContext('2d');
         if(chart) chart.destroy();
 
-        // Use 'history' for Trend mode, 'monthlyData' for others
+        // LOGIC: Use 'history' (Last 10 Audits) for Trend mode, 'monthlyData' for others
         const isTrend = mode === 'tempVsOil';
         const d = isTrend ? globalData.history : globalData.monthlyData;
         
+        if(!d || d.length === 0) return;
+
         let labels = d.map(x => x.date), datasets = [], scales = { 
             y: { position: 'left', grid: {color: '#333'} }, 
             y1: { position: 'right', grid: {drawOnChartArea: false} } 
@@ -291,5 +293,3 @@
 </script>
 </body>
 </html>
-
-
