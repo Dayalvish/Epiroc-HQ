@@ -103,12 +103,20 @@
                 <option value="hydro_impact">Hydraulic: Impact/Feed/Damper</option>
             </select>
 
-            <div class="mini-stats">
-                <div class="mini-card"><small>Fleet Avg Load</small><span id="v-fleet-load">--</span></div>
-                <div class="mini-card"><small>Active Assets</small><span id="v-active-rigs">--</span></div>
-                <div class="mini-card"><small>Avg Air Set</small><span id="v-avg-airset">--</span></div>
-                <div class="mini-card"><small>Air Efficiency</small><span id="v-air-eff">--</span></div>
-            </div>
+            return createJsonResponse({
+      monthlyAuditCount: mRows.length,
+      thresholds: { model: tRow[1] || "N/A", maxTemp: tRow[2] || "N/A", minOil: tRow[3] || "N/A", maxFuel: tRow[4] || "N/A" },
+      vitals: { boostPr: latest[10] || 0, fuelPr: latest[13] || 0, receiverPr: latest[14] || 0, hydOilTemp: latest[25] || 0 },
+      history: rRowsFull.slice(-10).map(r => ({ date: Utilities.formatDate(new Date(r[6]), "GMT+5:30", "dd-MMM"), rpm: r[7], temp: r[8], oil: r[11] })),
+      monthlyData: mRows.map(r => ({
+        date: Utilities.formatDate(new Date(r[6]), "GMT+5:30", "dd-MMM"),
+        engRpm: r[7], engTemp: r[8], engOil: r[11], engLoad: r[9], compPerc: r[21],
+        fullAirSet: r[18], pressureFull: r[19], 
+        feedPrHigh: r[29], highImpact: r[32], damperPrHigh: r[33] 
+      }))
+    });
+  } catch (err) { return createJsonResponse({ error: err.message }); }
+}
 
             <button onclick="window.print()" class="btn-red">📄 GENERATE PDF</button>
             <button onclick="exportToExcel()" class="btn-green">📊 EXCEL EXPORT</button>
@@ -137,7 +145,7 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbwteWfnTKB7grBMBXOeGIFfpTIvml568OJpXEIB3fQ-xCJ_5qkgq2-bq9mShV3SnH0F/exec"; // PASTE NEW DEPLOYMENT URL HERE
+    const API = "https://script.google.com/macros/s/AKfycbwoSsqk46eMD4hvnHdKUw3io9Vv5iyZTWf7cU0JsPusio-q_ob55lRQhncu9biwjC8f/exec"; // PASTE NEW DEPLOYMENT URL HERE
     let chart = null, globalData = null;
 
     // --- 1. HANDLE LOGIN (Captures Column C Logger Detail) ---
@@ -294,3 +302,4 @@
 </script>
 </body>
 </html>
+
