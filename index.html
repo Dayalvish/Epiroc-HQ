@@ -103,7 +103,9 @@
             <label style="display:block; margin-top:15px;">Target Month</label>
             <input type="month" id="monthFilter" onchange="refresh()">
 
-            <h4 style="color:var(--ey); margin: 25px 0 5px 0; font-size: 0.85rem; border-bottom: 1px solid #333; padding-bottom: 5px;">MACHINE VITALS</h4>
+            <h4 style="color:var(--ey); margin: 25px 0 5px 0; font-size: 0.85rem; border-bottom: 1px solid #333; padding-bottom: 5px;">
+    MACHINE VITALS <span id="v-date" style="float:right; color:#888; font-size:0.7rem; font-weight:normal;">--</span>
+</h4>
             <table class="vital-table">
                 <tr><td class="v-label">Boost Pressure</td><td id="v-boost" class="v-value">--</td></tr>
                 <tr><td class="v-label">Fuel Pressure</td><td id="v-fuel" class="v-value">--</td></tr>
@@ -184,28 +186,61 @@
     }
 
     async function refresh() {
-        const rig = document.getElementById('rigSelect').value, month = document.getElementById('monthFilter').value, model = document.getElementById('modelSelect').value;
-        if(!rig) return;
-        const [dRes, sRes] = await Promise.all([fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}`)), fetch(getFullUrl(`get=fleet_summary&month=${month}&model=${model}`))]);
-        globalData = await dRes.json(); const summary = await sRes.json();
+    const rig = document.getElementById('rigSelect').value;
+    const month = document.getElementById('monthFilter').value;
+    const model = document.getElementById('modelSelect').value;
+    if(!rig) return;
 
-        // Populate Sidebar
-        document.getElementById('v-boost').innerText = globalData.vitals.boostPr;
-        document.getElementById('v-fuel').innerText = globalData.vitals.fuelPr;
-        document.getElementById('v-receiver').innerText = globalData.vitals.receiverPr;
-        document.getElementById('v-hyd-temp').innerText = globalData.vitals.hydOilTemp + "°C";
+    try {
+        const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}`));
+        const data = await res.json();
+        globalData = data;
 
-        // Warnings
-        document.getElementById('auditWarning').style.display = globalData.monthlyAuditCount < 15 ? 'block' : 'none';
-        if(globalData.monthlyAuditCount < 15) setTimeout(() => document.getElementById('auditWarning').style.display = 'none', 30000);
+        // 1. UPDATE VITAL DATE (Top of sidebar table)
+        document.getElementById('v-date').innerText = data.vitals.date;
 
-        // Stats & Table
-        document.getElementById('v-fleet-load').innerText = (summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0) / (summary.length || 1)).toFixed(1) + "%";
-        document.getElementById('v-active-rigs').innerText = summary.length;
+        // 2. UPDATE MACHINE VITALS TABLE
+        document.getElementById('v-boost').innerText = data.vitals.boostPr;
+        document.getElementById('v-fuel').innerText = data.vitals.fuelPr;
+        document.getElementById('v-receiver').innerText = data.vitals.receiverPr;
+        document.getElementById('v-hyd-temp').innerText = data.vitals.hydOilTemp + "°C";
+
+        // 3. UPDATE TRIGGER ALERTS (Right Sidebar)
+        const alertList = document.getElementById('alert-list');
+        if(data.alerts && data.alerts.length > 0) {
+            alertList.innerHTML = data.alerts.map(a => `
+                <div class="alert-card" style="margin-bottom:10px; border-left: 5px solid var(--red);">
+                    <div style="display:flex; justify-content:space-between;">
+                        <b>${a.id}</b>
+                        <span style="color:#888; font-size:0.7rem;">${a.time}</span>
+                    </div>
+                    <small>Temp: ${a.temp}°C | Oil: ${a.oil} bar</small>
+                </div>
+            `).join('');
+        } else {
+            alertList.innerHTML = "<div style='color:#888; text-align:center; margin-top:20px;'>✅ Fleet Healthy</div>";
+        }
+
+        // 4. AUDIT COMPLIANCE WARNING
+        const warning = document.getElementById('auditWarning');
+        if(data.monthlyAuditCount < 15) {
+            warning.style.display = 'block';
+            setTimeout(() => { warning.style.display = 'none'; }, 30000);
+        } else {
+            warning.style.display = 'none';
+        }
+
+        // 5. UPDATE LAST SYNC TIME
         document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
-        document.getElementById('fleet-summary-body').innerHTML = summary.map(r => `<tr><td><b>${r.id}</b></td><td>${r.monthlyAudits}</td><td>${r.avgLoad}%</td><td>${r.avgTemp}</td><td>${r.avgOil}</td><td>${r.avgFuel}</td><td>${r.avgAirSet}</td><td>${r.avgBitPr}</td><td>${r.avgImpact}</td></tr>`).join('');
+
+        // 6. REDRAW CHART
         drawChart();
+
+    } catch (e) {
+        console.error("Refresh Error:", e);
+        document.getElementById('alert-list').innerText = "Connection Error";
     }
+}
 
     function drawChart() {
     const mode = document.getElementById('chartMode').value;
@@ -269,5 +304,6 @@
 </script>
 </body>
 </html>
+
 
 
