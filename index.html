@@ -2,50 +2,68 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>EPIROC CENTRAL VISUALIZER</title>
+    <title>EPIROC CENTRAL PARAMETER VISUALIZER</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root { --ey: #f1c40f; --bg: #0d0d0d; --card: #1a1a1a; --red: #ff4d4d; --green: #2ecc71; --blue: #3498db; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 20px; overflow: hidden; }
         
+        /* LOGIN OVERLAY */
         #login-overlay { position: fixed; inset: 0; background: var(--bg); display: flex; justify-content: center; align-items: center; z-index: 9999; }
         .login-box { background: var(--card); padding: 40px; border-radius: 12px; border-top: 5px solid var(--ey); width: 350px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
         .login-box input { width: 100%; padding: 12px; margin: 10px 0; background: #222; border: 1px solid #444; color: #fff; border-radius: 4px; box-sizing: border-box; }
         .login-box button { width: 100%; padding: 12px; background: var(--ey); color: #000; border: none; font-weight: bold; border-radius: 4px; cursor: pointer; margin-top: 10px; }
 
+        /* DASHBOARD TRANSITION */
         #dashboard-content { opacity: 0; transition: 0.8s; pointer-events: none; }
         .authorized #dashboard-content { opacity: 1; pointer-events: auto; }
         .authorized #login-overlay { display: none; }
 
-        /* CENTERED HEADER */
-        .header { text-align: center; border-bottom: 3px solid var(--ey); padding-bottom: 15px; margin-bottom: 20px; }
-        .user-badge { background: var(--ey); color: #000; padding: 4px 12px; border-radius: 15px; font-weight: bold; font-size: 0.85rem; display: inline-block; margin-top: 10px; }
+        /* CENTERED HEADER GRID */
+        .header { 
+            display: grid; 
+            grid-template-columns: 280px 1fr 280px; 
+            align-items: center; 
+            border-bottom: 3px solid var(--ey); 
+            padding-bottom: 15px; 
+            margin-bottom: 20px; 
+        }
+        .header-left { display: flex; flex-direction: column; align-items: flex-start; }
+        .header-center { text-align: center; }
+        .header-center h1 { margin: 0; font-size: 1.8rem; letter-spacing: 2px; }
+        .header-right { text-align: right; visibility: hidden; }
 
+        .user-badge { background: var(--ey); color: #000; padding: 4px 12px; border-radius: 15px; font-weight: bold; font-size: 0.8rem; margin-top: 5px; display: inline-block; }
+        .live-dot { height: 10px; width: 10px; background: var(--green); border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; margin-right: 5px; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); } 100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); } }
+
+        /* MAIN LAYOUT */
         .main-layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 20px; }
-        .sidebar, .chart-area, .warning-sidebar { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); height: 820px; overflow-y: auto; }
+        .sidebar, .chart-area, .warning-sidebar { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); height: 80vh; overflow-y: auto; }
         
-        /* VITAL TABLE */
+        /* SIDEBAR VITALS */
         .vital-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #111; border: 1px solid #333; }
         .vital-table td { padding: 10px; border-bottom: 1px solid #333; font-size: 0.8rem; }
         .v-label { color: #888; text-transform: uppercase; font-size: 0.65rem; }
         .v-value { text-align: right; color: var(--ey); font-weight: bold; font-size: 0.95rem; }
 
-        #auditWarning { display: none; position: fixed; top: 15%; left: 50%; transform: translateX(-50%); background: var(--red); color: white; padding: 15px 30px; border-radius: 8px; font-weight: bold; z-index: 10000; animation: blinker 1s linear infinite; }
+        /* POPUP WARNING */
+        #auditWarning { display: none; position: fixed; top: 15%; left: 50%; transform: translateX(-50%); background: var(--red); color: white; padding: 15px 30px; border-radius: 8px; font-weight: bold; z-index: 10000; animation: blinker 1s linear infinite; box-shadow: 0 0 20px rgba(255, 77, 77, 0.5); }
         @keyframes blinker { 50% { opacity: 0; } }
 
-        .summary-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #111; font-size: 0.8rem; }
-        .summary-table th, .summary-table td { padding: 10px; border: 1px solid #333; text-align: center; }
-        .summary-table th { background: #222; color: var(--ey); text-transform: uppercase; font-size: 0.65rem; }
+        .summary-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #111; font-size: 0.75rem; }
+        .summary-table th, .summary-table td { padding: 8px; border: 1px solid #333; text-align: center; }
+        .summary-table th { background: #222; color: var(--ey); text-transform: uppercase; }
         
-        .alert-card { background: #222; padding: 12px; margin-bottom: 12px; border-left: 5px solid var(--red); border-radius: 4px; font-size: 0.8rem; text-align: left; }
-        .mini-stats { margin-top: 25px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .mini-card { background: #222; padding: 12px; border-radius: 4px; text-align: center; border: 1px solid #333; }
-        .mini-card small { color: #888; display: block; font-size: 0.7rem; }
-        .mini-card span { font-size: 1.1rem; font-weight: bold; color: var(--ey); }
+        .alert-card { background: #222; padding: 12px; margin-bottom: 12px; border-left: 5px solid var(--red); border-radius: 4px; font-size: 0.8rem; }
+        .mini-stats { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .mini-card { background: #222; padding: 10px; border-radius: 4px; text-align: center; border: 1px solid #333; }
+        .mini-card small { color: #888; display: block; font-size: 0.65rem; }
+        .mini-card span { font-size: 1rem; font-weight: bold; color: var(--ey); }
         
-        select, input { width: 100%; padding: 12px; margin-top: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; box-sizing: border-box; }
-        .btn-red { background: var(--red); color: white; border:none; padding:12px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%; margin-top:10px;}
-        .btn-green { background: #27ae60; color: white; border:none; padding:12px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%; margin-top:10px;}
+        select, input { width: 100%; padding: 10px; margin-top: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; }
+        .btn-red { background: var(--red); color: white; border:none; padding:12px; border-radius:4px; font-weight:bold; width:100%; margin-top:15px; cursor:pointer;}
+        .btn-green { background: #27ae60; color: white; border:none; padding:12px; border-radius:4px; font-weight:bold; width:100%; margin-top:10px; cursor:pointer;}
     </style>
 </head>
 <body>
@@ -65,19 +83,23 @@
     <div id="auditWarning">⚠️ RIG HAS NOT COVERED MANDATORY MINIMUM AUDITS (< 15)</div>
     
     <div class="header">
-        <img src="https://raw.githubusercontent.com/Dayalvish/Epiroc-dash/main/Picture1.png" height="55">
-        <h1 style="margin:10px 0 0 0;">EPIROC CENTRAL VISUALIZER</h1>
-        <div id="id-badge" class="user-badge">IDENTIFYING...</div>
+        <div class="header-left">
+            <img src="https://raw.githubusercontent.com/Dayalvish/Epiroc-dash/main/Picture1.png" height="45">
+            <div><span class="live-dot"></span><span id="id-badge" class="user-badge">IDENTIFYING...</span></div>
+        </div>
+        <div class="header-center">
+            <h1>EPIROC CENTRAL VISUALIZER</h1>
+            <div style="font-size: 0.8rem; color: #888; margin-top:5px;">LIVE STATUS | <span id="last-sync">--:--:--</span></div>
+        </div>
+        <div class="header-right"></div>
     </div>
 
     <div class="main-layout">
         <div class="sidebar">
             <label>Model Classification</label>
             <select id="modelSelect" onchange="updateRigDropdown()"><option value="">All Models</option></select>
-            
             <label style="display:block; margin-top:15px;">Target Rig ID</label>
             <select id="rigSelect" onchange="refresh()"><option>Loading...</option></select>
-            
             <label style="display:block; margin-top:15px;">Target Month</label>
             <input type="month" id="monthFilter" onchange="refresh()">
 
@@ -167,18 +189,20 @@
         const [dRes, sRes] = await Promise.all([fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}`)), fetch(getFullUrl(`get=fleet_summary&month=${month}&model=${model}`))]);
         globalData = await dRes.json(); const summary = await sRes.json();
 
-        // Populating Vitals
+        // Populate Sidebar
         document.getElementById('v-boost').innerText = globalData.vitals.boostPr;
         document.getElementById('v-fuel').innerText = globalData.vitals.fuelPr;
         document.getElementById('v-receiver').innerText = globalData.vitals.receiverPr;
         document.getElementById('v-hyd-temp').innerText = globalData.vitals.hydOilTemp + "°C";
 
-        // Audit Warning
+        // Warnings
         document.getElementById('auditWarning').style.display = globalData.monthlyAuditCount < 15 ? 'block' : 'none';
-        
+        if(globalData.monthlyAuditCount < 15) setTimeout(() => document.getElementById('auditWarning').style.display = 'none', 30000);
+
         // Stats & Table
         document.getElementById('v-fleet-load').innerText = (summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0) / (summary.length || 1)).toFixed(1) + "%";
         document.getElementById('v-active-rigs').innerText = summary.length;
+        document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
         document.getElementById('fleet-summary-body').innerHTML = summary.map(r => `<tr><td><b>${r.id}</b></td><td>${r.monthlyAudits}</td><td>${r.avgLoad}%</td><td>${r.avgTemp}</td><td>${r.avgOil}</td><td>${r.avgFuel}</td><td>${r.avgAirSet}</td><td>${r.avgBitPr}</td><td>${r.avgImpact}</td></tr>`).join('');
         drawChart();
     }
@@ -195,7 +219,7 @@
             datasets = [{ label: 'Air Set', data: d.map(x => x.fullAirSet), borderColor: '#2ecc71' }, { label: 'Bit Pr', data: d.map(x => x.pressureFull), borderColor: '#e74c3c' }];
         } else if(mode === 'hydro_impact') {
             datasets = [{ label: 'Impact', data: d.map(x => x.highImpact), borderColor: '#f1c40f' }, { label: 'Feed', data: d.map(x => x.feedPrHigh), borderColor: '#ff5722' }, { label: 'Damper', data: d.map(x => x.damperPrHigh), borderColor: '#3498db' }];
-        } else if(mode === 'loadVsComp') {
+        } else {
             datasets = [{ label: 'Load %', data: d.map(x => x.engLoad), borderColor: '#f1c40f' }, { label: 'Comp %', data: d.map(x => x.compPerc), borderColor: '#3498db' }];
         }
         chart = new Chart(ctx, { type: 'line', data: { labels: d.map(x => x.date), datasets }, options: { responsive: true, maintainAspectRatio: false } });
