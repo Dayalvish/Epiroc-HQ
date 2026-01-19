@@ -8,26 +8,16 @@
         :root { --ey: #f1c40f; --bg: #0d0d0d; --card: #1a1a1a; --red: #ff4d4d; --green: #2ecc71; --blue: #3498db; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 20px; overflow: hidden; }
         
-        /* LOGIN OVERLAY */
         #login-overlay { position: fixed; inset: 0; background: var(--bg); display: flex; justify-content: center; align-items: center; z-index: 9999; }
         .login-box { background: var(--card); padding: 40px; border-radius: 12px; border-top: 5px solid var(--ey); width: 350px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
         .login-box input { width: 100%; padding: 12px; margin: 10px 0; background: #222; border: 1px solid #444; color: #fff; border-radius: 4px; box-sizing: border-box; }
         .login-box button { width: 100%; padding: 12px; background: var(--ey); color: #000; border: none; font-weight: bold; border-radius: 4px; cursor: pointer; margin-top: 10px; }
 
-        /* DASHBOARD TRANSITION */
         #dashboard-content { opacity: 0; transition: 0.8s; pointer-events: none; }
         .authorized #dashboard-content { opacity: 1; pointer-events: auto; }
         .authorized #login-overlay { display: none; }
 
-        /* CENTERED HEADER GRID */
-        .header { 
-            display: grid; 
-            grid-template-columns: 280px 1fr 280px; 
-            align-items: center; 
-            border-bottom: 3px solid var(--ey); 
-            padding-bottom: 15px; 
-            margin-bottom: 20px; 
-        }
+        .header { display: grid; grid-template-columns: 280px 1fr 280px; align-items: center; border-bottom: 3px solid var(--ey); padding-bottom: 15px; margin-bottom: 20px; }
         .header-left { display: flex; flex-direction: column; align-items: flex-start; }
         .header-center { text-align: center; }
         .header-center h1 { margin: 0; font-size: 1.8rem; letter-spacing: 2px; }
@@ -37,17 +27,14 @@
         .live-dot { height: 10px; width: 10px; background: var(--green); border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; margin-right: 5px; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); } 100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); } }
 
-        /* MAIN LAYOUT */
         .main-layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 20px; }
         .sidebar, .chart-area, .warning-sidebar { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); height: 80vh; overflow-y: auto; }
         
-        /* SIDEBAR VITALS */
         .vital-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #111; border: 1px solid #333; }
         .vital-table td { padding: 10px; border-bottom: 1px solid #333; font-size: 0.8rem; }
         .v-label { color: #888; text-transform: uppercase; font-size: 0.65rem; }
         .v-value { text-align: right; color: var(--ey); font-weight: bold; font-size: 0.95rem; }
 
-        /* POPUP WARNING */
         #auditWarning { display: none; position: fixed; top: 15%; left: 50%; transform: translateX(-50%); background: var(--red); color: white; padding: 15px 30px; border-radius: 8px; font-weight: bold; z-index: 10000; animation: blinker 1s linear infinite; box-shadow: 0 0 20px rgba(255, 77, 77, 0.5); }
         @keyframes blinker { 50% { opacity: 0; } }
 
@@ -55,7 +42,7 @@
         .summary-table th, .summary-table td { padding: 8px; border: 1px solid #333; text-align: center; }
         .summary-table th { background: #222; color: var(--ey); text-transform: uppercase; }
         
-        .alert-card { background: #222; padding: 12px; margin-bottom: 12px; border-left: 5px solid var(--red); border-radius: 4px; font-size: 0.8rem; }
+        .alert-card { background: #222; padding: 12px; margin-bottom: 12px; border-left: 5px solid var(--red); border-radius: 4px; color: var(--red); font-weight: bold; font-size: 0.8rem; }
         .mini-stats { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .mini-card { background: #222; padding: 10px; border-radius: 4px; text-align: center; border: 1px solid #333; }
         .mini-card small { color: #888; display: block; font-size: 0.65rem; }
@@ -104,8 +91,8 @@
             <input type="month" id="monthFilter" onchange="refresh()">
 
             <h4 style="color:var(--ey); margin: 25px 0 5px 0; font-size: 0.85rem; border-bottom: 1px solid #333; padding-bottom: 5px;">
-    MACHINE VITALS <span id="v-date" style="float:right; color:#888; font-size:0.7rem; font-weight:normal;">--</span>
-</h4>
+                MACHINE VITALS <span id="v-date" style="float:right; color:#888; font-size:0.7rem; font-weight:normal;">--</span>
+            </h4>
             <table class="vital-table">
                 <tr><td class="v-label">Boost Pressure</td><td id="v-boost" class="v-value">--</td></tr>
                 <tr><td class="v-label">Fuel Pressure</td><td id="v-fuel" class="v-value">--</td></tr>
@@ -150,18 +137,26 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbxo123qXsvYkq2ygcUxmIRoqyJNjym3O-2SxDMldlYSwH35-RVULrA-Qb0wBiMqMEif/exec"; 
+    const API = "PASTE_YOUR_URL_HERE"; 
     let chart = null, globalData = null;
 
     async function handleLogin() {
         const u = document.getElementById('userIn').value, p = document.getElementById('passIn').value;
-        const res = await fetch(`${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`);
-        const data = await res.json();
-        if(data.success) {
-            sessionStorage.setItem('region', data.region); sessionStorage.setItem('siteView', data.siteView); sessionStorage.setItem('user', u); sessionStorage.setItem('logger', data.logger);
-            document.getElementById('id-badge').innerText = `${u}-${data.logger}`;
-            document.body.classList.add('authorized'); init();
-        } else { document.getElementById('login-msg').innerText = "Invalid Login."; }
+        const msg = document.getElementById('login-msg');
+        msg.innerText = "Authenticating...";
+        try {
+            const res = await fetch(`${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`);
+            const data = await res.json();
+            if(data.success) {
+                sessionStorage.setItem('region', data.region); 
+                sessionStorage.setItem('siteView', data.siteView); 
+                sessionStorage.setItem('user', u); 
+                sessionStorage.setItem('logger', data.logger);
+                document.getElementById('id-badge').innerText = `${u}-${data.logger}`;
+                document.body.classList.add('authorized'); 
+                init();
+            } else { msg.innerText = "Invalid Login."; }
+        } catch(e) { msg.innerText = "Connection Failed."; }
     }
 
     function getFullUrl(params) {
@@ -170,11 +165,14 @@
     }
 
     async function init() {
-        const now = new Date(); document.getElementById('monthFilter').value = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
-        const mRes = await fetch(getFullUrl("get=model_list"));
-        const mList = await mRes.json();
-        document.getElementById('modelSelect').innerHTML = '<option value="">All Models</option>' + mList.map(m => `<option value="${m}">${m}</option>`).join('');
-        updateRigDropdown(); 
+        const now = new Date(); 
+        document.getElementById('monthFilter').value = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
+        try {
+            const mRes = await fetch(getFullUrl("get=model_list"));
+            const mList = await mRes.json();
+            document.getElementById('modelSelect').innerHTML = '<option value="">All Models</option>' + mList.map(m => `<option value="${m}">${m}</option>`).join('');
+            updateRigDropdown(); 
+        } catch(e) { console.error("Init Error", e); }
     }
 
     async function updateRigDropdown() {
@@ -186,128 +184,115 @@
     }
 
     async function refresh() {
-    const rig = document.getElementById('rigSelect').value;
-    const month = document.getElementById('monthFilter').value;
-    if(!rig) return;
+        const rig = document.getElementById('rigSelect').value;
+        const month = document.getElementById('monthFilter').value;
+        if(!rig) return;
 
-    const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}`));
-    const data = await res.json();
-    globalData = data;
+        try {
+            const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}`));
+            const data = await res.json();
+            globalData = data;
 
-    // 1. Sidebar Vitals & Date
-    document.getElementById('v-date').innerText = data.vitals.date;
-    document.getElementById('v-boost').innerText = data.vitals.boost;
-    document.getElementById('v-fuel').innerText = data.vitals.fuel;
-    document.getElementById('v-receiver').innerText = data.vitals.rec;
-    document.getElementById('v-hyd-temp').innerText = data.vitals.hyd + "°C";
+            // 1. Sidebar Vitals & Date
+            document.getElementById('v-date').innerText = data.vitals.date || "--";
+            document.getElementById('v-boost').innerText = data.vitals.boost || "0";
+            document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
+            document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
+            document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
 
-    // 2. Fleet Summary Table (Restored)
-    document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
-        <tr>
-            <td><b>${r.id}</b></td><td>${r.audits}</td><td>${r.avgLoad}%</td>
-            <td>${r.avgTemp}</td><td>${r.avgOil}</td><td>${r.avgFuel}</td>
-            <td>${r.avgAir}</td><td>${r.avgBit}</td><td>${r.avgImpact}</td>
-        </tr>`).join('');
+            // 2. Fleet Summary Table
+            document.getElementById('fleet-summary-body').innerHTML = data.summary ? data.summary.map(r => `
+                <tr>
+                    <td><b>${r.id}</b></td><td>${r.audits}</td><td>${r.avgLoad}%</td>
+                    <td>${r.avgTemp}</td><td>${r.avgOil}</td><td>${r.avgFuel}</td>
+                    <td>${r.avgAir}</td><td>${r.avgBit}</td><td>${r.avgImpact}</td>
+                </tr>`).join('') : "";
 
-    // 3. Trigger Alerts (Dedicated Thresholds Applied)
-    const alertList = document.getElementById('alert-list');
-    if(data.alerts.length > 0) {
-        alertList.innerHTML = data.alerts.map(a => `
-            <div class="alert-card">
-                <b>${a.id}</b> <span style="float:right; color:#888;">${a.time}</span>
-                <small>Temp: ${a.temp}°C | Oil: ${a.oil} bar</small>
-            </div>`).join('');
-    } else { alertList.innerHTML = "<div style='color:#888;'>✅ Fleet Healthy</div>"; }
+            // 3. Trigger Alerts
+            const alertList = document.getElementById('alert-list');
+            if(data.alerts && data.alerts.length > 0) {
+                alertList.innerHTML = data.alerts.map(a => `
+                    <div class="alert-card">
+                        <b>${a.id}</b> <span style="float:right; color:#888;">${a.time}</span>
+                        <small>Temp: ${a.temp}°C | Oil: ${a.oil} bar</small>
+                    </div>`).join('');
+            } else { alertList.innerHTML = "<div style='color:#888;'>✅ Fleet Healthy</div>"; }
 
-    drawChart();
-}
+            // 4. Audit Warning
+            const warning = document.getElementById('auditWarning');
+            warning.style.display = (data.monthlyAuditCount < 15) ? 'block' : 'none';
+            if(data.monthlyAuditCount < 15) setTimeout(() => { warning.style.display = 'none'; }, 10000);
 
-        // 4. AUDIT COMPLIANCE WARNING
-        const warning = document.getElementById('auditWarning');
-        if(data.monthlyAuditCount < 15) {
-            warning.style.display = 'block';
-            setTimeout(() => { warning.style.display = 'none'; }, 30000);
-        } else {
-            warning.style.display = 'none';
+            // 5. Mini Stats
+            if(data.summary) {
+                const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0);
+                document.getElementById('v-fleet-load').innerText = (totalLd / data.summary.length).toFixed(1) + "%";
+                document.getElementById('v-active-rigs').innerText = data.summary.length;
+            }
+
+            document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+            drawChart();
+
+        } catch (e) {
+            console.error("Refresh Error:", e);
+            document.getElementById('alert-list').innerText = "Connection Error";
         }
-
-        // 5. UPDATE LAST SYNC TIME
-        document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
-
-        // 6. REDRAW CHART
-        drawChart();
-
-    } catch (e) {
-        console.error("Refresh Error:", e);
-        document.getElementById('alert-list').innerText = "Connection Error";
     }
-}
 
     function drawChart() {
-    const mode = document.getElementById('chartMode').value;
-    const ctx = document.getElementById('mainChart').getContext('2d');
-    if (chart) chart.destroy();
+        const mode = document.getElementById('chartMode').value;
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        if (chart) chart.destroy();
 
-    // Use 'history' for Trend mode to get the last 10-15 audits
-    const isTrend = mode === 'tempVsOil';
-    const d = isTrend ? globalData.history : globalData.monthlyData;
-    
-    if (!d || d.length === 0) return;
+        const isTrend = mode === 'tempVsOil';
+        const d = isTrend ? globalData.history : globalData.monthlyData;
+        if (!d || d.length === 0) return;
 
-    let labels = d.map(x => x.date), datasets = [];
-    
-    // Configure Y-axes for multi-scale viewing
-    let scales = { 
-        y: { position: 'left', grid: { color: '#333' }, title: { display: true, text: 'Oil (bar)' } }, 
-        y1: { position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Temp (°C) / RPM' } } 
-    };
+        let labels = d.map(x => x.date), datasets = [];
+        let scales = { 
+            y: { position: 'left', grid: { color: '#333' } }, 
+            y1: { position: 'right', grid: { drawOnChartArea: false } } 
+        };
 
-    if (mode === 'tempVsOil') {
-        datasets = [
-            { label: 'Oil bar', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'y', tension: 0.4 },
-            { label: 'Temp °C', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'y1', tension: 0.3 },
-            { 
-                label: 'RPM', 
-                data: d.map(x => x.rpm), 
-                borderColor: '#9b59b6', // Purple line for RPM
-                yAxisID: 'y1', 
-                borderDash: [5, 5], // Dashed line to distinguish from Temp
-                pointStyle: 'rectRot'
-            }
-        ];
-    } else if (mode === 'setBit') {
-        scales.y1.display = false;
-        datasets = [
-            { label: 'Air Set', data: d.map(x => x.fullAirSet), borderColor: '#2ecc71' },
-            { label: 'Bit Pr', data: d.map(x => x.pressureFull), borderColor: '#e74c3c' }
-        ];
-    } 
-    // ... other modes (loadVsComp, hydro_impact) ...
+        if (mode === 'tempVsOil') {
+            datasets = [
+                { label: 'Oil bar', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'y' },
+                { label: 'Temp °C', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'y1' },
+                { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#9b59b6', yAxisID: 'y1', borderDash: [5, 5] }
+            ];
+        } else if (mode === 'setBit') {
+            scales.y1.display = false;
+            datasets = [
+                { label: 'Air Set', data: d.map(x => x.air), borderColor: '#2ecc71' },
+                { label: 'Bit Pr', data: d.map(x => x.bit), borderColor: '#e74c3c' }
+            ];
+        } else if (mode === 'hydro_impact') {
+            scales.y1.display = false;
+            datasets = [
+                { label: 'Impact', data: d.map(x => x.impact), borderColor: '#f1c40f' },
+                { label: 'Feed', data: d.map(x => x.feed), borderColor: '#ff5722' },
+                { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db' }
+            ];
+        } else {
+            scales.y1.display = false;
+            datasets = [
+                { label: 'Load %', data: d.map(x => x.load), borderColor: '#f1c40f' },
+                { label: 'Comp %', data: d.map(x => x.comp), borderColor: '#3498db' }
+            ];
+        }
 
-    chart = new Chart(ctx, { 
-        type: 'line', 
-        data: { labels, datasets }, 
-        options: { 
-            responsive: true, 
-            maintainAspectRatio: false, 
-            scales,
-            plugins: {
-                legend: { labels: { color: '#fff' } }
-            }
-        } 
-    });
-}
+        chart = new Chart(ctx, { 
+            type: 'line', 
+            data: { labels, datasets }, 
+            options: { responsive: true, maintainAspectRatio: false, scales } 
+        });
+    }
 
     function exportToExcel() {
-        let table = document.getElementById("summary-tbl"), url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
+        let table = document.getElementById("summary-tbl");
+        let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
         let link = document.createElement('a'); link.download = "Epiroc_Fleet.xls"; link.href = url; link.click();
     }
 </script>
 </body>
 </html>
-
-
-
-
-
-
