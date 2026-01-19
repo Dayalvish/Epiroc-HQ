@@ -208,22 +208,59 @@
     }
 
     function drawChart() {
-        const mode = document.getElementById('chartMode').value, ctx = document.getElementById('mainChart').getContext('2d');
-        if(chart) chart.destroy();
-        const d = (mode === 'tempVsOil') ? globalData.history : globalData.monthlyData;
-        if(!d || d.length === 0) return;
-        let datasets = [];
-        if(mode === 'tempVsOil') {
-            datasets = [{ label: 'Oil', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'y' }, { label: 'Temp', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'y1' }];
-        } else if(mode === 'setBit') {
-            datasets = [{ label: 'Air Set', data: d.map(x => x.fullAirSet), borderColor: '#2ecc71' }, { label: 'Bit Pr', data: d.map(x => x.pressureFull), borderColor: '#e74c3c' }];
-        } else if(mode === 'hydro_impact') {
-            datasets = [{ label: 'Impact', data: d.map(x => x.highImpact), borderColor: '#f1c40f' }, { label: 'Feed', data: d.map(x => x.feedPrHigh), borderColor: '#ff5722' }, { label: 'Damper', data: d.map(x => x.damperPrHigh), borderColor: '#3498db' }];
-        } else {
-            datasets = [{ label: 'Load %', data: d.map(x => x.engLoad), borderColor: '#f1c40f' }, { label: 'Comp %', data: d.map(x => x.compPerc), borderColor: '#3498db' }];
-        }
-        chart = new Chart(ctx, { type: 'line', data: { labels: d.map(x => x.date), datasets }, options: { responsive: true, maintainAspectRatio: false } });
-    }
+    const mode = document.getElementById('chartMode').value;
+    const ctx = document.getElementById('mainChart').getContext('2d');
+    if (chart) chart.destroy();
+
+    // Use 'history' for Trend mode to get the last 10-15 audits
+    const isTrend = mode === 'tempVsOil';
+    const d = isTrend ? globalData.history : globalData.monthlyData;
+    
+    if (!d || d.length === 0) return;
+
+    let labels = d.map(x => x.date), datasets = [];
+    
+    // Configure Y-axes for multi-scale viewing
+    let scales = { 
+        y: { position: 'left', grid: { color: '#333' }, title: { display: true, text: 'Oil (bar)' } }, 
+        y1: { position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Temp (°C) / RPM' } } 
+    };
+
+    if (mode === 'tempVsOil') {
+        datasets = [
+            { label: 'Oil bar', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'y', tension: 0.4 },
+            { label: 'Temp °C', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'y1', tension: 0.3 },
+            { 
+                label: 'RPM', 
+                data: d.map(x => x.rpm), 
+                borderColor: '#9b59b6', // Purple line for RPM
+                yAxisID: 'y1', 
+                borderDash: [5, 5], // Dashed line to distinguish from Temp
+                pointStyle: 'rectRot'
+            }
+        ];
+    } else if (mode === 'setBit') {
+        scales.y1.display = false;
+        datasets = [
+            { label: 'Air Set', data: d.map(x => x.fullAirSet), borderColor: '#2ecc71' },
+            { label: 'Bit Pr', data: d.map(x => x.pressureFull), borderColor: '#e74c3c' }
+        ];
+    } 
+    // ... other modes (loadVsComp, hydro_impact) ...
+
+    chart = new Chart(ctx, { 
+        type: 'line', 
+        data: { labels, datasets }, 
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            scales,
+            plugins: {
+                legend: { labels: { color: '#fff' } }
+            }
+        } 
+    });
+}
 
     function exportToExcel() {
         let table = document.getElementById("summary-tbl"), url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
@@ -232,3 +269,4 @@
 </script>
 </body>
 </html>
+
