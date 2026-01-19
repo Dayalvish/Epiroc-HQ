@@ -150,7 +150,7 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbwxWZsL6qh30aTjdSFIL46GyMElEuOQWuIqXI0N6cEhKAMqxUz3mvHk_3rvPYZFNq9B/exec"; 
+    const API = "https://script.google.com/macros/s/AKfycbzB-LxyRk8sfhcMNZk2PXNjlpTYhPYcE9Fd8Dtb8247qTF9jzMoRFc6auoXTTNF1SLX/exec"; 
     let chart = null, globalData = null;
 
     async function handleLogin() {
@@ -188,38 +188,39 @@
     async function refresh() {
     const rig = document.getElementById('rigSelect').value;
     const month = document.getElementById('monthFilter').value;
-    const model = document.getElementById('modelSelect').value;
     if(!rig) return;
 
-    try {
-        const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}`));
-        const data = await res.json();
-        globalData = data;
+    const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}`));
+    const data = await res.json();
+    globalData = data;
 
-        // 1. UPDATE VITAL DATE (Top of sidebar table)
-        document.getElementById('v-date').innerText = data.vitals.date;
+    // 1. Sidebar Vitals & Date
+    document.getElementById('v-date').innerText = data.vitals.date;
+    document.getElementById('v-boost').innerText = data.vitals.boost;
+    document.getElementById('v-fuel').innerText = data.vitals.fuel;
+    document.getElementById('v-receiver').innerText = data.vitals.rec;
+    document.getElementById('v-hyd-temp').innerText = data.vitals.hyd + "°C";
 
-        // 2. UPDATE MACHINE VITALS TABLE
-        document.getElementById('v-boost').innerText = data.vitals.boostPr;
-        document.getElementById('v-fuel').innerText = data.vitals.fuelPr;
-        document.getElementById('v-receiver').innerText = data.vitals.receiverPr;
-        document.getElementById('v-hyd-temp').innerText = data.vitals.hydOilTemp + "°C";
+    // 2. Fleet Summary Table (Restored)
+    document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
+        <tr>
+            <td><b>${r.id}</b></td><td>${r.audits}</td><td>${r.avgLoad}%</td>
+            <td>${r.avgTemp}</td><td>${r.avgOil}</td><td>${r.avgFuel}</td>
+            <td>${r.avgAir}</td><td>${r.avgBit}</td><td>${r.avgImpact}</td>
+        </tr>`).join('');
 
-        // 3. UPDATE TRIGGER ALERTS (Right Sidebar)
-        const alertList = document.getElementById('alert-list');
-        if(data.alerts && data.alerts.length > 0) {
-            alertList.innerHTML = data.alerts.map(a => `
-                <div class="alert-card" style="margin-bottom:10px; border-left: 5px solid var(--red);">
-                    <div style="display:flex; justify-content:space-between;">
-                        <b>${a.id}</b>
-                        <span style="color:#888; font-size:0.7rem;">${a.time}</span>
-                    </div>
-                    <small>Temp: ${a.temp}°C | Oil: ${a.oil} bar</small>
-                </div>
-            `).join('');
-        } else {
-            alertList.innerHTML = "<div style='color:#888; text-align:center; margin-top:20px;'>✅ Fleet Healthy</div>";
-        }
+    // 3. Trigger Alerts (Dedicated Thresholds Applied)
+    const alertList = document.getElementById('alert-list');
+    if(data.alerts.length > 0) {
+        alertList.innerHTML = data.alerts.map(a => `
+            <div class="alert-card">
+                <b>${a.id}</b> <span style="float:right; color:#888;">${a.time}</span>
+                <small>Temp: ${a.temp}°C | Oil: ${a.oil} bar</small>
+            </div>`).join('');
+    } else { alertList.innerHTML = "<div style='color:#888;'>✅ Fleet Healthy</div>"; }
+
+    drawChart();
+}
 
         // 4. AUDIT COMPLIANCE WARNING
         const warning = document.getElementById('auditWarning');
@@ -304,6 +305,7 @@
 </script>
 </body>
 </html>
+
 
 
 
