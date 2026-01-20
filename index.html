@@ -137,7 +137,7 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbwu3pNJyzOvP7ntR4a6eRKN6NK5B5VimmwGc8zkPbErYaaop-XTuPxLkiodX3i2UfZD/exec"; 
+    const API = "https://script.google.com/macros/s/AKfycbx-EgERsj7mRziUIslN5XVJ9AyK5DZMbwGHsqkAZR0pW--4J6gpflHzbZoSLltiKq0U/exec"; 
     let chart = null, globalData = null;
 
     async function handleLogin() {
@@ -184,12 +184,19 @@
         refresh();
     }
 
-    async function refresh() {
-        const rig = document.getElementById('rigSelect').value;
-        const month = document.getElementById('monthFilter').value;
-        
-        // We fetch with rig ID if available, otherwise just use month to get the Fleet Summary
-        const params = rig ? `fleetId=${encodeURIComponent(rig)}&month=${month}` : `month=${month}`;
+   async function refresh() {
+    const rig = document.getElementById('rigSelect').value;
+    // monthFilter.value is always "YYYY-MM" (e.g., "2024-05")
+    const month = document.getElementById('monthFilter').value; 
+    
+    // We fetch using the raw month value
+    const params = `fleetId=${encodeURIComponent(rig || "")}&month=${month}`;
+    
+    const res = await fetch(getFullUrl(params));
+    const data = await res.json();
+    
+    // ... rest of your code to populate the summary table
+}
 
         try {
             const res = await fetch(getFullUrl(params));
@@ -300,6 +307,7 @@
 </script>
 </body>
 </html>
+
 
 
 
