@@ -137,7 +137,7 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbx-EgERsj7mRziUIslN5XVJ9AyK5DZMbwGHsqkAZR0pW--4J6gpflHzbZoSLltiKq0U/exec"; 
+    const API = "REPLACE_WITH_YOUR_DEPLOYED_APPS_SCRIPT_URL"; 
     let chart = null, globalData = null;
 
     async function handleLogin() {
@@ -180,58 +180,37 @@
         const res = await fetch(getFullUrl(`get=list&model=${encodeURIComponent(model)}`));
         const rigs = await res.json();
         document.getElementById('rigSelect').innerHTML = rigs.map(id => `<option value="${id}">${id}</option>`).join('');
-        // Trigger refresh even if rig isn't selected to get the Summary Table
         refresh();
     }
 
-   async function refresh() {
-    const rigSelect = document.getElementById('rigSelect');
-    const rig = rigSelect ? rigSelect.value : "";
-    const month = document.getElementById('monthFilter').value; 
-    
-    // Clean the rig value - ignore "Loading..."
-    const cleanRig = (rig === "Loading..." || !rig) ? "" : rig;
+    async function refresh() {
+        const rig = document.getElementById('rigSelect').value;
+        const month = document.getElementById('monthFilter').value;
+        
+        // Use month value to get the Fleet Summary even if no rig is picked or rig is still loading
+        const cleanRig = (rig === "Loading..." || !rig) ? "" : rig;
+        const params = `fleetId=${encodeURIComponent(cleanRig)}&month=${month}`;
 
-    // Use month value to get the Fleet Summary even if no rig is picked
-    const params = `fleetId=${encodeURIComponent(cleanRig)}&month=${month}`;
+        try {
+            const res = await fetch(getFullUrl(params));
+            const data = await res.json();
+            globalData = data;
 
-    try {
-        const res = await fetch(getFullUrl(params));
-        const data = await res.json();
-        globalData = data;
+            // 1. POPULATE SUMMARY TABLE
+            if (data.summary) {
+                document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
+                    <tr>
+                        <td><b>${r.id}</b></td><td>${r.audits}</td><td>${r.avgLoad}%</td>
+                        <td>${r.avgTemp}</td><td>${r.avgOil}</td><td>${r.avgFuel}</td>
+                        <td>${r.avgAir}</td><td>${r.avgBit}</td><td>${r.avgImpact}</td>
+                    </tr>`).join('');
+                
+                const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0);
+                document.getElementById('v-fleet-load').innerText = data.summary.length > 0 ? (totalLd / data.summary.length).toFixed(1) + "%" : "--";
+                document.getElementById('v-active-rigs').innerText = data.summary.length;
+            }
 
-        // 1. POPULATE SUMMARY TABLE (The missing table fix)
-        if (data.summary) {
-            document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
-                <tr>
-                    <td><b>${r.id}</b></td><td>${r.audits}</td><td>${r.avgLoad}%</td>
-                    <td>${r.avgTemp}</td><td>${r.avgOil}</td><td>${r.avgFuel}</td>
-                    <td>${r.avgAir}</td><td>${r.avgBit}</td><td>${r.avgImpact}</td>
-                </tr>`).join('');
-            
-            // Update Mini Stats
-            const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0);
-            document.getElementById('v-fleet-load').innerText = (totalLd / data.summary.length).toFixed(1) + "%";
-            document.getElementById('v-active-rigs').innerText = data.summary.length;
-        }
-
-        // 2. UPDATE MACHINE VITALS & CHART (Only if a specific rig is selected)
-        if (cleanRig && data.vitals) {
-            document.getElementById('v-date').innerText = data.vitals.date || "--";
-            document.getElementById('v-boost').innerText = data.vitals.boost || "0";
-            document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
-            document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
-            document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
-            drawChart();
-        }
-
-        document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
-
-    } catch (e) {
-        console.error("Refresh Error:", e);
-    }
-} // <--- This closing brace was missing!
-            // 2. TRIGGER ALERTS (ALWAYS RUNS)
+            // 2. TRIGGER ALERTS
             const alertList = document.getElementById('alert-list');
             if(data.alerts && data.alerts.length > 0) {
                 alertList.innerHTML = data.alerts.map(a => `
@@ -241,29 +220,36 @@
                     </div>`).join('');
             } else { alertList.innerHTML = "<div style='color:#888;'>✅ Fleet Healthy</div>"; }
 
-            // 3. UPDATE MACHINE VITALS (ONLY IF RIG IS SELECTED)
-            if (rig && data.vitals) {
+            // 3. MACHINE VITALS & CHART (ONLY IF RIG IS SELECTED)
+            if (cleanRig && data.vitals) {
                 document.getElementById('v-date').innerText = data.vitals.date || "--";
                 document.getElementById('v-boost').innerText = data.vitals.boost || "0";
                 document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
                 document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
                 document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
+                
+                const warning = document.getElementById('auditWarning');
+                warning.style.display = (data.monthlyAuditCount < 15) ? 'block' : 'none';
+                
                 drawChart();
+            } else {
+                // If no rig selected, clear vitals
+                document.getElementById('v-date').innerText = "--";
+                document.getElementById('v-boost').innerText = "--";
+                document.getElementById('v-fuel').innerText = "--";
+                document.getElementById('v-receiver').innerText = "--";
+                document.getElementById('v-hyd-temp').innerText = "--";
             }
-
-            // 4. Audit Warning
-            const warning = document.getElementById('auditWarning');
-            warning.style.display = (data.monthlyAuditCount < 15 && rig) ? 'block' : 'none';
 
             document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
 
         } catch (e) {
             console.error("Refresh Error:", e);
-            document.getElementById('alert-list').innerText = "Connection Error";
         }
     }
 
     function drawChart() {
+        if (!globalData) return;
         const mode = document.getElementById('chartMode').value;
         const ctx = document.getElementById('mainChart').getContext('2d');
         if (chart) chart.destroy();
@@ -295,43 +281,4 @@
             datasets = [
                 { label: 'Impact', data: d.map(x => x.impact), borderColor: '#f1c40f' },
                 { label: 'Feed', data: d.map(x => x.feed), borderColor: '#ff5722' },
-                { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db' }
-            ];
-        } else {
-            scales.y1.display = false;
-            datasets = [
-                { label: 'Load %', data: d.map(x => x.load), borderColor: '#f1c40f' },
-                { label: 'Comp %', data: d.map(x => x.comp), borderColor: '#3498db' }
-            ];
-        }
-
-        chart = new Chart(ctx, { 
-            type: 'line', 
-            data: { labels, datasets }, 
-            options: { responsive: true, maintainAspectRatio: false, scales } 
-        });
-    }
-
-    function exportToExcel() {
-        let table = document.getElementById("summary-tbl");
-        let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
-        let link = document.createElement('a'); link.download = "Epiroc_Fleet.xls"; link.href = url; link.click();
-    }
-</script>
-</body>
-</html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3
