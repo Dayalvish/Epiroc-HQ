@@ -185,39 +185,52 @@
     }
 
    async function refresh() {
-    const rig = document.getElementById('rigSelect').value;
-    // monthFilter.value is always "YYYY-MM" (e.g., "2024-05")
+    const rigSelect = document.getElementById('rigSelect');
+    const rig = rigSelect ? rigSelect.value : "";
     const month = document.getElementById('monthFilter').value; 
     
-    // We fetch using the raw month value
-    const params = `fleetId=${encodeURIComponent(rig || "")}&month=${month}`;
-    
-    const res = await fetch(getFullUrl(params));
-    const data = await res.json();
-    
-    // ... rest of your code to populate the summary table
-}
+    // Clean the rig value - ignore "Loading..."
+    const cleanRig = (rig === "Loading..." || !rig) ? "" : rig;
 
-        try {
-            const res = await fetch(getFullUrl(params));
-            const data = await res.json();
-            globalData = data;
+    // Use month value to get the Fleet Summary even if no rig is picked
+    const params = `fleetId=${encodeURIComponent(cleanRig)}&month=${month}`;
 
-            // 1. POPULATE SUMMARY TABLE (ALWAYS RUNS)
-            if (data.summary) {
-                document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
-                    <tr>
-                        <td><b>${r.id}</b></td><td>${r.audits}</td><td>${r.avgLoad}%</td>
-                        <td>${r.avgTemp}</td><td>${r.avgOil}</td><td>${r.avgFuel}</td>
-                        <td>${r.avgAir}</td><td>${r.avgBit}</td><td>${r.avgImpact}</td>
-                    </tr>`).join('');
-                
-                // Update Mini Stats
-                const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0);
-                document.getElementById('v-fleet-load').innerText = (totalLd / data.summary.length).toFixed(1) + "%";
-                document.getElementById('v-active-rigs').innerText = data.summary.length;
-            }
+    try {
+        const res = await fetch(getFullUrl(params));
+        const data = await res.json();
+        globalData = data;
 
+        // 1. POPULATE SUMMARY TABLE (The missing table fix)
+        if (data.summary) {
+            document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
+                <tr>
+                    <td><b>${r.id}</b></td><td>${r.audits}</td><td>${r.avgLoad}%</td>
+                    <td>${r.avgTemp}</td><td>${r.avgOil}</td><td>${r.avgFuel}</td>
+                    <td>${r.avgAir}</td><td>${r.avgBit}</td><td>${r.avgImpact}</td>
+                </tr>`).join('');
+            
+            // Update Mini Stats
+            const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0);
+            document.getElementById('v-fleet-load').innerText = (totalLd / data.summary.length).toFixed(1) + "%";
+            document.getElementById('v-active-rigs').innerText = data.summary.length;
+        }
+
+        // 2. UPDATE MACHINE VITALS & CHART (Only if a specific rig is selected)
+        if (cleanRig && data.vitals) {
+            document.getElementById('v-date').innerText = data.vitals.date || "--";
+            document.getElementById('v-boost').innerText = data.vitals.boost || "0";
+            document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
+            document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
+            document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
+            drawChart();
+        }
+
+        document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+
+    } catch (e) {
+        console.error("Refresh Error:", e);
+    }
+} // <--- This closing brace was missing!
             // 2. TRIGGER ALERTS (ALWAYS RUNS)
             const alertList = document.getElementById('alert-list');
             if(data.alerts && data.alerts.length > 0) {
@@ -307,6 +320,7 @@
 </script>
 </body>
 </html>
+
 
 
 
