@@ -281,4 +281,28 @@
             datasets = [
                 { label: 'Impact', data: d.map(x => x.impact), borderColor: '#f1c40f' },
                 { label: 'Feed', data: d.map(x => x.feed), borderColor: '#ff5722' },
-                { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3
+                { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db' }
+            ];
+        } else {
+            scales.y1.display = false;
+            datasets = [
+                { label: 'Load %', data: d.map(x => x.load), borderColor: '#f1c40f' },
+                { label: 'Comp %', data: d.map(x => x.comp), borderColor: '#3498db' }
+            ];
+        }
+
+        chart = new Chart(ctx, { 
+            type: 'line', 
+            data: { labels, datasets }, 
+            options: { responsive: true, maintainAspectRatio: false, scales } 
+        });
+    }
+
+    function exportToExcel() {
+        let table = document.getElementById("summary-tbl");
+        let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
+        let link = document.createElement('a'); link.download = "Epiroc_Fleet.xls"; link.href = url; link.click();
+    }
+</script>
+</body>
+</html>
