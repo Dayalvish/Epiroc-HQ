@@ -7,28 +7,48 @@
     <style>
         :root { --ey: #f1c40f; --bg: #0d0d0d; --card: #1a1a1a; --red: #ff4d4d; --green: #2ecc71; --blue: #3498db; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 20px; overflow: hidden; }
+        
         #login-overlay { position: fixed; inset: 0; background: var(--bg); display: flex; justify-content: center; align-items: center; z-index: 9999; }
-        .login-box { background: var(--card); padding: 40px; border-radius: 12px; border-top: 5px solid var(--ey); width: 350px; text-align: center; }
+        .login-box { background: var(--card); padding: 40px; border-radius: 12px; border-top: 5px solid var(--ey); width: 350px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
         .login-box input { width: 100%; padding: 12px; margin: 10px 0; background: #222; border: 1px solid #444; color: #fff; border-radius: 4px; box-sizing: border-box; }
         .login-box button { width: 100%; padding: 12px; background: var(--ey); color: #000; border: none; font-weight: bold; border-radius: 4px; cursor: pointer; }
+
         #dashboard-content { opacity: 0; transition: 0.8s; pointer-events: none; }
         .authorized #dashboard-content { opacity: 1; pointer-events: auto; }
         .authorized #login-overlay { display: none; }
+
         .header { display: grid; grid-template-columns: 280px 1fr 280px; align-items: center; border-bottom: 3px solid var(--ey); padding-bottom: 15px; margin-bottom: 20px; }
+        .header-left { display: flex; flex-direction: column; align-items: flex-start; }
+        .header-center { text-align: center; }
+        .header-center h1 { margin: 0; font-size: 1.8rem; letter-spacing: 2px; }
+
+        .user-badge { background: var(--ey); color: #000; padding: 4px 12px; border-radius: 15px; font-weight: bold; font-size: 0.8rem; margin-top: 5px; display: inline-block; }
+        .live-dot { height: 10px; width: 10px; background: var(--green); border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; margin-right: 5px; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); } 100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); } }
+
         .main-layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 20px; }
-        .sidebar, .chart-area, .warning-sidebar { background: var(--card); padding: 20px; border-radius: 8px; height: 80vh; overflow-y: auto; }
+        .sidebar, .chart-area, .warning-sidebar { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); height: 80vh; overflow-y: auto; }
+        
+        .vital-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #111; border: 1px solid #333; }
+        .vital-table td { padding: 10px; border-bottom: 1px solid #333; font-size: 0.8rem; }
+        .v-label { color: #888; text-transform: uppercase; font-size: 0.65rem; }
+        .v-value { text-align: right; color: var(--ey); font-weight: bold; font-size: 0.95rem; }
+
+        #auditWarning { display: none; position: fixed; top: 15%; left: 50%; transform: translateX(-50%); background: var(--red); color: white; padding: 15px 30px; border-radius: 8px; font-weight: bold; z-index: 10000; animation: blinker 1s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0; } }
+
         .summary-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #111; font-size: 0.75rem; }
         .summary-table th, .summary-table td { padding: 8px; border: 1px solid #333; text-align: center; }
-        .summary-table th { background: #222; color: var(--ey); }
-        .vital-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        .vital-table td { padding: 10px; border-bottom: 1px solid #333; font-size: 0.8rem; }
-        .v-value { text-align: right; color: var(--ey); font-weight: bold; }
-        .user-badge { background: var(--ey); color: #000; padding: 4px 12px; border-radius: 15px; font-weight: bold; font-size: 0.8rem; }
+        .summary-table th { background: #222; color: var(--ey); text-transform: uppercase; }
+        
         select, input { width: 100%; padding: 10px; margin-top: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; }
+        .mini-stats { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .mini-card { background: #222; padding: 10px; border-radius: 4px; text-align: center; border: 1px solid #333; }
+        .mini-card small { color: #888; display: block; font-size: 0.65rem; }
+        .mini-card span { font-size: 1rem; font-weight: bold; color: var(--ey); }
+        .btn-red { background: var(--red); color: white; border:none; padding:12px; border-radius:4px; font-weight:bold; width:100%; margin-top:15px; cursor:pointer;}
     </style>
-</head>
-<body>
-
+    <body>
 <div id="login-overlay">
     <div class="login-box">
         <img src="https://raw.githubusercontent.com/Dayalvish/Epiroc-dash/main/Picture1.png" height="50">
@@ -41,14 +61,15 @@
 </div>
 
 <div id="dashboard-content">
+    <div id="auditWarning">⚠️ RIG HAS NOT COVERED MANDATORY MINIMUM AUDITS (< 15)</div>
     <div class="header">
         <div class="header-left">
-            <img src="https://raw.githubusercontent.com/Dayalvish/Epiroc-dash/main/Picture1.png" height="40">
-            <span id="id-badge" class="user-badge">IDENTIFYING...</span>
+            <img src="https://raw.githubusercontent.com/Dayalvish/Epiroc-dash/main/Picture1.png" height="45">
+            <div><span class="live-dot"></span><span id="id-badge" class="user-badge">IDENTIFYING...</span></div>
         </div>
         <div class="header-center">
-            <h1>EPIROC CENTRAL PARAMETER DASH</h1>
-            <div style="font-size: 0.8rem; color: #888;">LIVE STATUS | <span id="last-sync">--:--:--</span></div>
+            <h1>EPIROC CENTRAL PARAMETER DASH VIEW</h1>
+            <div style="font-size: 0.8rem; color: #888; margin-top:5px;">LIVE STATUS | <span id="last-sync">--:--:--</span></div>
         </div>
         <div class="header-right"></div>
     </div>
@@ -62,54 +83,68 @@
             <label style="display:block; margin-top:15px;">Target Month</label>
             <input type="month" id="monthFilter" onchange="refresh()">
 
-            <h4 style="color:var(--ey); margin-top: 25px;">MACHINE VITALS <span id="v-date" style="float:right; font-size:0.7rem;">--</span></h4>
+            <h4 style="color:var(--ey); margin: 25px 0 5px 0; font-size: 0.85rem; border-bottom: 1px solid #333; padding-bottom: 5px;">
+                MACHINE VITALS <span id="v-date" style="float:right; color:#888; font-size:0.7rem;">--</span>
+            </h4>
             <table class="vital-table">
-                <tr><td>Boost Pressure</td><td id="v-boost" class="v-value">--</td></tr>
-                <tr><td>Fuel Pressure</td><td id="v-fuel" class="v-value">--</td></tr>
-                <tr><td>Receiver Pr</td><td id="v-receiver" class="v-value">--</td></tr>
-                <tr><td>Hyd-Oil Temp</td><td id="v-hyd-temp" class="v-value">--</td></tr>
+                <tr><td class="v-label">Boost Pressure</td><td id="v-boost" class="v-value">--</td></tr>
+                <tr><td class="v-label">Fuel Pressure</td><td id="v-fuel" class="v-value">--</td></tr>
+                <tr><td class="v-label">Receiver Pr</td><td id="v-receiver" class="v-value">--</td></tr>
+                <tr><td class="v-label">Hyd-Oil Temp</td><td id="v-hyd-temp" class="v-value">--</td></tr>
             </table>
+
+            <div class="mini-stats">
+                <div class="mini-card"><small>Fleet Avg Load</small><span id="v-fleet-load">--</span></div>
+                <div class="mini-card"><small>Active Assets</small><span id="v-active-rigs">--</span></div>
+            </div>
+            <button onclick="window.print()" class="btn-red">📄 GENERATE PDF</button>
         </div>
 
         <div class="chart-area">
             <div style="height:350px;"><canvas id="mainChart"></canvas></div>
-            <h3 style="color:var(--ey); margin-top:20px;">FLEET PERFORMANCE SUMMARY</h3>
-            <table class="summary-table">
+            <h3 style="color:var(--ey); margin:30px 0 10px 0;">FLEET PERFORMANCE SUMMARY</h3>
+            <table class="summary-table" id="summary-tbl">
                 <thead>
-                    <tr><th>Rig ID</th><th>Audits</th><th>Load %</th><th>Temp °C</th><th>Oil bar</th><th>Fuel bar</th><th>Air Set</th><th>Bit Pr</th><th>Impact</th></tr>
+                    <tr><th rowspan="2">Rig ID</th><th rowspan="2">Audits</th><th colspan="4">Engine Health</th><th colspan="3">Productivity</th></tr>
+                    <tr><th>Load %</th><th>Temp °C</th><th>Oil bar</th><th>Fuel bar</th><th>Air Set</th><th>Bit Pr</th><th>Impact</th></tr>
                 </thead>
                 <tbody id="fleet-summary-body"></tbody>
             </table>
         </div>
 
         <div class="warning-sidebar">
-            <h3 style="color:var(--red);">⚠️ TRIGGER ALERTS</h3>
+            <h3 style="color:var(--red); margin:0 0 15px 0; border-bottom: 1px solid #333; padding-bottom: 10px;">⚠️ TRIGGER ALERTS</h3>
             <div id="alert-list">Scanning...</div>
         </div>
     </div>
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbyWWZOgqoOjJkQm6_oiK7pIwvcwXPWVPOKCFceF4OHw9iKdIy23s5VsmcGOOQ93I2Rh/exec";
+    const API = "https://script.google.com/macros/s/AKfycbyWWZOgqoOjJkQm6_oiK7pIwvcwXPWVPOKCFceF4OHw9iKdIy23s5VsmcGOOQ93I2Rh/exec"; 
     let chart = null, globalData = null;
 
     async function handleLogin() {
         const u = document.getElementById('userIn').value, p = document.getElementById('passIn').value;
-        const res = await fetch(`${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`);
-        const data = await res.json();
-        if(data.success) {
-            sessionStorage.setItem('region', data.region); 
-            sessionStorage.setItem('siteView', data.siteView); 
-            sessionStorage.setItem('user', u); 
-            document.getElementById('id-badge').innerText = `${u}-${data.logger}`;
-            document.body.classList.add('authorized'); 
-            init();
-        } else { document.getElementById('login-msg').innerText = "Invalid Login."; }
+        const msg = document.getElementById('login-msg');
+        msg.innerText = "Authenticating...";
+        try {
+            const res = await fetch(`${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`);
+            const data = await res.json();
+            if(data.success) {
+                sessionStorage.setItem('region', data.region); 
+                sessionStorage.setItem('siteView', data.siteView); 
+                sessionStorage.setItem('user', u); 
+                sessionStorage.setItem('logger', data.logger);
+                document.getElementById('id-badge').innerText = `${u}-${data.logger}`;
+                document.body.classList.add('authorized'); 
+                init();
+            } else { msg.innerText = "Invalid Login."; }
+        } catch(e) { msg.innerText = "Connection Failed."; }
     }
 
     function getFullUrl(params) {
-        const r = sessionStorage.getItem('region'), s = sessionStorage.getItem('siteView'), u = sessionStorage.getItem('user');
-        return `${API}?${params}&userRegion=${encodeURIComponent(r)}&siteView=${encodeURIComponent(s)}&user=${encodeURIComponent(u)}&v=${Date.now()}`;
+        const reg = sessionStorage.getItem('region'), site = sessionStorage.getItem('siteView'), u = sessionStorage.getItem('user');
+        return `${API}?${params}&userRegion=${encodeURIComponent(reg)}&siteView=${encodeURIComponent(site)}&user=${encodeURIComponent(u)}&v=${Date.now()}`;
     }
 
     async function init() {
@@ -122,8 +157,8 @@
     }
 
     async function updateRigDropdown() {
-        const m = document.getElementById('modelSelect').value;
-        const res = await fetch(getFullUrl(`get=list&model=${encodeURIComponent(m)}`));
+        const model = document.getElementById('modelSelect').value;
+        const res = await fetch(getFullUrl(`get=list&model=${encodeURIComponent(model)}`));
         const rigs = await res.json();
         document.getElementById('rigSelect').innerHTML = rigs.map(id => `<option value="${id}">${id}</option>`).join('');
         refresh();
@@ -141,8 +176,15 @@
 
             if (data.summary) {
                 document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
-                    <tr><td><b>${r.id}</b></td><td>${r.audits}</td><td>${r.avgLoad}%</td><td>${r.avgTemp}</td><td>${r.avgOil}</td><td>${r.avgFuel}</td><td>${r.avgAir}</td><td>${r.avgBit}</td><td>${r.avgImpact}</td></tr>
-                `).join('');
+                    <tr>
+                        <td><b>${r.id}</b></td><td>${r.audits}</td><td>${r.avgLoad}%</td>
+                        <td>${r.avgTemp}</td><td>${r.avgOil}</td><td>${r.avgFuel}</td>
+                        <td>${r.avgAir}</td><td>${r.avgBit}</td><td>${r.avgImpact}</td>
+                    </tr>`).join('');
+                
+                const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0);
+                document.getElementById('v-fleet-load').innerText = data.summary.length > 0 ? (totalLd / data.summary.length).toFixed(1) + "%" : "--";
+                document.getElementById('v-active-rigs').innerText = data.summary.length;
             }
 
             if (cleanRig && data.vitals) {
@@ -151,10 +193,12 @@
                 document.getElementById('v-fuel').innerText = data.vitals.fuel;
                 document.getElementById('v-receiver').innerText = data.vitals.rec;
                 document.getElementById('v-hyd-temp').innerText = data.vitals.hyd + "°C";
+                
+                document.getElementById('auditWarning').style.display = (data.monthlyAuditCount < 15) ? 'block' : 'none';
                 drawChart();
             }
             document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("Refresh Error", e); }
     }
 
     function drawChart() {
@@ -166,7 +210,7 @@
             type: 'line', 
             data: { 
                 labels: d.map(x => x.date), 
-                datasets: [{ label: 'Oil bar', data: d.map(x => x.oil), borderColor: '#2ecc71' }, { label: 'Temp °C', data: d.map(x => x.temp), borderColor: '#e74c3c' }] 
+                datasets: [{ label: 'Oil bar', data: d.map(x => x.oil), borderColor: '#2ecc71', tension: 0.3 }, { label: 'Temp °C', data: d.map(x => x.temp), borderColor: '#e74c3c', tension: 0.3 }] 
             },
             options: { responsive: true, maintainAspectRatio: false }
         });
@@ -174,3 +218,4 @@
 </script>
 </body>
 </html>
+</head>
