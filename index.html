@@ -143,7 +143,7 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbwB6sXO2W3Qf_96lKi891z4D5LCwpdQ3s55dZoWsBxdROtcRX40lNqd4M0tcKmbbx9A/exec"; 
+    const API = "https://script.google.com/macros/s/AKfycbxjMCdYJebFA8rodKMsNM3v-1NRXxAj31_buCIJX_p6WR0T50RUk2dua96XwbTXX37w/exec"; 
     let chart = null, globalData = null;
 
     async function handleLogin() {
@@ -234,19 +234,82 @@
         } catch (e) { console.error(e); }
     }
 
+    async function refresh() {
+        const rig = document.getElementById('rigSelect').value;
+        const month = document.getElementById('monthFilter').value;
+        const cleanRig = (rig === "Loading..." || !rig) ? "" : rig;
+
+        try {
+            // Fetching data based on Month Filter and Rig ID
+            const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(cleanRig)}&month=${month}`));
+            const data = await res.json();
+            globalData = data; // Store globally for chart use
+
+            // Update Summary Table
+            if (data.summary) {
+                document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
+                    <tr><td><b>${r.id}</b></td><td>${r.audits}</td><td>${r.avgLoad}%</td><td>${r.avgTemp}</td><td>${r.avgOil}</td><td>${r.avgFuel}</td><td>${r.avgAir}</td><td>${r.avgBit}</td><td>${r.avgImpact}</td></tr>
+                `).join('');
+                
+                const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0);
+                document.getElementById('v-fleet-load').innerText = data.summary.length > 0 ? (totalLd / data.summary.length).toFixed(1) + "%" : "--";
+                document.getElementById('v-active-rigs').innerText = data.summary.length;
+            }
+
+            // Update Machine Vitals and Link Chart
+            if (cleanRig && data.vitals) {
+                document.getElementById('v-date').innerText = data.vitals.date || "--";
+                document.getElementById('v-boost').innerText = data.vitals.boost || "0";
+                document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
+                document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
+                document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
+                
+                // Re-draw chart whenever data is refreshed
+                drawChart();
+            }
+            document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+        } catch (e) { console.error("Refresh Error", e); }
+    }
+
+    // 2. DRAW CHART FUNCTION - Links Dropdown to Chart Data
     function drawChart() {
         const ctx = document.getElementById('mainChart').getContext('2d');
         if (chart) chart.destroy();
+        
         const mode = document.getElementById('chartMode').value;
+        // Logic for Month Filter: use monthlyData if a rig is selected, else history
         const d = (mode === 'tempVsOil') ? globalData.history : globalData.monthlyData;
+        
         if (!d || d.length === 0) return;
+
+        let datasets = [];
+        // Linking specific dropdown values to data columns
+        if (mode === 'hydro_impact') {
+            datasets = [
+                { label: 'Impact', data: d.map(x => x.impact), borderColor: '#f1c40f', tension: 0.3 },
+                { label: 'Feed', data: d.map(x => x.feed), borderColor: '#e67e22', tension: 0.3 },
+                { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db', tension: 0.3 }
+            ];
+        } else if (mode === 'setBit') {
+            datasets = [
+                { label: 'Air Set', data: d.map(x => x.air), borderColor: '#2ecc71', tension: 0.3 },
+                { label: 'Bit Pr', data: d.map(x => x.bit), borderColor: '#e74c3c', tension: 0.3 }
+            ];
+        } else if (mode === 'loadVsComp') {
+            datasets = [
+                { label: 'Load %', data: d.map(x => x.load), borderColor: '#f1c40f', tension: 0.3 },
+                { label: 'Comp %', data: d.map(x => x.comp), borderColor: '#3498db', tension: 0.3 }
+            ];
+        } else {
+            datasets = [
+                { label: 'Oil bar', data: d.map(x => x.oil), borderColor: '#2ecc71', tension: 0.3 },
+                { label: 'Temp °C', data: d.map(x => x.temp), borderColor: '#e74c3c', tension: 0.3 }
+            ];
+        }
 
         chart = new Chart(ctx, { 
             type: 'line', 
-            data: { 
-                labels: d.map(x => x.date), 
-                datasets: [{ label: 'Data', data: d.map(x => (mode === 'tempVsOil') ? x.temp : x.load), borderColor: '#f1c40f' }] 
-            },
+            data: { labels: d.map(x => x.date), datasets: datasets },
             options: { responsive: true, maintainAspectRatio: false }
         });
     }
@@ -259,3 +322,4 @@
 </script>
 </body>
 </html>
+
