@@ -193,85 +193,25 @@
         const cleanRig = (rig === "Loading..." || !rig) ? "" : rig;
 
         try {
-            const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(cleanRig)}&month=${month}`));
-            const data = await res.json();
-            globalData = data;
-
-            // Fleet Summary
-            if (data.summary) {
-                document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
-                    <tr><td><b>${r.id}</b></td><td>${r.audits}</td><td>${r.avgLoad}%</td><td>${r.avgTemp}</td><td>${r.avgOil}</td><td>${r.avgFuel}</td><td>${r.avgAir}</td><td>${r.avgBit}</td><td>${r.avgImpact}</td></tr>
-                `).join('');
-                const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0);
-                document.getElementById('v-fleet-load').innerText = data.summary.length > 0 ? (totalLd / data.summary.length).toFixed(1) + "%" : "--";
-                document.getElementById('v-active-rigs').innerText = data.summary.length;
-            }
-
-            // Vitals
-            if (cleanRig && data.vitals) {
-                document.getElementById('v-date').innerText = data.vitals.date;
-                document.getElementById('v-boost').innerText = data.vitals.boost;
-                document.getElementById('v-fuel').innerText = data.vitals.fuel;
-                document.getElementById('v-receiver').innerText = data.vitals.rec;
-                document.getElementById('v-hyd-temp').innerText = data.vitals.hyd + "°C";
-                
-             // 1. Audit Warning (Mandatory Audits < 15)
-            // This now checks the audit count for the selected context (Rig or Fleet)
-            const warning = document.getElementById('auditWarning');
-            if (warning) {
-                warning.style.display = (data.monthlyAuditCount < 15) ? 'block' : 'none';
-            }
-
-            // 2. Alert List / Triggers (Right Sidebar)
-            const alertList = document.getElementById('alert-list');
-            if (data.summary && data.summary.length > 0) {
-                // Expanded Trigger: High Temp (> 92) OR Low Oil (< 2.0)
-                const flaggedRigs = data.summary.filter(r => 
-                    parseFloat(r.avgTemp) > 92 || parseFloat(r.avgOil) < 2.0
-                );
-
-                if (flaggedRigs.length > 0) {
-                    alertList.innerHTML = flaggedRigs.map(r => `
-                        <div style="background:rgba(255,77,77,0.1); padding:8px; border-radius:4px; margin-bottom:8px; border-left:4px solid var(--red);">
-                            <b style="color:var(--red);">${r.id}</b><br>
-                            <small>Temp: ${r.avgTemp}°C | Oil: ${r.avgOil} bar</small>
-                        </div>
-                    `).join('');
-                } else { 
-                    alertList.innerHTML = "<div style='color:var(--green); font-weight:bold; padding:10px;'>✅ Fleet Healthy</div>"; 
-                }
-            } else {
-                alertList.innerHTML = "<div style='color:#666;'>No data to scan</div>";
-            }
-
-            // 3. Chart Update
-            // We call this regardless of rig selection so the month trend can show
-            drawChart();
-
-            // 4. Update Sync Time
-            document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
-
-        } catch (e) { 
-            console.error("Refresh Logic Error:", e);
-            document.getElementById('alert-list').innerText = "Sync Error";
-        }
-    }
-
-    async function refresh() {
-        const rig = document.getElementById('rigSelect').value;
-        const month = document.getElementById('monthFilter').value;
-        const cleanRig = (rig === "Loading..." || !rig) ? "" : rig;
-
-        try {
             // Fetching data based on Month Filter and Rig ID
             const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(cleanRig)}&month=${month}`));
             const data = await res.json();
-            globalData = data; // Store globally for chart use
+            globalData = data; 
 
-            // Update Summary Table
+            // 1. Update Summary Table
             if (data.summary) {
                 document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
-                    <tr><td><b>${r.id}</b></td><td>${r.audits}</td><td>${r.avgLoad}%</td><td>${r.avgTemp}</td><td>${r.avgOil}</td><td>${r.avgFuel}</td><td>${r.avgAir}</td><td>${r.avgBit}</td><td>${r.avgImpact}</td></tr>
+                    <tr>
+                        <td><b>${r.id}</b></td>
+                        <td>${r.audits}</td>
+                        <td>${r.avgLoad}%</td>
+                        <td>${r.avgTemp}</td>
+                        <td>${r.avgOil}</td>
+                        <td>${r.avgFuel}</td>
+                        <td>${r.avgAir}</td>
+                        <td>${r.avgBit}</td>
+                        <td>${r.avgImpact}</td>
+                    </tr>
                 `).join('');
                 
                 const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0);
@@ -279,7 +219,27 @@
                 document.getElementById('v-active-rigs').innerText = data.summary.length;
             }
 
-            // Update Machine Vitals and Link Chart
+            // 2. Update Trigger Alerts (Fixes the "Scanning" hang)
+            const alertList = document.getElementById('alert-list');
+            if (data.summary && data.summary.length > 0) {
+                // Example Trigger: Filter rigs where Temp > 92 or Oil < 2
+                const alerts = data.summary.filter(r => parseFloat(r.avgTemp) > 92 || parseFloat(r.avgOil) < 2);
+                
+                if (alerts.length > 0) {
+                    alertList.innerHTML = alerts.map(a => `
+                        <div class="alert-card" style="border-left: 5px solid var(--red); padding: 8px; margin-bottom: 5px; background: rgba(255,77,77,0.1);">
+                            <b style="color:var(--red);">${a.id}</b><br>
+                            <small>Temp: ${a.avgTemp}°C | Oil: ${a.avgOil} bar</small>
+                        </div>
+                    `).join('');
+                } else {
+                    alertList.innerHTML = "<div style='color:var(--green); padding:10px;'>✅ Fleet Healthy</div>";
+                }
+            } else {
+                alertList.innerHTML = "<div style='color:#888;'>No data for selected period</div>";
+            }
+
+            // 3. Update Machine Vitals and Link Chart
             if (cleanRig && data.vitals) {
                 document.getElementById('v-date').innerText = data.vitals.date || "--";
                 document.getElementById('v-boost').innerText = data.vitals.boost || "0";
@@ -287,53 +247,81 @@
                 document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
                 document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
                 
-                // Re-draw chart whenever data is refreshed
-                drawChart();
+                // Audit Warning Logic
+                const warning = document.getElementById('auditWarning');
+                if (warning) {
+                    warning.style.display = (data.monthlyAuditCount < 15) ? 'block' : 'none';
+                }
             }
+            
+            // ALWAYS try to draw the chart (it will handle empty data internally)
+            drawChart();
+            
             document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
-        } catch (e) { console.error("Refresh Error", e); }
+        } catch (e) { 
+            console.error("Refresh Error", e); 
+            document.getElementById('alert-list').innerText = "Connection Error";
+        }
     }
 
-    // 2. DRAW CHART FUNCTION - Links Dropdown to Chart Data
     function drawChart() {
+        if (!globalData) return;
         const ctx = document.getElementById('mainChart').getContext('2d');
         if (chart) chart.destroy();
         
         const mode = document.getElementById('chartMode').value;
-        // Logic for Month Filter: use monthlyData if a rig is selected, else history
-        const d = (mode === 'tempVsOil') ? globalData.history : globalData.monthlyData;
+        // Selection Logic: If specific rig is selected, use monthlyData, otherwise use summary context if available
+        const d = (mode === 'tempVsOil' && globalData.history && globalData.history.length > 0) 
+                  ? globalData.history 
+                  : globalData.monthlyData;
         
-        if (!d || d.length === 0) return;
+        if (!d || d.length === 0) {
+            // Clear chart area if no data
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            return;
+        }
 
         let datasets = [];
-        // Linking specific dropdown values to data columns
         if (mode === 'hydro_impact') {
             datasets = [
-                { label: 'Impact', data: d.map(x => x.impact), borderColor: '#f1c40f', tension: 0.3 },
-                { label: 'Feed', data: d.map(x => x.feed), borderColor: '#e67e22', tension: 0.3 },
-                { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db', tension: 0.3 }
+                { label: 'Impact', data: d.map(x => x.impact), borderColor: '#f1c40f', tension: 0.3, fill: false },
+                { label: 'Feed', data: d.map(x => x.feed), borderColor: '#e67e22', tension: 0.3, fill: false },
+                { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db', tension: 0.3, fill: false }
             ];
         } else if (mode === 'setBit') {
             datasets = [
-                { label: 'Air Set', data: d.map(x => x.air), borderColor: '#2ecc71', tension: 0.3 },
-                { label: 'Bit Pr', data: d.map(x => x.bit), borderColor: '#e74c3c', tension: 0.3 }
+                { label: 'Air Set', data: d.map(x => x.air), borderColor: '#2ecc71', tension: 0.3, fill: false },
+                { label: 'Bit Pr', data: d.map(x => x.bit), borderColor: '#e74c3c', tension: 0.3, fill: false }
             ];
         } else if (mode === 'loadVsComp') {
             datasets = [
-                { label: 'Load %', data: d.map(x => x.load), borderColor: '#f1c40f', tension: 0.3 },
-                { label: 'Comp %', data: d.map(x => x.comp), borderColor: '#3498db', tension: 0.3 }
+                { label: 'Load %', data: d.map(x => x.load), borderColor: '#f1c40f', tension: 0.3, fill: false },
+                { label: 'Comp %', data: d.map(x => x.comp), borderColor: '#3498db', tension: 0.3, fill: false }
             ];
         } else {
             datasets = [
-                { label: 'Oil bar', data: d.map(x => x.oil), borderColor: '#2ecc71', tension: 0.3 },
-                { label: 'Temp °C', data: d.map(x => x.temp), borderColor: '#e74c3c', tension: 0.3 }
+                { label: 'Oil bar', data: d.map(x => x.oil), borderColor: '#2ecc71', tension: 0.3, fill: false },
+                { label: 'Temp °C', data: d.map(x => x.temp), borderColor: '#e74c3c', tension: 0.3, fill: false }
             ];
         }
 
         chart = new Chart(ctx, { 
             type: 'line', 
-            data: { labels: d.map(x => x.date), datasets: datasets },
-            options: { responsive: true, maintainAspectRatio: false }
+            data: { 
+                labels: d.map(x => x.date), 
+                datasets: datasets 
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                scales: {
+                    x: { grid: { color: '#333' }, ticks: { color: '#888' } },
+                    y: { grid: { color: '#333' }, ticks: { color: '#888' } }
+                },
+                plugins: {
+                    legend: { labels: { color: '#fff' } }
+                }
+            }
         });
     }
 
@@ -345,5 +333,6 @@
 </script>
 </body>
 </html>
+
 
 
