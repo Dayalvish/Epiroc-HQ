@@ -215,23 +215,46 @@
                 document.getElementById('v-receiver').innerText = data.vitals.rec;
                 document.getElementById('v-hyd-temp').innerText = data.vitals.hyd + "°C";
                 
-                // Trigger Warning
-                document.getElementById('auditWarning').style.display = (data.monthlyAuditCount < 15) ? 'block' : 'none';
-                drawChart();
+             // 1. Audit Warning (Mandatory Audits < 15)
+            // This now checks the audit count for the selected context (Rig or Fleet)
+            const warning = document.getElementById('auditWarning');
+            if (warning) {
+                warning.style.display = (data.monthlyAuditCount < 15) ? 'block' : 'none';
             }
 
-            // Alert List (Triggers)
+            // 2. Alert List / Triggers (Right Sidebar)
             const alertList = document.getElementById('alert-list');
-            if(data.summary) {
-                // Example Trigger: Temp > 92
-                const hotRigs = data.summary.filter(r => parseFloat(r.avgTemp) > 92);
-                if(hotRigs.length > 0) {
-                    alertList.innerHTML = hotRigs.map(r => `<div style="color:var(--red); margin-bottom:5px;">⚠️ ${r.id}: High Temp (${r.avgTemp}°C)</div>`).join('');
-                } else { alertList.innerHTML = "✅ Fleet Healthy"; }
+            if (data.summary && data.summary.length > 0) {
+                // Expanded Trigger: High Temp (> 92) OR Low Oil (< 2.0)
+                const flaggedRigs = data.summary.filter(r => 
+                    parseFloat(r.avgTemp) > 92 || parseFloat(r.avgOil) < 2.0
+                );
+
+                if (flaggedRigs.length > 0) {
+                    alertList.innerHTML = flaggedRigs.map(r => `
+                        <div style="background:rgba(255,77,77,0.1); padding:8px; border-radius:4px; margin-bottom:8px; border-left:4px solid var(--red);">
+                            <b style="color:var(--red);">${r.id}</b><br>
+                            <small>Temp: ${r.avgTemp}°C | Oil: ${r.avgOil} bar</small>
+                        </div>
+                    `).join('');
+                } else { 
+                    alertList.innerHTML = "<div style='color:var(--green); font-weight:bold; padding:10px;'>✅ Fleet Healthy</div>"; 
+                }
+            } else {
+                alertList.innerHTML = "<div style='color:#666;'>No data to scan</div>";
             }
 
+            // 3. Chart Update
+            // We call this regardless of rig selection so the month trend can show
+            drawChart();
+
+            // 4. Update Sync Time
             document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
-        } catch (e) { console.error(e); }
+
+        } catch (e) { 
+            console.error("Refresh Logic Error:", e);
+            document.getElementById('alert-list').innerText = "Sync Error";
+        }
     }
 
     async function refresh() {
@@ -322,4 +345,5 @@
 </script>
 </body>
 </html>
+
 
