@@ -72,7 +72,10 @@
 
 <div id="dashboard-content">
     <div id="auditWarning">⚠️ RIG HAS NOT COVERED MANDATORY MINIMUM AUDITS (< 15)</div>
-    
+    <div id="auditWarning">
+    ⚠️ RIG HAS NOT COVERED MANDATORY MINIMUM AUDITS (< 15)
+    <span style="float:right; cursor:pointer; font-weight:bold; margin-left:15px; border:1px solid #fff; padding:0 5px; border-radius:3px;">&times;</span>
+</div>
     <div class="header">
         <div class="header-left">
             <img src="https://raw.githubusercontent.com/Dayalvish/Epiroc-dash/main/Picture1.png" height="45">
@@ -211,7 +214,49 @@
             const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(cleanRig)}&month=${month}`));
             const data = await res.json();
             globalData = data; 
+// --- 1. POPULATE SUMMARY TABLE ---
+        // (Your existing table code here)
 
+        // --- 2. DYNAMIC TRIGGER ALERTS ---
+        // (Your existing alerts code here)
+
+        // ============================================================
+        // 3. INSERT THE NEW VITALS & WARNING TIMER CODE HERE
+        // ============================================================
+            drawChart(); 
+        document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+    } catch (e) { 
+        console.error("Refresh Error", e);
+    }
+}
+        if (data.vitals) {
+            document.getElementById('v-boost').innerText = data.vitals.boost || "0";
+            document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
+            document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
+            document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
+            
+            const warning = document.getElementById('auditWarning');
+            
+            if (data.monthlyAuditCount < 15) {
+                warning.style.display = 'block'; 
+                
+                const warningTimer = setTimeout(() => {
+                    warning.style.display = 'none';
+                }, 15000);
+
+                // Manual close handler
+                const closeBtn = warning.querySelector('span');
+                if(closeBtn) {
+                    closeBtn.onclick = function() {
+                        warning.style.display = 'none';
+                        clearTimeout(warningTimer);
+                    };
+                }
+            } else {
+                warning.style.display = 'none'; 
+            }
+        }
+        // ============================================================
             // 1. POPULATE SUMMARY TABLE
             if (data.summary) {
                 document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
@@ -339,6 +384,7 @@
 </script>
 </body>
 </html>
+
 
 
 
