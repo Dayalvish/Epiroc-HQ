@@ -143,7 +143,7 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbxJQx4QkLejbmZ5mSVq1gQT-DB16OMRq3wyyCg1Pu14bGjbsQjmz8lnPmjOdliH6Ht8/exec"; 
+    const API = "https://script.google.com/macros/s/AKfycbxh4upCjjO0K0WOIHfLAX6lra-xD_UOqi911e33yQech-2Tmutmy1ef2ReNNQyRtta2/exec"; 
     let chart = null, globalData = null;
 
     async function handleLogin() {
@@ -253,80 +253,63 @@
 }
 
 function drawChart() {
-    if (!globalData) return;
+    if (!globalData || !globalData.monthlyData) return;
     const ctx = document.getElementById('mainChart').getContext('2d');
     if (chart) chart.destroy();
     
     const mode = document.getElementById('chartMode').value;
-    const d = globalData.monthlyData || [];
+    const d = globalData.monthlyData;
     
-    if (d.length === 0) return;
-
     let datasets = [];
+    let options = {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            x: { grid: { color: '#333' }, ticks: { color: '#888' } },
+            y: { grid: { color: '#333' }, ticks: { color: '#888' }, title: { display: true, color: '#fff' } }
+        },
+        plugins: { legend: { labels: { color: '#fff' } } }
+    };
+
     if (mode === 'tempVsOil') {
+        // Dual Axis for Engine Health
         datasets = [
-            { 
-                label: 'Oil bar (Left Axis)', 
-                data: d.map(x => x.oil), 
-                borderColor: '#2ecc71', 
-                yAxisID: 'yOil', // Linked to the Left axis
-                tension: 0.3 
-            },
-            { 
-                label: 'Temp °C (Right Axis)', 
-                data: d.map(x => x.temp), 
-                borderColor: '#e74c3c', 
-                yAxisID: 'yTempRpm', // Linked to the Right axis
-                tension: 0.3 
-            },
-            { 
-                label: 'RPM (Right Axis)', 
-                data: d.map(x => x.rpm), 
-                borderColor: '#3498db', 
-                yAxisID: 'yTempRpm', // Linked to the Right axis
-                borderDash: [5, 5], 
-                tension: 0.3 
-            }
+            { label: 'Oil bar (Left)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yLeft', tension: 0.3 },
+            { label: 'Temp °C (Right)', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'yRight', tension: 0.3 },
+            { label: 'RPM (Right)', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRight', borderDash: [5, 5], tension: 0.3 }
         ];
-    } else {
-        // ... (Keep existing logic for other modes)
+        options.scales.yLeft = { position: 'left', title: { display: true, text: 'Pressure (bar)', color: '#2ecc71' } };
+        options.scales.yRight = { position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Temp / RPM', color: '#e74c3c' } };
+    } 
+    else if (mode === 'loadVsComp') {
+        datasets = [
+            { label: 'Engine Load %', data: d.map(x => x.load), borderColor: '#f1c40f', tension: 0.3 },
+            { label: 'Compressor %', data: d.map(x => x.comp), borderColor: '#3498db', tension: 0.3 }
+        ];
+        options.scales.y.title.text = 'Percentage (%)';
+    } 
+    else if (mode === 'setBit') {
+        datasets = [
+            { label: 'Air Set (bar)', data: d.map(x => x.air), borderColor: '#2ecc71', tension: 0.3 },
+            { label: 'Bit Pressure (bar)', data: d.map(x => x.bit), borderColor: '#e74c3c', tension: 0.3 }
+        ];
+        options.scales.y.title.text = 'Pressure (bar)';
+    } 
+    else if (mode === 'hydro_impact') {
+        datasets = [
+            { label: 'Impact (bar)', data: d.map(x => x.impact), borderColor: '#f1c40f', tension: 0.3 },
+            { label: 'Feed (bar)', data: d.map(x => x.feed), borderColor: '#e67e22', tension: 0.3 },
+            { label: 'Damper (bar)', data: d.map(x => x.damper), borderColor: '#3498db', tension: 0.3 }
+        ];
+        options.scales.y.title.text = 'Pressure (bar)';
     }
 
     chart = new Chart(ctx, { 
         type: 'line', 
         data: { labels: d.map(x => x.date), datasets: datasets },
-        options: { 
-            responsive: true, 
-            maintainAspectRatio: false,
-            scales: {
-                // LEFT AXIS for Oil Pressure
-                yOil: { 
-                    type: 'linear', 
-                    display: true, 
-                    position: 'left',
-                    title: { display: true, text: 'Oil Pressure (bar)', color: '#2ecc71' },
-                    grid: { color: '#333' },
-                    ticks: { color: '#2ecc71' },
-                    min: 0,
-                    max: 10 // Fixed range for bar pressure clarity
-                },
-                // RIGHT AXIS for Temperature and RPM
-                yTempRpm: { 
-                    type: 'linear', 
-                    display: true, 
-                    position: 'right',
-                    title: { display: true, text: 'Temp (°C) / RPM', color: '#e74c3c' },
-                    grid: { drawOnChartArea: false }, // Only show grid lines for the left axis
-                    ticks: { color: '#fff' }
-                }
-            },
-            plugins: {
-                legend: { labels: { color: '#fff' } }
-            }
-        }
+        options: options 
     });
 }
-
     function exportToExcel() {
         let table = document.getElementById("summary-tbl");
         let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
@@ -335,6 +318,7 @@ function drawChart() {
 </script>
 </body>
 </html>
+
 
 
 
