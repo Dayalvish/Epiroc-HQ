@@ -219,19 +219,33 @@
             document.getElementById('v-active-rigs').innerText = data.summary.length;
         }
 
-        // 2. DYNAMIC TRIGGER ALERTS (Linked to Threshold Sheet logic)
-        const alertList = document.getElementById('alert-list');
-        // Triggers now use the 'latest' row (vitals) to check against thresholds
-        if (data.vitals && data.vitals.alerts) {
-            alertList.innerHTML = data.vitals.alerts.map(a => `
-                <div class="alert-card" style="border-left: 5px solid var(--red); background: rgba(255,77,77,0.1); padding: 8px; margin-bottom: 5px;">
-                    <b style="color:var(--red);">${cleanRig || 'Fleet Alert'}</b><br>
-                    <small>${a.parameter}: ${a.value} (Exceeds ${a.limit})</small>
-                </div>
-            `).join('');
-        } else {
-            alertList.innerHTML = "<div style='color:var(--green);'>✅ Fleet Healthy</div>";
-        }
+       / --- Inside your async function refresh() ---
+
+// 2. DYNAMIC TRIGGER ALERTS
+const alertList = document.getElementById('alert-list');
+if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
+    alertList.innerHTML = data.vitals.alerts.map(a => `
+        <div class="alert-card" style="border-left: 5px solid var(--red); background: rgba(255,77,77,0.1); padding: 10px; margin-bottom: 8px; border-radius: 4px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <b style="color:var(--red); font-size:0.85rem;">⚠️ ${a.parameter} Alert</b>
+                <span style="font-size:0.7rem; color:#888;">Rig: ${cleanRig}</span>
+            </div>
+            <div style="margin-top:5px; font-size:0.9rem;">
+                Current: <span style="color:white; font-weight:bold;">${a.value}</span> 
+                <span style="color:#666; margin:0 5px;">|</span> 
+                Limit: <span style="color:var(--ey);">${a.limit}</span>
+            </div>
+        </div>
+    `).join('');
+} else {
+    alertList.innerHTML = `
+        <div style="text-align:center; padding:20px; color:var(--green); border:1px dashed #27ae60; border-radius:8px;">
+            <div style="font-size:1.5rem; margin-bottom:5px;">✅</div>
+            <div style="font-weight:bold; font-size:0.8rem;">SYSTEMS NORMAL</div>
+            <div style="font-size:0.65rem; color:#888; margin-top:5px;">All parameters within thresholds</div>
+        </div>
+    `;
+}
 
         // 3. UPDATE MACHINE VITALS
         if (data.vitals) {
@@ -318,6 +332,7 @@ function drawChart() {
 </script>
 </body>
 </html>
+
 
 
 
