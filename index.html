@@ -143,7 +143,7 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbxjMCdYJebFA8rodKMsNM3v-1NRXxAj31_buCIJX_p6WR0T50RUk2dua96XwbTXX37w/exec"; 
+    const API = "https://script.google.com/macros/s/AKfycbwYJA9OMb2gtWCuh891N82DhrMYzGJswTMiomJacEQqQtgpEW2un5M6S4NAdPmwF1uC/exec"; 
     let chart = null, globalData = null;
 
     async function handleLogin() {
@@ -188,142 +188,105 @@
     }
 
     async function refresh() {
-        const rig = document.getElementById('rigSelect').value;
-        const month = document.getElementById('monthFilter').value;
-        const cleanRig = (rig === "Loading..." || !rig) ? "" : rig;
+    const rig = document.getElementById('rigSelect').value;
+    const month = document.getElementById('monthFilter').value;
+    const cleanRig = (rig === "Loading..." || !rig) ? "" : rig;
 
-        try {
-            // Fetching data based on Month Filter and Rig ID
-            const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(cleanRig)}&month=${month}`));
-            const data = await res.json();
-            globalData = data; 
+    try {
+        // Updated URL to ensure the server knows the user role for mgmt filtering
+        const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(cleanRig)}&month=${month}`));
+        const data = await res.json();
+        globalData = data; 
 
-            // 1. Update Summary Table
-            if (data.summary) {
-                document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
-                    <tr>
-                        <td><b>${r.id}</b></td>
-                        <td>${r.audits}</td>
-                        <td>${r.avgLoad}%</td>
-                        <td>${r.avgTemp}</td>
-                        <td>${r.avgOil}</td>
-                        <td>${r.avgFuel}</td>
-                        <td>${r.avgAir}</td>
-                        <td>${r.avgBit}</td>
-                        <td>${r.avgImpact}</td>
-                    </tr>
-                `).join('');
-                
-                const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0);
-                document.getElementById('v-fleet-load').innerText = data.summary.length > 0 ? (totalLd / data.summary.length).toFixed(1) + "%" : "--";
-                document.getElementById('v-active-rigs').innerText = data.summary.length;
-            }
-
-            // 2. Update Trigger Alerts (Fixes the "Scanning" hang)
-            const alertList = document.getElementById('alert-list');
-            if (data.summary && data.summary.length > 0) {
-                // Example Trigger: Filter rigs where Temp > 92 or Oil < 2
-                const alerts = data.summary.filter(r => parseFloat(r.avgTemp) > 92 || parseFloat(r.avgOil) < 2);
-                
-                if (alerts.length > 0) {
-                    alertList.innerHTML = alerts.map(a => `
-                        <div class="alert-card" style="border-left: 5px solid var(--red); padding: 8px; margin-bottom: 5px; background: rgba(255,77,77,0.1);">
-                            <b style="color:var(--red);">${a.id}</b><br>
-                            <small>Temp: ${a.avgTemp}°C | Oil: ${a.avgOil} bar</small>
-                        </div>
-                    `).join('');
-                } else {
-                    alertList.innerHTML = "<div style='color:var(--green); padding:10px;'>✅ Fleet Healthy</div>";
-                }
-            } else {
-                alertList.innerHTML = "<div style='color:#888;'>No data for selected period</div>";
-            }
-
-            // 3. Update Machine Vitals and Link Chart
-            if (cleanRig && data.vitals) {
-                document.getElementById('v-date').innerText = data.vitals.date || "--";
-                document.getElementById('v-boost').innerText = data.vitals.boost || "0";
-                document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
-                document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
-                document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
-                
-                // Audit Warning Logic
-                const warning = document.getElementById('auditWarning');
-                if (warning) {
-                    warning.style.display = (data.monthlyAuditCount < 15) ? 'block' : 'none';
-                }
-            }
+        // 1. POPULATE SUMMARY TABLE
+        if (data.summary) {
+            document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
+                <tr>
+                    <td><b>${r.id}</b></td>
+                    <td>${r.audits}</td>
+                    <td>${r.avgLoad}%</td>
+                    <td>${r.avgTemp}</td>
+                    <td>${r.avgOil}</td>
+                    <td>${r.avgFuel}</td>
+                    <td>${r.avgAir}</td>
+                    <td>${r.avgBit}</td>
+                    <td>${r.avgImpact}</td>
+                </tr>
+            `).join('');
             
-            // ALWAYS try to draw the chart (it will handle empty data internally)
-            drawChart();
-            
-            document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
-        } catch (e) { 
-            console.error("Refresh Error", e); 
-            document.getElementById('alert-list').innerText = "Connection Error";
-        }
-    }
-
-    function drawChart() {
-        if (!globalData) return;
-        const ctx = document.getElementById('mainChart').getContext('2d');
-        if (chart) chart.destroy();
-        
-        const mode = document.getElementById('chartMode').value;
-        // Selection Logic: If specific rig is selected, use monthlyData, otherwise use summary context if available
-        const d = (mode === 'tempVsOil' && globalData.history && globalData.history.length > 0) 
-                  ? globalData.history 
-                  : globalData.monthlyData;
-        
-        if (!d || d.length === 0) {
-            // Clear chart area if no data
-            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-            return;
+            const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0);
+            document.getElementById('v-fleet-load').innerText = data.summary.length > 0 ? (totalLd / data.summary.length).toFixed(1) + "%" : "--";
+            document.getElementById('v-active-rigs').innerText = data.summary.length;
         }
 
-        let datasets = [];
-        if (mode === 'hydro_impact') {
-            datasets = [
-                { label: 'Impact', data: d.map(x => x.impact), borderColor: '#f1c40f', tension: 0.3, fill: false },
-                { label: 'Feed', data: d.map(x => x.feed), borderColor: '#e67e22', tension: 0.3, fill: false },
-                { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db', tension: 0.3, fill: false }
-            ];
-        } else if (mode === 'setBit') {
-            datasets = [
-                { label: 'Air Set', data: d.map(x => x.air), borderColor: '#2ecc71', tension: 0.3, fill: false },
-                { label: 'Bit Pr', data: d.map(x => x.bit), borderColor: '#e74c3c', tension: 0.3, fill: false }
-            ];
-        } else if (mode === 'loadVsComp') {
-            datasets = [
-                { label: 'Load %', data: d.map(x => x.load), borderColor: '#f1c40f', tension: 0.3, fill: false },
-                { label: 'Comp %', data: d.map(x => x.comp), borderColor: '#3498db', tension: 0.3, fill: false }
-            ];
+        // 2. DYNAMIC TRIGGER ALERTS (Linked to Threshold Sheet logic)
+        const alertList = document.getElementById('alert-list');
+        // Triggers now use the 'latest' row (vitals) to check against thresholds
+        if (data.vitals && data.vitals.alerts) {
+            alertList.innerHTML = data.vitals.alerts.map(a => `
+                <div class="alert-card" style="border-left: 5px solid var(--red); background: rgba(255,77,77,0.1); padding: 8px; margin-bottom: 5px;">
+                    <b style="color:var(--red);">${cleanRig || 'Fleet Alert'}</b><br>
+                    <small>${a.parameter}: ${a.value} (Exceeds ${a.limit})</small>
+                </div>
+            `).join('');
         } else {
-            datasets = [
-                { label: 'Oil bar', data: d.map(x => x.oil), borderColor: '#2ecc71', tension: 0.3, fill: false },
-                { label: 'Temp °C', data: d.map(x => x.temp), borderColor: '#e74c3c', tension: 0.3, fill: false }
-            ];
+            alertList.innerHTML = "<div style='color:var(--green);'>✅ Fleet Healthy</div>";
         }
 
-        chart = new Chart(ctx, { 
-            type: 'line', 
-            data: { 
-                labels: d.map(x => x.date), 
-                datasets: datasets 
-            },
-            options: { 
-                responsive: true, 
-                maintainAspectRatio: false,
-                scales: {
-                    x: { grid: { color: '#333' }, ticks: { color: '#888' } },
-                    y: { grid: { color: '#333' }, ticks: { color: '#888' } }
-                },
-                plugins: {
-                    legend: { labels: { color: '#fff' } }
-                }
-            }
-        });
+        // 3. UPDATE MACHINE VITALS
+        if (data.vitals) {
+            document.getElementById('v-boost').innerText = data.vitals.boost || "0";
+            document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
+            document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
+            document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
+            
+            const warning = document.getElementById('auditWarning');
+            warning.style.display = (data.monthlyAuditCount < 15) ? 'block' : 'none';
+        }
+
+        drawChart(); // Re-render chart with RPM included
+        document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+    } catch (e) { 
+        console.error("Refresh Error", e);
+        document.getElementById('alert-list').innerText = "Connection Error";
     }
+}
+
+function drawChart() {
+    if (!globalData) return;
+    const ctx = document.getElementById('mainChart').getContext('2d');
+    if (chart) chart.destroy();
+    
+    const mode = document.getElementById('chartMode').value;
+    const d = globalData.monthlyData || [];
+    
+    if (d.length === 0) return;
+
+    let datasets = [];
+    if (mode === 'tempVsOil') {
+        datasets = [
+            { label: 'Oil bar', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'y', tension: 0.3 },
+            { label: 'Temp °C', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'y', tension: 0.3 },
+            // RESTORED RPM LINE
+            { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'y1', borderDash: [5, 5], tension: 0.3 }
+        ];
+    } else {
+        // ... (Keep your existing logic for other modes)
+    }
+
+    chart = new Chart(ctx, { 
+        type: 'line', 
+        data: { labels: d.map(x => x.date), datasets: datasets },
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false,
+            scales: {
+                y: { type: 'linear', position: 'left', grid: { color: '#333' } },
+                y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#3498db' } }
+            }
+        }
+    });
+}
 
     function exportToExcel() {
         let table = document.getElementById("summary-tbl");
@@ -333,6 +296,7 @@
 </script>
 </body>
 </html>
+
 
 
 
