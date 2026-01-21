@@ -147,23 +147,39 @@
     let chart = null, globalData = null;
 
     async function handleLogin() {
-        const u = document.getElementById('userIn').value, p = document.getElementById('passIn').value;
-        const msg = document.getElementById('login-msg');
-        msg.innerText = "Authenticating...";
-        try {
-            const res = await fetch(`${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`);
-            const data = await res.json();
-            if(data.success) {
-                sessionStorage.setItem('region', data.region); 
-                sessionStorage.setItem('siteView', data.siteView); 
-                sessionStorage.setItem('user', u); 
-                sessionStorage.setItem('logger', data.logger);
-                document.getElementById('id-badge').innerText = `${u}-${data.logger}`;
-                document.body.classList.add('authorized'); 
-                init();
-            } else { msg.innerText = "Invalid Login."; }
-        } catch(e) { msg.innerText = "Connection Failed."; }
+    const u = document.getElementById('userIn').value;
+    const p = document.getElementById('passIn').value;
+    const msg = document.getElementById('login-msg');
+    
+    if (!u || !p) {
+        msg.innerText = "Please enter credentials.";
+        return;
     }
+
+    msg.innerText = "Authenticating...";
+    
+    try {
+        // Ensure API variable has your URL
+        const resp = await fetch(`${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`);
+        const data = await resp.json();
+
+        if (data.success) {
+            sessionStorage.setItem('region', data.region);
+            sessionStorage.setItem('siteView', data.siteView);
+            sessionStorage.setItem('user', u);
+            sessionStorage.setItem('logger', data.logger);
+            
+            document.getElementById('id-badge').innerText = `${u}-${data.logger}`;
+            document.body.classList.add('authorized');
+            init(); // Start loading data
+        } else {
+            msg.innerText = "Invalid Login. Access Denied.";
+        }
+    } catch (e) {
+        console.error("Login Error:", e);
+        msg.innerText = "Connection Failed. Check Web App URL and Permissions.";
+    }
+}
 
     function getFullUrl(params) {
         const r = sessionStorage.getItem('region'), s = sessionStorage.getItem('siteView'), u = sessionStorage.getItem('user');
@@ -332,6 +348,7 @@ function drawChart() {
 </script>
 </body>
 </html>
+
 
 
 
