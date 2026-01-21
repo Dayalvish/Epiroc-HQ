@@ -158,19 +158,16 @@
             msg.innerText = "Please enter credentials.";
             return;
         }
-
         msg.innerText = "Authenticating...";
         
         try {
             const resp = await fetch(`${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`);
             const data = await resp.json();
-
             if (data.success) {
                 sessionStorage.setItem('region', data.region);
                 sessionStorage.setItem('siteView', data.siteView);
                 sessionStorage.setItem('user', u);
                 sessionStorage.setItem('logger', data.logger);
-                
                 document.getElementById('id-badge').innerText = `${u}-${data.logger}`;
                 document.body.classList.add('authorized');
                 init(); 
@@ -179,7 +176,7 @@
             }
         } catch (e) {
             console.error("Login Error:", e);
-            msg.innerText = "Connection Failed. Check Web App URL and Permissions.";
+            msg.innerText = "Connection Failed. Check Web App URL.";
         }
     }
 
@@ -214,64 +211,15 @@
             const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(cleanRig)}&month=${month}`));
             const data = await res.json();
             globalData = data; 
-// --- 1. POPULATE SUMMARY TABLE ---
-        // (Your existing table code here)
 
-        // --- 2. DYNAMIC TRIGGER ALERTS ---
-        // (Your existing alerts code here)
-
-        // ============================================================
-        // 3. INSERT THE NEW VITALS & WARNING TIMER CODE HERE
-        // ============================================================
-            drawChart(); 
-        document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
-    } catch (e) { 
-        console.error("Refresh Error", e);
-    }
-}
-        if (data.vitals) {
-            document.getElementById('v-boost').innerText = data.vitals.boost || "0";
-            document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
-            document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
-            document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
-            
-            const warning = document.getElementById('auditWarning');
-            
-            if (data.monthlyAuditCount < 15) {
-                warning.style.display = 'block'; 
-                
-                const warningTimer = setTimeout(() => {
-                    warning.style.display = 'none';
-                }, 15000);
-
-                // Manual close handler
-                const closeBtn = warning.querySelector('span');
-                if(closeBtn) {
-                    closeBtn.onclick = function() {
-                        warning.style.display = 'none';
-                        clearTimeout(warningTimer);
-                    };
-                }
-            } else {
-                warning.style.display = 'none'; 
-            }
-        }
-        // ============================================================
             // 1. POPULATE SUMMARY TABLE
             if (data.summary) {
                 document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
                     <tr>
-                        <td><b>${r.id}</b></td>
-                        <td>${r.audits}</td>
-                        <td>${r.avgLoad}%</td>
-                        <td>${r.avgTemp}</td>
-                        <td>${r.avgOil}</td>
-                        <td>${r.avgFuel}</td>
-                        <td>${r.avgAir}</td>
-                        <td>${r.avgBit}</td>
-                        <td>${r.avgImpact}</td>
-                    </tr>
-                `).join('');
+                        <td><b>${r.id}</b></td><td>${r.audits}</td><td>${r.avgLoad}%</td>
+                        <td>${r.avgTemp}</td><td>${r.avgOil}</td><td>${r.avgFuel}</td>
+                        <td>${r.avgAir}</td><td>${r.avgBit}</td><td>${r.avgImpact}</td>
+                    </tr>`).join('');
                 
                 const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0);
                 document.getElementById('v-fleet-load').innerText = data.summary.length > 0 ? (totalLd / data.summary.length).toFixed(1) + "%" : "--";
@@ -282,28 +230,15 @@
             const alertList = document.getElementById('alert-list');
             if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
                 alertList.innerHTML = data.vitals.alerts.map(a => `
-                    <div class="alert-card" style="border-left: 5px solid var(--red); background: rgba(255,77,77,0.1); padding: 10px; margin-bottom: 8px; border-radius: 4px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <b style="color:var(--red); font-size:0.85rem;">⚠️ ${a.parameter} Alert</b>
-                            <span style="font-size:0.7rem; color:#888;">Rig: ${cleanRig}</span>
-                        </div>
-                        <div style="margin-top:5px; font-size:0.9rem;">
-                            Current: <span style="color:white; font-weight:bold;">${a.value}</span> 
-                            <span style="color:#666; margin:0 5px;">|</span> 
-                            Limit: <span style="color:var(--ey);">${a.limit}</span>
-                        </div>
-                    </div>
-                `).join('');
+                    <div class="alert-card" style="border-left:5px solid var(--red); background:rgba(255,77,77,0.1); padding:10px; margin-bottom:8px; border-radius:4px;">
+                        <b style="color:var(--red);">⚠️ ${a.parameter} Alert</b><br>
+                        <small>Current: ${a.value} | Limit: ${a.limit}</small>
+                    </div>`).join('');
             } else {
-                alertList.innerHTML = `
-                    <div style="text-align:center; padding:20px; color:var(--green); border:1px dashed #27ae60; border-radius:8px;">
-                        <div style="font-size:1.5rem; margin-bottom:5px;">✅</div>
-                        <div style="font-weight:bold; font-size:0.8rem;">SYSTEMS NORMAL</div>
-                    </div>
-                `;
+                alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green);">✅ SYSTEMS NORMAL</div>`;
             }
 
-            // 3. UPDATE MACHINE VITALS
+            // 3. UPDATE MACHINE VITALS & 15s WARNING TIMER
             if (data.vitals) {
                 document.getElementById('v-boost').innerText = data.vitals.boost || "0";
                 document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
@@ -311,7 +246,16 @@
                 document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
                 
                 const warning = document.getElementById('auditWarning');
-                warning.style.display = (data.monthlyAuditCount < 15) ? 'block' : 'none';
+                if (data.monthlyAuditCount < 15) {
+                    warning.style.display = 'block'; 
+                    const timer = setTimeout(() => { warning.style.display = 'none'; }, 15000);
+                    const closeBtn = warning.querySelector('span');
+                    if(closeBtn) {
+                        closeBtn.onclick = () => { warning.style.display = 'none'; clearTimeout(timer); };
+                    }
+                } else {
+                    warning.style.display = 'none'; 
+                }
             }
 
             drawChart(); 
@@ -326,20 +270,17 @@
         if (!globalData || !globalData.monthlyData) return;
         const ctx = document.getElementById('mainChart').getContext('2d');
         if (chart) chart.destroy();
-        
         const mode = document.getElementById('chartMode').value;
         const d = globalData.monthlyData;
         
         let datasets = [];
         let options = {
-            responsive: true,
-            maintainAspectRatio: false,
+            responsive: true, maintainAspectRatio: false,
             scales: {
                 x: { grid: { color: '#333' }, ticks: { color: '#888' } },
-                yLeft: { position: 'left', grid: { color: '#333' }, ticks: { color: '#2ecc71' }, title: { display: true, text: 'Pressure (bar)', color: '#2ecc71' } },
-                yRight: { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#fff' }, title: { display: true, text: 'Temp / RPM', color: '#e74c3c' } }
-            },
-            plugins: { legend: { labels: { color: '#fff' } } }
+                yLeft: { position: 'left', title: { display: true, text: 'Pressure', color: '#2ecc71' } },
+                yRight: { position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Temp / RPM', color: '#e74c3c' } }
+            }
         };
 
         if (mode === 'tempVsOil') {
@@ -350,40 +291,34 @@
             ];
         } else if (mode === 'loadVsComp') {
             datasets = [
-                { label: 'Engine Load %', data: d.map(x => x.load), borderColor: '#f1c40f', tension: 0.3 },
-                { label: 'Compressor %', data: d.map(x => x.comp), borderColor: '#3498db', tension: 0.3 }
+                { label: 'Load %', data: d.map(x => x.load), borderColor: '#f1c40f', tension: 0.3 },
+                { label: 'Comp %', data: d.map(x => x.comp), borderColor: '#3498db', tension: 0.3 }
             ];
         } else if (mode === 'setBit') {
             datasets = [
-                { label: 'Air Set (bar)', data: d.map(x => x.air), borderColor: '#2ecc71', tension: 0.3 },
-                { label: 'Bit Pressure (bar)', data: d.map(x => x.bit), borderColor: '#e74c3c', tension: 0.3 }
+                { label: 'Air Set', data: d.map(x => x.air), borderColor: '#2ecc71', tension: 0.3 },
+                { label: 'Bit Pr', data: d.map(x => x.bit), borderColor: '#e74c3c', tension: 0.3 }
             ];
         } else if (mode === 'hydro_impact') {
             datasets = [
-                { label: 'Impact (bar)', data: d.map(x => x.impact), borderColor: '#f1c40f', tension: 0.3 },
-                { label: 'Feed (bar)', data: d.map(x => x.feed), borderColor: '#e67e22', tension: 0.3 },
-                { label: 'Damper (bar)', data: d.map(x => x.damper), borderColor: '#3498db', tension: 0.3 }
+                { label: 'Impact', data: d.map(x => x.impact), borderColor: '#f1c40f', tension: 0.3 },
+                { label: 'Feed', data: d.map(x => x.feed), borderColor: '#e67e22', tension: 0.3 },
+                { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db', tension: 0.3 }
             ];
         }
-
-        chart = new Chart(ctx, { 
-            type: 'line', 
-            data: { labels: d.map(x => x.date), datasets: datasets },
-            options: options 
-        });
+        chart = new Chart(ctx, { type: 'line', data: { labels: d.map(x => x.date), datasets: datasets }, options: options });
     }
 
     function exportToExcel() {
         let table = document.getElementById("summary-tbl");
         let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
         let link = document.createElement('a'); 
-        link.download = "Fleet_Report.xls"; 
-        link.href = url; 
-        link.click();
+        link.download = "Fleet_Report.xls"; link.href = url; link.click();
     }
 </script>
 </body>
 </html>
+
 
 
 
