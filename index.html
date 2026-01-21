@@ -265,13 +265,31 @@ function drawChart() {
     let datasets = [];
     if (mode === 'tempVsOil') {
         datasets = [
-            { label: 'Oil bar', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'y', tension: 0.3 },
-            { label: 'Temp °C', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'y', tension: 0.3 },
-            // RESTORED RPM LINE
-            { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'y1', borderDash: [5, 5], tension: 0.3 }
+            { 
+                label: 'Oil bar (Left Axis)', 
+                data: d.map(x => x.oil), 
+                borderColor: '#2ecc71', 
+                yAxisID: 'yOil', // Linked to the Left axis
+                tension: 0.3 
+            },
+            { 
+                label: 'Temp °C (Right Axis)', 
+                data: d.map(x => x.temp), 
+                borderColor: '#e74c3c', 
+                yAxisID: 'yTempRpm', // Linked to the Right axis
+                tension: 0.3 
+            },
+            { 
+                label: 'RPM (Right Axis)', 
+                data: d.map(x => x.rpm), 
+                borderColor: '#3498db', 
+                yAxisID: 'yTempRpm', // Linked to the Right axis
+                borderDash: [5, 5], 
+                tension: 0.3 
+            }
         ];
     } else {
-        // ... (Keep your existing logic for other modes)
+        // ... (Keep existing logic for other modes)
     }
 
     chart = new Chart(ctx, { 
@@ -281,8 +299,29 @@ function drawChart() {
             responsive: true, 
             maintainAspectRatio: false,
             scales: {
-                y: { type: 'linear', position: 'left', grid: { color: '#333' } },
-                y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#3498db' } }
+                // LEFT AXIS for Oil Pressure
+                yOil: { 
+                    type: 'linear', 
+                    display: true, 
+                    position: 'left',
+                    title: { display: true, text: 'Oil Pressure (bar)', color: '#2ecc71' },
+                    grid: { color: '#333' },
+                    ticks: { color: '#2ecc71' },
+                    min: 0,
+                    max: 10 // Fixed range for bar pressure clarity
+                },
+                // RIGHT AXIS for Temperature and RPM
+                yTempRpm: { 
+                    type: 'linear', 
+                    display: true, 
+                    position: 'right',
+                    title: { display: true, text: 'Temp (°C) / RPM', color: '#e74c3c' },
+                    grid: { drawOnChartArea: false }, // Only show grid lines for the left axis
+                    ticks: { color: '#fff' }
+                }
+            },
+            plugins: {
+                legend: { labels: { color: '#fff' } }
             }
         }
     });
@@ -296,6 +335,7 @@ function drawChart() {
 </script>
 </body>
 </html>
+
 
 
 
