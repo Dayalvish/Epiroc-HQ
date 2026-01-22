@@ -213,20 +213,40 @@
             const data = await res.json();
             globalData = data; 
 
-            // 1. POPULATE SUMMARY TABLE
-            if (data.summary) {
-                document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
-                    <tr>
-                        <td><b>${r.id}</b></td><td>${r.audits}</td><td>${r.avgLoad}%</td>
-                        <td>${r.avgTemp}</td><td>${r.avgOil}</td><td>${r.avgFuel}</td>
-                        <td>${r.avgAir}</td><td>${r.avgBit}</td><td>${r.avgImpact}</td>
-                    </tr>`).join('');
-                
-                const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0);
-                document.getElementById('v-fleet-load').innerText = data.summary.length > 0 ? (totalLd / data.summary.length).toFixed(1) + "%" : "--";
-                document.getElementById('v-active-rigs').innerText = data.summary.length;
-            }
+            // 1. POPULATE SUMMARY TABLE (ROBUST MAPPING)
+if (data.summary && data.summary.length > 0) {
+    document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => {
+        // Safe mapping: use avgLoad if it exists, otherwise use load
+        const load = r.avgLoad || r.load || "0";
+        const temp = r.avgTemp || r.temp || "0";
+        const oil  = r.avgOil  || r.oil  || "0";
+        const fuel = r.avgFuel || r.fuel || "0";
+        const air  = r.avgAir  || r.air  || "0";
+        const bit  = r.avgBit  || r.bit  || "0";
+        const imp  = r.avgImpact || r.impact || "0";
+        const rpm  = r.avgRpm  || r.rpm  || "0";
 
+        return `
+            <tr>
+                <td><b>${r.id}</b></td>
+                <td>${r.audits || 0}</td>
+                <td>${load}%</td>
+                <td style="color:${r.tempColor || '#fff'}">${temp}</td>
+                <td style="color:${r.oilColor  || '#fff'}">${oil}</td>
+                <td style="color:${r.fuelColor || '#fff'}">${fuel}</td>
+                <td>${air}</td>
+                <td>${bit}</td>
+                <td>${imp}</td>
+            </tr>`;
+    }).join('');
+    
+    // Update Fleet Averages
+    const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad || r.load || 0), 0);
+    document.getElementById('v-fleet-load').innerText = (totalLd / data.summary.length).toFixed(1) + "%";
+    document.getElementById('v-active-rigs').innerText = data.summary.length;
+} else {
+    document.getElementById('fleet-summary-body').innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px;">No data found for this selection.</td></tr>';
+}
             // 2. DYNAMIC TRIGGER ALERTS (WITH CRITICAL HIGHLIGHTING)
 const alertList = document.getElementById('alert-list');
 if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
@@ -364,6 +384,7 @@ if (data.vitals) {
 </script>
 </body>
 </html>
+
 
 
 
