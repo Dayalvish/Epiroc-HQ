@@ -280,56 +280,69 @@ if (data.vitals) {
     const d = globalData.monthlyData;
     
     let datasets = [];
+    // 1. Start with standard base options
     let options = {
         responsive: true,
         maintainAspectRatio: false,
         scales: {
             x: { grid: { color: '#333' }, ticks: { color: '#888' } },
-            yLeft: { 
-                position: 'left', 
-                min: 0, max: 5,
-                title: { display: true, text: 'Oil Pressure (bar)', color: '#2ecc71' } 
-            },
-            yTemp: { 
-                position: 'right', 
-                min: 0, max: 150, 
-                title: { display: true, text: 'Temp °C', color: '#e74c3c' },
-                ticks: { color: '#e74c3c' },
-                grid: { drawOnChartArea: false }
-            },
-            yRPM: { 
-                position: 'right', 
-                min: 100, max: 2200, 
-                title: { display: true, text: 'RPM', color: '#3498db' },
-                ticks: { color: '#3498db' },
-                grid: { drawOnChartArea: false }
-            }
+            y: { grid: { color: '#333' }, ticks: { color: '#888' }, title: { display: true, color: '#fff' } }
         },
-        plugins: {
+        plugins: { 
             legend: { labels: { color: '#fff' } },
-            annotation: {
-                annotations: {
-                    line1: {
-                        type: 'line',
-                        yMin: 102,
-                        yMax: 102,
-                        yScaleID: 'yTemp', // Forces line to match the 0-150 scale
-                        borderColor: 'rgba(255, 77, 77, 0.7)',
-                        borderWidth: 2,
-                        borderDash: [6, 6],
-                        label: {
-                            display: true,
-                            content: 'Warning: 102°C',
-                            position: 'end',
-                            backgroundColor: 'rgba(255, 77, 77, 0.8)',
-                            color: '#fff',
-                            font: { size: 10 }
-                        }
-                    }
-                }
-            }
+            annotation: { annotations: {} } // Start with no annotations
         }
     };
+
+    // 2. APPLY MODE-SPECIFIC SCALES AND DATA
+    if (mode === 'tempVsOil') {
+        datasets = [
+            { label: 'Oil bar (Left)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yLeft', tension: 0.3 },
+            { label: 'Temp °C (Right)', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'yTemp', tension: 0.3 },
+            { label: 'RPM (Right)', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRPM', borderDash: [5, 5], tension: 0.3 }
+        ];
+
+        // Define Triple Partitioned Axes
+        options.scales = {
+            x: options.scales.x,
+            yLeft: { position: 'left', min: 0, max: 5, title: { display: true, text: 'Oil Pressure (bar)', color: '#2ecc71' } },
+            yTemp: { position: 'right', min: 0, max: 150, title: { display: true, text: 'Temp °C', color: '#e74c3c' }, ticks: { color: '#e74c3c' } },
+            yRPM: { position: 'right', min: 100, max: 2200, title: { display: true, text: 'RPM', color: '#3498db' }, ticks: { color: '#3498db' }, grid: { drawOnChartArea: false } }
+        };
+
+        // Add the 102°C Warning Line ONLY for this mode
+        options.plugins.annotation.annotations.line1 = {
+            type: 'line', yMin: 102, yMax: 102, yScaleID: 'yTemp',
+            borderColor: 'rgba(255, 77, 77, 0.7)', borderWidth: 2, borderDash: [6, 6],
+            label: { display: true, content: 'Warning: 102°C', position: 'end', backgroundColor: 'rgba(255, 77, 77, 0.8)', color: '#fff' }
+        };
+
+    } else if (mode === 'loadVsComp') {
+        datasets = [
+            { label: 'Engine Load %', data: d.map(x => x.load), borderColor: '#f1c40f', tension: 0.3 },
+            { label: 'Compressor %', data: d.map(x => x.comp), borderColor: '#3498db', tension: 0.3 }
+        ];
+        options.scales.y.title.text = 'Percentage (%)';
+        options.scales.y.max = 100; // Force 0-100% scale
+
+    } else if (mode === 'setBit') {
+        datasets = [
+            { label: 'Air Set (bar)', data: d.map(x => x.air), borderColor: '#2ecc71', tension: 0.3 },
+            { label: 'Bit Pressure (bar)', data: d.map(x => x.bit), borderColor: '#e74c3c', tension: 0.3 }
+        ];
+        options.scales.y.title.text = 'Pressure (bar)';
+
+    } else if (mode === 'hydro_impact') {
+        datasets = [
+            { label: 'Impact (bar)', data: d.map(x => x.impact), borderColor: '#f1c40f', tension: 0.3 },
+            { label: 'Feed (bar)', data: d.map(x => x.feed), borderColor: '#e67e22', tension: 0.3 },
+            { label: 'Damper (bar)', data: d.map(x => x.damper), borderColor: '#3498db', tension: 0.3 }
+        ];
+        options.scales.y.title.text = 'Pressure (bar)';
+    }
+
+    chart = new Chart(ctx, { type: 'line', data: { labels: d.map(x => x.date), datasets: datasets }, options: options });
+}
 
     if (mode === 'tempVsOil') {
         datasets = [
@@ -352,6 +365,7 @@ if (data.vitals) {
 </script>
 </body>
 </html>
+
 
 
 
