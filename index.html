@@ -203,108 +203,86 @@
         refresh();
     }
 
-    async function refresh() {
-        const rig = document.getElementById('rigSelect').value;
-        const month = document.getElementById('monthFilter').value;
-        const cleanRig = (rig === "Loading..." || !rig) ? "" : rig;
+async function refresh() {
+    const rig = document.getElementById('rigSelect').value;
+    const month = document.getElementById('monthFilter').value;
+    const cleanRig = (rig === "Loading..." || !rig) ? "" : rig;
 
-        try {
-            const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(cleanRig)}&month=${month}`));
-            const data = await res.json();
-            globalData = data; 
-
-            // 1. POPULATE SUMMARY TABLE (ROBUST MAPPING)
-if (data.summary && data.summary.length > 0) {
-    document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => {
-        // Safe mapping: use avgLoad if it exists, otherwise use load
-        const load = r.avgLoad || r.load || "0";
-        const temp = r.avgTemp || r.temp || "0";
-        const oil  = r.avgOil  || r.oil  || "0";
-        const fuel = r.avgFuel || r.fuel || "0";
-        const air  = r.avgAir  || r.air  || "0";
-        const bit  = r.avgBit  || r.bit  || "0";
-        const imp  = r.avgImpact || r.impact || "0";
-        const rpm  = r.avgRpm  || r.rpm  || "0";
-
-        return `
-            <tr>
-                <td><b>${r.id}</b></td>
-                <td>${r.audits || 0}</td>
-                <td>${load}%</td>
-                <td style="color:${r.tempColor || '#fff'}">${temp}</td>
-                <td style="color:${r.oilColor  || '#fff'}">${oil}</td>
-                <td style="color:${r.fuelColor || '#fff'}">${fuel}</td>
-                <td>${air}</td>
-                <td>${bit}</td>
-                <td>${imp}</td>
-            </tr>`;
-    }).join('');
-    
-    // Update Fleet Averages
-    const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad || r.load || 0), 0);
-    document.getElementById('v-fleet-load').innerText = (totalLd / data.summary.length).toFixed(1) + "%";
-    document.getElementById('v-active-rigs').innerText = data.summary.length;
-} else {
-    document.getElementById('fleet-summary-body').innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px;">No data found for this selection.</td></tr>';
-}
-            // 2. DYNAMIC TRIGGER ALERTS (WITH CRITICAL HIGHLIGHTING)
-const alertList = document.getElementById('alert-list');
-if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
-    alertList.innerHTML = data.vitals.alerts.map(a => {
-        // Check if this is a priority alert (Oil or Temp)
-        const isCritical = a.parameter.includes("CRITICAL");
+    try {
+        const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(cleanRig)}&month=${month}`));
+        const data = await res.json();
         
-        // Dynamic styling based on severity
-        const cardStyle = isCritical 
-            ? "border-left:8px solid #ff0000; background:rgba(255,0,0,0.25); animation: blinker 1.5s linear infinite;" 
-            : "border-left:5px solid var(--red); background:rgba(255,77,77,0.1);";
-        
-        const labelColor = isCritical ? "#ff4d4d" : "var(--red)";
+        if (!data) return;
+        globalData = data; 
 
-        return `
-            <div class="alert-card" style="${cardStyle} padding:10px; margin-bottom:8px; border-radius:4px; border: ${isCritical ? '1px solid #ff0000' : 'none'};">
-                <b style="color:${labelColor}; font-size: 0.9rem;">⚠️ ${a.parameter}</b><br>
-                <div style="margin-top:4px; font-size: 0.85rem;">
-                    <span style="color:#bbb;">Current:</span> <b style="color:#fff;">${a.value}</b> 
-                    <span style="color:#bbb; margin-left:10px;">Limit:</span> <b style="color:var(--ey);">${a.limit}</b>
-                </div>
-            </div>`;
-    }).join('');
-} else {
-    alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green); font-weight:bold;">✅ ALL SYSTEMS NORMAL</div>`;
-}
+        // 1. POPULATE SUMMARY TABLE
+        if (data.summary && data.summary.length > 0) {
+            document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => {
+                const load = r.avgLoad || r.load || "0";
+                const temp = r.avgTemp || r.temp || "0";
+                const oil  = r.avgOil  || r.oil  || "0";
+                const fuel = r.avgFuel || r.fuel || "0";
+                const air  = r.avgAir  || r.air  || "0";
+                const bit  = r.avgBit  || r.bit  || "0";
+                const imp  = r.avgImpact || r.impact || "0";
 
-            // 3. UPDATE MACHINE VITALS & 15s WARNING TIMER
-if (data.vitals) {
-    // UPDATED: This correctly pushes the date from GS to the 'v-date' span
-    document.getElementById('v-date').innerText = data.vitals.date || "--";
-    
-    document.getElementById('v-boost').innerText = data.vitals.boost || "0";
-    document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
-    document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
-    document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
+                return `
+                    <tr>
+                        <td><b>${r.id}</b></td>
+                        <td>${r.audits || 0}</td>
+                        <td>${load}%</td>
+                        <td style="color:${r.tempColor || '#fff'}">${temp}</td>
+                        <td style="color:${r.oilColor  || '#fff'}">${oil}</td>
+                        <td style="color:${r.fuelColor || '#fff'}">${fuel}</td>
+                        <td>${air}</td>
+                        <td>${bit}</td>
+                        <td>${imp}</td>
+                    </tr>`;
+            }).join('');
 
-    // --- AUDIT WARNING LOGIC ---
-    const warning = document.getElementById('auditWarning');
-    if (data.monthlyAuditCount < 15) {
-        warning.style.display = 'block'; 
-        const timer = setTimeout(() => { warning.style.display = 'none'; }, 15000);
-        const closeBtn = warning.querySelector('span');
-        if(closeBtn) {
-            closeBtn.onclick = () => { warning.style.display = 'none'; clearTimeout(timer); };
+            // Update Header Stats
+            const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad || r.load || 0), 0);
+            document.getElementById('v-fleet-load').innerText = (totalLd / data.summary.length).toFixed(1) + "%";
+            document.getElementById('v-active-rigs').innerText = data.summary.length;
         }
-    } else {
-        warning.style.display = 'none'; 
+
+        // 2. DYNAMIC TRIGGER ALERTS
+        const alertList = document.getElementById('alert-list');
+        if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
+            alertList.innerHTML = data.vitals.alerts.map(a => {
+                const isCritical = a.parameter.includes("CRITICAL");
+                const cardStyle = isCritical 
+                    ? "border-left:8px solid #ff0000; background:rgba(255,0,0,0.25); animation: blinker 1.5s linear infinite;" 
+                    : "border-left:5px solid var(--red); background:rgba(255,77,77,0.1);";
+                return `
+                    <div class="alert-card" style="${cardStyle} padding:10px; margin-bottom:8px; border-radius:4px;">
+                        <b style="color:${isCritical ? '#ff4d4d' : 'var(--red)'}; font-size: 0.9rem;">⚠️ ${a.parameter}</b><br>
+                        <div style="margin-top:4px; font-size: 0.85rem;">
+                            Current: <b>${a.value}</b> | Limit: <b style="color:var(--ey);">${a.limit}</b>
+                        </div>
+                    </div>`;
+            }).join('');
+        } else {
+            alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green); font-weight:bold;">✅ ALL SYSTEMS NORMAL</div>`;
+        }
+
+        // 3. UPDATE MACHINE VITALS
+        if (data.vitals) {
+            document.getElementById('v-date').innerText = data.vitals.date || "--";
+            document.getElementById('v-boost').innerText = data.vitals.boost || "0";
+            document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
+            document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
+            document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
+        }
+
+        drawChart();
+        document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+
+    } catch (e) {
+        console.error("Refresh Error", e);
+        document.getElementById('alert-list').innerText = "Connection Error";
     }
 }
-
-            drawChart(); 
-            document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
-        } catch (e) { 
-            console.error("Refresh Error", e);
-            document.getElementById('alert-list').innerText = "Connection Error";
-        }
-    }
 
     function drawChart() {
     if (!globalData || !globalData.monthlyData) return;
@@ -384,6 +362,7 @@ if (data.vitals) {
 </script>
 </body>
 </html>
+
 
 
 
