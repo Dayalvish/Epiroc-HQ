@@ -226,31 +226,63 @@
             document.getElementById('v-active-rigs').innerText = data.summary.length;
         }
 
-        // 2. DYNAMIC TRIGGER ALERTS (Improved Styling)
-        const alertList = document.getElementById('alert-list');
-        if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
-            alertList.innerHTML = data.vitals.alerts.map(a => `
-                <div class="alert-card" style="border-left:5px solid var(--red); background:rgba(255,77,77,0.1); padding:10px; margin-bottom:8px; border-radius:4px;">
-                    <b style="color:var(--red);">⚠️ ${a.parameter}</b><br>
-                    <small style="color:#fff;">Current: <b>${a.value}</b> | Limit: ${a.limit}</small>
-                </div>`).join('');
-        } else {
-            alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green); font-weight:bold;">✅ SYSTEMS NORMAL</div>`;
-        }
+        // 2. DYNAMIC TRIGGER ALERTS (Now with Rig ID Identification)
+const alertList = document.getElementById('alert-list');
+if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
+    alertList.innerHTML = data.vitals.alerts.map(a => `
+        <div class="alert-card" style="border-left:5px solid var(--red); background:rgba(255,77,77,0.15); padding:10px; margin-bottom:8px; border-radius:4px; border: 1px solid rgba(255,77,77,0.3);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <b style="color:var(--ey); font-size:0.75rem;">UNIT: ${a.rig || 'N/A'}</b>
+                <span style="font-size:0.6rem; color:#888; background:#222; padding:2px 5px; border-radius:3px;">LIVE</span>
+            </div>
+            <b style="color:var(--red); font-size:0.85rem;">⚠️ ${a.parameter}</b><br>
+            <div style="margin-top:4px; font-size:0.8rem;">
+                <span style="color:#bbb;">Current:</span> <b style="color:#fff;">${a.value}</b> 
+                <span style="color:#666; margin:0 3px;">|</span> 
+                <span style="color:#bbb;">Limit:</span> <b style="color:var(--ey);">${a.limit}</b>
+            </div>
+        </div>`).join('');
+} else {
+    alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green); font-weight:bold; border:1px dashed var(--green); border-radius:8px;">✅ ALL RIGS NORMAL</div>`;
+}
 
-        // 3. UPDATE MACHINE VITALS (Now includes Date)
-        if (data.vitals) {
-            // FIXED: Added date population
-            document.getElementById('v-date').innerText = data.vitals.date || "--"; 
-            document.getElementById('v-boost').innerText = data.vitals.boost || "0";
-            document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
-            document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
-            document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
-            
-            const warning = document.getElementById('auditWarning');
-            warning.style.display = (data.monthlyAuditCount < 15) ? 'block' : 'none';
-        }
+        // --- 3. UPDATE MACHINE VITALS & AUDIT WARNING ---
+if (data.vitals) {
+    // Populate Vitals Text
+    document.getElementById('v-date').innerText = data.vitals.date || "--"; 
+    document.getElementById('v-boost').innerText = data.vitals.boost || "0";
+    document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
+    document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
+    document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
+    
+    // --- FIXED TIMER LOGIC FOR AUDIT WARNING ---
+    const warning = document.getElementById('auditWarning');
 
+    // 1. Reset: Clear any existing timer to prevent overlapping alerts
+    if (window.auditTimeout) clearTimeout(window.auditTimeout);
+
+    // 2. Condition: Show if audits are between 1 and 14
+    if (data.monthlyAuditCount > 0 && data.monthlyAuditCount < 15) {
+        warning.style.display = 'block';
+
+        // 3. Set fresh 15-second countdown
+        window.auditTimeout = setTimeout(() => {
+            warning.style.display = 'none';
+        }, 15000);
+
+        // 4. Manual Close Button logic (if span exists in HTML)
+        const closeBtn = warning.querySelector('span');
+        if (closeBtn) {
+            closeBtn.onclick = () => {
+                warning.style.display = 'none';
+                clearTimeout(window.auditTimeout);
+            };
+        }
+    } else {
+        // Hide immediately if count is 0 or 15+
+        warning.style.display = 'none';
+    }
+}
         drawChart(); 
         document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
     } catch (e) { 
@@ -315,3 +347,4 @@
 </script>
 </body>
 </html>
+
