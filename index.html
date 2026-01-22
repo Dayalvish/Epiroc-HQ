@@ -72,11 +72,11 @@
 </div>
 
 <div id="dashboard-content">
-    <div id="auditWarning">⚠️ RIG HAS NOT COVERED MANDATORY MINIMUM AUDITS (< 15)</div>
     <div id="auditWarning">
-    ⚠️ RIG HAS NOT COVERED MANDATORY MINIMUM AUDITS (< 15)
-    <span style="float:right; cursor:pointer; font-weight:bold; margin-left:15px; border:1px solid #fff; padding:0 5px; border-radius:3px;">&times;</span>
-</div>
+        ⚠️ RIG HAS NOT COVERED MANDATORY MINIMUM AUDITS (< 15)
+        <span onclick="this.parentElement.style.display='none'" style="float:right; cursor:pointer; font-weight:bold; margin-left:15px; border:1px solid #fff; padding:0 5px; border-radius:3px;">&times;</span>
+    </div>
+
     <div class="header">
         <div class="header-left">
             <img src="https://raw.githubusercontent.com/Dayalvish/Epiroc-dash/main/Picture1.png" height="45">
@@ -97,7 +97,7 @@
             <label style="display:block; margin-top:15px;">Target Rig ID</label>
             <select id="rigSelect" onchange="refresh()"><option>Loading...</option></select>
             
-            <label style="display:block; margin-top:15px;">Target Month (Month Filter)</label>
+            <label style="display:block; margin-top:15px;">Target Month</label>
             <input type="month" id="monthFilter" onchange="refresh()">
 
             <h4 style="color:var(--ey); margin: 25px 0 5px 0; font-size: 0.85rem; border-bottom: 1px solid #333; padding-bottom: 5px;">
@@ -110,7 +110,7 @@
                 <tr><td class="v-label">Hyd-Oil Temp</td><td id="v-hyd-temp" class="v-value">--</td></tr>
             </table>
 
-            <label style="display:block; margin-top:15px;">Analysis Mode (Analytical Dropdown)</label>
+            <label style="display:block; margin-top:15px;">Analysis Mode</label>
             <select id="chartMode" onchange="drawChart()">
                 <option value="tempVsOil">Trend: Temp / Oil / RPM</option>
                 <option value="loadVsComp">Load vs Compressor %</option>
@@ -124,7 +124,7 @@
             </div>
 
             <button onclick="window.print()" class="btn-red">📄 GENERATE PDF</button>
-            <button onclick="exportToExcel()" class="btn-green">📊 EXCEL EXPORT (Excel Dropdown)</button>
+            <button onclick="exportToExcel()" class="btn-green">📊 EXCEL EXPORT</button>
         </div>
 
         <div class="chart-area">
@@ -154,13 +154,8 @@
         const u = document.getElementById('userIn').value;
         const p = document.getElementById('passIn').value;
         const msg = document.getElementById('login-msg');
-        
-        if (!u || !p) {
-            msg.innerText = "Please enter credentials.";
-            return;
-        }
+        if (!u || !p) { msg.innerText = "Please enter credentials."; return; }
         msg.innerText = "Authenticating...";
-        
         try {
             const resp = await fetch(`${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`);
             const data = await resp.json();
@@ -169,21 +164,16 @@
                 sessionStorage.setItem('siteView', data.siteView);
                 sessionStorage.setItem('user', u);
                 sessionStorage.setItem('logger', data.logger);
-                document.getElementById('id-badge').innerText = `${u}-${data.logger}`;
+                document.getElementById('id-badge').innerText = u + "-" + data.logger;
                 document.body.classList.add('authorized');
                 init(); 
-            } else {
-                msg.innerText = "Invalid Login. Access Denied.";
-            }
-        } catch (e) {
-            console.error("Login Error:", e);
-            msg.innerText = "Connection Failed. Check Web App URL.";
-        }
+            } else { msg.innerText = "Invalid Login."; }
+        } catch (e) { msg.innerText = "Connection Failed."; }
     }
 
     function getFullUrl(params) {
         const r = sessionStorage.getItem('region'), s = sessionStorage.getItem('siteView'), u = sessionStorage.getItem('user');
-        return `${API}?${params}&userRegion=${encodeURIComponent(r)}&siteView=${encodeURIComponent(s)}&user=${encodeURIComponent(u)}&v=${Date.now()}`;
+        return API + "?" + params + "&userRegion=" + encodeURIComponent(r) + "&siteView=" + encodeURIComponent(s) + "&user=" + encodeURIComponent(u) + "&v=" + Date.now();
     }
 
     async function init() {
@@ -191,167 +181,96 @@
         document.getElementById('monthFilter').value = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
         const mRes = await fetch(getFullUrl("get=model_list"));
         const mList = await mRes.json();
-        document.getElementById('modelSelect').innerHTML = '<option value="">All Models</option>' + mList.map(m => `<option value="${m}">${m}</option>`).join('');
+        document.getElementById('modelSelect').innerHTML = '<option value="">All Models</option>' + mList.map(m => '<option value="' + m + '">' + m + '</option>').join('');
         updateRigDropdown(); 
     }
 
     async function updateRigDropdown() {
         const model = document.getElementById('modelSelect').value;
-        const res = await fetch(getFullUrl(`get=list&model=${encodeURIComponent(model)}`));
+        const res = await fetch(getFullUrl("get=list&model=" + encodeURIComponent(model)));
         const rigs = await res.json();
-        document.getElementById('rigSelect').innerHTML = rigs.map(id => `<option value="${id}">${id}</option>`).join('');
+        document.getElementById('rigSelect').innerHTML = rigs.map(id => '<option value="' + id + '">' + id + '</option>').join('');
         refresh();
     }
 
-async function refresh() {
-    const rig = document.getElementById('rigSelect').value;
-    const month = document.getElementById('monthFilter').value;
-    const cleanRig = (rig === "Loading..." || !rig) ? "" : rig;
+    async function refresh() {
+        const rig = document.getElementById('rigSelect').value;
+        const month = document.getElementById('monthFilter').value;
+        const cleanRig = (rig === "Loading..." || !rig) ? "" : rig;
+        try {
+            const res = await fetch(getFullUrl("fleetId=" + encodeURIComponent(cleanRig) + "&month=" + month));
+            const data = await res.json();
+            if (!data) return;
+            globalData = data; 
 
-    try {
-        const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(cleanRig)}&month=${month}`));
-        const data = await res.json();
-        
-        if (!data) return;
-        globalData = data; 
-
-        // 1. POPULATE SUMMARY TABLE
-        if (data.summary && data.summary.length > 0) {
-            document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => {
-                const load = r.avgLoad || r.load || "0";
-                const temp = r.avgTemp || r.temp || "0";
-                const oil  = r.avgOil  || r.oil  || "0";
-                const fuel = r.avgFuel || r.fuel || "0";
-                const air  = r.avgAir  || r.air  || "0";
-                const bit  = r.avgBit  || r.bit  || "0";
-                const imp  = r.avgImpact || r.impact || "0";
-
-                return `
+            if (data.summary && data.summary.length > 0) {
+                document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
                     <tr>
-                        <td><b>${r.id}</b></td>
-                        <td>${r.audits || 0}</td>
-                        <td>${load}%</td>
-                        <td style="color:${r.tempColor || '#fff'}">${temp}</td>
-                        <td style="color:${r.oilColor  || '#fff'}">${oil}</td>
-                        <td style="color:${r.fuelColor || '#fff'}">${fuel}</td>
-                        <td>${air}</td>
-                        <td>${bit}</td>
-                        <td>${imp}</td>
-                    </tr>`;
-            }).join('');
+                        <td><b>${r.id}</b></td><td>${r.audits || 0}</td><td>${r.avgLoad || r.load || 0}%</td>
+                        <td style="color:${r.tempColor || '#fff'}">${r.avgTemp || r.temp || 0}</td>
+                        <td style="color:${r.oilColor || '#fff'}">${r.avgOil || r.oil || 0}</td>
+                        <td style="color:${r.fuelColor || '#fff'}">${r.avgFuel || r.fuel || 0}</td>
+                        <td>${r.avgAir || r.air || 0}</td><td>${r.avgBit || r.bit || 0}</td><td>${r.avgImpact || r.impact || 0}</td>
+                    </tr>`).join('');
+                const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad || r.load || 0), 0);
+                document.getElementById('v-fleet-load').innerText = (totalLd / data.summary.length).toFixed(1) + "%";
+                document.getElementById('v-active-rigs').innerText = data.summary.length;
+            }
 
-            // Update Header Stats
-            const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad || r.load || 0), 0);
-            document.getElementById('v-fleet-load').innerText = (totalLd / data.summary.length).toFixed(1) + "%";
-            document.getElementById('v-active-rigs').innerText = data.summary.length;
-        }
+            const alertList = document.getElementById('alert-list');
+            if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
+                alertList.innerHTML = data.vitals.alerts.map(a => {
+                    const isCritical = a.parameter.includes("CRITICAL");
+                    const cardStyle = isCritical ? "border-left:8px solid #ff0000; background:rgba(255,0,0,0.25); animation: blinker 1.5s linear infinite;" : "border-left:5px solid var(--red); background:rgba(255,77,77,0.1);";
+                    return '<div class="alert-card" style="' + cardStyle + ' padding:10px; margin-bottom:8px; border-radius:4px;"><b style="color:' + (isCritical ? "#ff4d4d" : "var(--red)") + '; font-size: 0.9rem;">⚠️ ' + a.parameter + '</b><br><div style="margin-top:4px; font-size: 0.85rem;">Current: <b>' + a.value + '</b> | Limit: <b style="color:var(--ey);">' + a.limit + '</b></div></div>';
+                }).join('');
+            } else { alertList.innerHTML = '<div style="text-align:center; padding:20px; color:var(--green); font-weight:bold;">✅ ALL SYSTEMS NORMAL</div>'; }
 
-        // 2. DYNAMIC TRIGGER ALERTS
-        const alertList = document.getElementById('alert-list');
-        if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
-            alertList.innerHTML = data.vitals.alerts.map(a => {
-                const isCritical = a.parameter.includes("CRITICAL");
-                const cardStyle = isCritical 
-                    ? "border-left:8px solid #ff0000; background:rgba(255,0,0,0.25); animation: blinker 1.5s linear infinite;" 
-                    : "border-left:5px solid var(--red); background:rgba(255,77,77,0.1);";
-                return `
-                    <div class="alert-card" style="${cardStyle} padding:10px; margin-bottom:8px; border-radius:4px;">
-                        <b style="color:${isCritical ? '#ff4d4d' : 'var(--red)'}; font-size: 0.9rem;">⚠️ ${a.parameter}</b><br>
-                        <div style="margin-top:4px; font-size: 0.85rem;">
-                            Current: <b>${a.value}</b> | Limit: <b style="color:var(--ey);">${a.limit}</b>
-                        </div>
-                    </div>`;
-            }).join('');
-        } else {
-            alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green); font-weight:bold;">✅ ALL SYSTEMS NORMAL</div>`;
-        }
-
-        // 3. UPDATE MACHINE VITALS
-        if (data.vitals) {
-            document.getElementById('v-date').innerText = data.vitals.date || "--";
-            document.getElementById('v-boost').innerText = data.vitals.boost || "0";
-            document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
-            document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
-            document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
-        }
-
-        drawChart();
-        document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
-
-    } catch (e) {
-        console.error("Refresh Error", e);
-        document.getElementById('alert-list').innerText = "Connection Error";
+            if (data.vitals) {
+                document.getElementById('v-date').innerText = data.vitals.date || "--";
+                document.getElementById('v-boost').innerText = data.vitals.boost || "0";
+                document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
+                document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
+                document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
+                const warning = document.getElementById('auditWarning');
+                warning.style.display = (data.monthlyAuditCount < 15) ? 'block' : 'none';
+            }
+            drawChart();
+            document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+        } catch (e) { console.error("Refresh Error", e); }
     }
-}
 
     function drawChart() {
-    if (!globalData || !globalData.monthlyData) return;
-    const ctx = document.getElementById('mainChart').getContext('2d');
-    if (chart) chart.destroy();
-    
-    const mode = document.getElementById('chartMode').value;
-    const d = globalData.monthlyData;
-    
-    let datasets = [];
-    let options = {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-            x: { grid: { color: '#333' }, ticks: { color: '#888' } },
-            y: { grid: { color: '#333' }, ticks: { color: '#888' }, title: { display: true, color: '#fff' } }
-        },
-        plugins: { 
-            legend: { labels: { color: '#fff' } },
-            annotation: { annotations: {} }
+        if (!globalData || !globalData.monthlyData) return;
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        if (chart) chart.destroy();
+        const mode = document.getElementById('chartMode').value;
+        const d = globalData.monthlyData;
+        let datasets = [], options = {
+            responsive: true, maintainAspectRatio: false,
+            scales: { x: { grid: { color: '#333' } }, y: { grid: { color: '#333' } } },
+            plugins: { legend: { labels: { color: '#fff' } }, annotation: { annotations: {} } }
+        };
+
+        if (mode === 'tempVsOil') {
+            datasets = [
+                { label: 'Oil bar', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yLeft' },
+                { label: 'Temp °C', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'yTemp' },
+                { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRPM' }
+            ];
+            options.scales = {
+                yLeft: { position: 'left', min: 0, max: 5 },
+                yTemp: { position: 'right', min: 0, max: 150 },
+                yRPM: { position: 'right', min: 100, max: 2200, grid: { drawOnChartArea: false } }
+            };
+            options.plugins.annotation.annotations.line1 = {
+                type: 'line', yMin: 102, yMax: 102, yScaleID: 'yTemp', borderColor: 'red', borderDash: [6, 6]
+            };
+        } else {
+            datasets = [{ label: 'Data', data: d.map(x => x.oil), borderColor: '#f1c40f' }];
         }
-    };
-
-    if (mode === 'tempVsOil') {
-        datasets = [
-            { label: 'Oil bar (Left)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yLeft', tension: 0.3 },
-            { label: 'Temp °C (Right)', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'yTemp', tension: 0.3 },
-            { label: 'RPM (Right)', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRPM', borderDash: [5, 5], tension: 0.3 }
-        ];
-
-        options.scales = {
-            x: options.scales.x,
-            yLeft: { position: 'left', min: 0, max: 5, title: { display: true, text: 'Oil Pressure (bar)', color: '#2ecc71' } },
-            yTemp: { position: 'right', min: 0, max: 150, title: { display: true, text: 'Temp °C', color: '#e74c3c' }, ticks: { color: '#e74c3c' } },
-            yRPM: { position: 'right', min: 100, max: 2200, title: { display: true, text: 'RPM', color: '#3498db' }, ticks: { color: '#3498db' }, grid: { drawOnChartArea: false } }
-        };
-
-        options.plugins.annotation.annotations.line1 = {
-            type: 'line', yMin: 102, yMax: 102, yScaleID: 'yTemp',
-            borderColor: 'rgba(255, 77, 77, 0.7)', borderWidth: 2, borderDash: [6, 6],
-            label: { display: true, content: 'Warning: 102°C', position: 'end', backgroundColor: 'rgba(255, 77, 77, 0.8)', color: '#fff' }
-        };
-
-    } else if (mode === 'loadVsComp') {
-        datasets = [
-            { label: 'Engine Load %', data: d.map(x => x.load), borderColor: '#f1c40f', tension: 0.3 },
-            { label: 'Compressor %', data: d.map(x => x.comp), borderColor: '#3498db', tension: 0.3 }
-        ];
-        options.scales.y.title.text = 'Percentage (%)';
-        options.scales.y.max = 100;
-
-    } else if (mode === 'setBit') {
-        datasets = [
-            { label: 'Air Set (bar)', data: d.map(x => x.air), borderColor: '#2ecc71', tension: 0.3 },
-            { label: 'Bit Pressure (bar)', data: d.map(x => x.bit), borderColor: '#e74c3c', tension: 0.3 }
-        ];
-        options.scales.y.title.text = 'Pressure (bar)';
-
-    } else if (mode === 'hydro_impact') {
-        datasets = [
-            { label: 'Impact (bar)', data: d.map(x => x.impact), borderColor: '#f1c40f', tension: 0.3 },
-            { label: 'Feed (bar)', data: d.map(x => x.feed), borderColor: '#e67e22', tension: 0.3 },
-            { label: 'Damper (bar)', data: d.map(x => x.damper), borderColor: '#3498db', tension: 0.3 }
-        ];
-        options.scales.y.title.text = 'Pressure (bar)';
+        chart = new Chart(ctx, { type: 'line', data: { labels: d.map(x => x.date), datasets: datasets }, options: options });
     }
-
-    chart = new Chart(ctx, { type: 'line', data: { labels: d.map(x => x.date), datasets: datasets }, options: options });
-}
 
     function exportToExcel() {
         let table = document.getElementById("summary-tbl");
@@ -360,8 +279,8 @@ async function refresh() {
         link.download = "Fleet_Report.xls"; link.href = url; link.click();
     }
 </script>
-</body>
-</html>
+</body></html>
+
 
 
 
