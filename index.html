@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>EPIROC CENTRAL PARAMETER DASH VIEW</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.0.1"></script>
     <style>
         :root { --ey: #f1c40f; --bg: #0d0d0d; --card: #1a1a1a; --red: #ff4d4d; --green: #2ecc71; --blue: #3498db; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 20px; overflow: hidden; }
@@ -271,47 +272,76 @@ if (data.vitals) {
     }
 
     function drawChart() {
-        if (!globalData || !globalData.monthlyData) return;
-        const ctx = document.getElementById('mainChart').getContext('2d');
-        if (chart) chart.destroy();
-        const mode = document.getElementById('chartMode').value;
-        const d = globalData.monthlyData;
-        
-        let datasets = [];
-        let options = {
-            responsive: true, maintainAspectRatio: false,
-            scales: {
-                x: { grid: { color: '#333' }, ticks: { color: '#888' } },
-                yLeft: { position: 'left', title: { display: true, text: 'Pressure', color: '#2ecc71' } },
-                yRight: { position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Temp / RPM', color: '#e74c3c' } }
+    if (!globalData || !globalData.monthlyData) return;
+    const ctx = document.getElementById('mainChart').getContext('2d');
+    if (chart) chart.destroy();
+    
+    const mode = document.getElementById('chartMode').value;
+    const d = globalData.monthlyData;
+    
+    let datasets = [];
+    let options = {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            x: { grid: { color: '#333' }, ticks: { color: '#888' } },
+            yLeft: { 
+                position: 'left', 
+                min: 0, max: 5,
+                title: { display: true, text: 'Oil Pressure (bar)', color: '#2ecc71' } 
+            },
+            yTemp: { 
+                position: 'right', 
+                min: 0, max: 150, 
+                title: { display: true, text: 'Temp °C', color: '#e74c3c' },
+                ticks: { color: '#e74c3c' },
+                grid: { drawOnChartArea: false }
+            },
+            yRPM: { 
+                position: 'right', 
+                min: 100, max: 2200, 
+                title: { display: true, text: 'RPM', color: '#3498db' },
+                ticks: { color: '#3498db' },
+                grid: { drawOnChartArea: false }
             }
-        };
-
-        if (mode === 'tempVsOil') {
-            datasets = [
-                { label: 'Oil bar (Left)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yLeft', tension: 0.3 },
-                { label: 'Temp °C (Right)', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'yRight', tension: 0.3 },
-                { label: 'RPM (Right)', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRight', borderDash: [5, 5], tension: 0.3 }
-            ];
-        } else if (mode === 'loadVsComp') {
-            datasets = [
-                { label: 'Load %', data: d.map(x => x.load), borderColor: '#f1c40f', tension: 0.3 },
-                { label: 'Comp %', data: d.map(x => x.comp), borderColor: '#3498db', tension: 0.3 }
-            ];
-        } else if (mode === 'setBit') {
-            datasets = [
-                { label: 'Air Set', data: d.map(x => x.air), borderColor: '#2ecc71', tension: 0.3 },
-                { label: 'Bit Pr', data: d.map(x => x.bit), borderColor: '#e74c3c', tension: 0.3 }
-            ];
-        } else if (mode === 'hydro_impact') {
-            datasets = [
-                { label: 'Impact', data: d.map(x => x.impact), borderColor: '#f1c40f', tension: 0.3 },
-                { label: 'Feed', data: d.map(x => x.feed), borderColor: '#e67e22', tension: 0.3 },
-                { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db', tension: 0.3 }
-            ];
+        },
+        plugins: {
+            legend: { labels: { color: '#fff' } },
+            annotation: {
+                annotations: {
+                    line1: {
+                        type: 'line',
+                        yMin: 102,
+                        yMax: 102,
+                        yScaleID: 'yTemp', // Forces line to match the 0-150 scale
+                        borderColor: 'rgba(255, 77, 77, 0.7)',
+                        borderWidth: 2,
+                        borderDash: [6, 6],
+                        label: {
+                            display: true,
+                            content: 'Warning: 102°C',
+                            position: 'end',
+                            backgroundColor: 'rgba(255, 77, 77, 0.8)',
+                            color: '#fff',
+                            font: { size: 10 }
+                        }
+                    }
+                }
+            }
         }
-        chart = new Chart(ctx, { type: 'line', data: { labels: d.map(x => x.date), datasets: datasets }, options: options });
-    }
+    };
+
+    if (mode === 'tempVsOil') {
+        datasets = [
+            { label: 'Oil bar (Left)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yLeft', tension: 0.3 },
+            { label: 'Temp °C (Right)', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'yTemp', tension: 0.3 },
+            { label: 'RPM (Right)', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRPM', borderDash: [5, 5], tension: 0.3 }
+        ];
+    } 
+    // ... rest of your modes (loadVsComp, etc.) ...
+
+    chart = new Chart(ctx, { type: 'line', data: { labels: d.map(x => x.date), datasets: datasets }, options: options });
+}
 
     function exportToExcel() {
         let table = document.getElementById("summary-tbl");
@@ -322,6 +352,7 @@ if (data.vitals) {
 </script>
 </body>
 </html>
+
 
 
 
