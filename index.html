@@ -227,17 +227,32 @@
                 document.getElementById('v-active-rigs').innerText = data.summary.length;
             }
 
-            // 2. DYNAMIC TRIGGER ALERTS
-            const alertList = document.getElementById('alert-list');
-            if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
-                alertList.innerHTML = data.vitals.alerts.map(a => `
-                    <div class="alert-card" style="border-left:5px solid var(--red); background:rgba(255,77,77,0.1); padding:10px; margin-bottom:8px; border-radius:4px;">
-                        <b style="color:var(--red);">⚠️ ${a.parameter} Alert</b><br>
-                        <small>Current: ${a.value} | Limit: ${a.limit}</small>
-                    </div>`).join('');
-            } else {
-                alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green);">✅ SYSTEMS NORMAL</div>`;
-            }
+            // 2. DYNAMIC TRIGGER ALERTS (WITH CRITICAL HIGHLIGHTING)
+const alertList = document.getElementById('alert-list');
+if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
+    alertList.innerHTML = data.vitals.alerts.map(a => {
+        // Check if this is a priority alert (Oil or Temp)
+        const isCritical = a.parameter.includes("CRITICAL");
+        
+        // Dynamic styling based on severity
+        const cardStyle = isCritical 
+            ? "border-left:8px solid #ff0000; background:rgba(255,0,0,0.25); animation: blinker 1.5s linear infinite;" 
+            : "border-left:5px solid var(--red); background:rgba(255,77,77,0.1);";
+        
+        const labelColor = isCritical ? "#ff4d4d" : "var(--red)";
+
+        return `
+            <div class="alert-card" style="${cardStyle} padding:10px; margin-bottom:8px; border-radius:4px; border: ${isCritical ? '1px solid #ff0000' : 'none'};">
+                <b style="color:${labelColor}; font-size: 0.9rem;">⚠️ ${a.parameter}</b><br>
+                <div style="margin-top:4px; font-size: 0.85rem;">
+                    <span style="color:#bbb;">Current:</span> <b style="color:#fff;">${a.value}</b> 
+                    <span style="color:#bbb; margin-left:10px;">Limit:</span> <b style="color:var(--ey);">${a.limit}</b>
+                </div>
+            </div>`;
+    }).join('');
+} else {
+    alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green); font-weight:bold;">✅ ALL SYSTEMS NORMAL</div>`;
+}
 
             // 3. UPDATE MACHINE VITALS & 15s WARNING TIMER
 if (data.vitals) {
@@ -349,6 +364,7 @@ if (data.vitals) {
 </script>
 </body>
 </html>
+
 
 
 
