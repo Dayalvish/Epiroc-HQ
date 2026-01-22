@@ -280,7 +280,6 @@ if (data.vitals) {
     const d = globalData.monthlyData;
     
     let datasets = [];
-    // 1. Start with standard base options
     let options = {
         responsive: true,
         maintainAspectRatio: false,
@@ -290,11 +289,10 @@ if (data.vitals) {
         },
         plugins: { 
             legend: { labels: { color: '#fff' } },
-            annotation: { annotations: {} } // Start with no annotations
+            annotation: { annotations: {} }
         }
     };
 
-    // 2. APPLY MODE-SPECIFIC SCALES AND DATA
     if (mode === 'tempVsOil') {
         datasets = [
             { label: 'Oil bar (Left)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yLeft', tension: 0.3 },
@@ -302,7 +300,6 @@ if (data.vitals) {
             { label: 'RPM (Right)', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRPM', borderDash: [5, 5], tension: 0.3 }
         ];
 
-        // Define Triple Partitioned Axes
         options.scales = {
             x: options.scales.x,
             yLeft: { position: 'left', min: 0, max: 5, title: { display: true, text: 'Oil Pressure (bar)', color: '#2ecc71' } },
@@ -310,7 +307,6 @@ if (data.vitals) {
             yRPM: { position: 'right', min: 100, max: 2200, title: { display: true, text: 'RPM', color: '#3498db' }, ticks: { color: '#3498db' }, grid: { drawOnChartArea: false } }
         };
 
-        // Add the 102°C Warning Line ONLY for this mode
         options.plugins.annotation.annotations.line1 = {
             type: 'line', yMin: 102, yMax: 102, yScaleID: 'yTemp',
             borderColor: 'rgba(255, 77, 77, 0.7)', borderWidth: 2, borderDash: [6, 6],
@@ -323,7 +319,7 @@ if (data.vitals) {
             { label: 'Compressor %', data: d.map(x => x.comp), borderColor: '#3498db', tension: 0.3 }
         ];
         options.scales.y.title.text = 'Percentage (%)';
-        options.scales.y.max = 100; // Force 0-100% scale
+        options.scales.y.max = 100;
 
     } else if (mode === 'setBit') {
         datasets = [
@@ -344,18 +340,6 @@ if (data.vitals) {
     chart = new Chart(ctx, { type: 'line', data: { labels: d.map(x => x.date), datasets: datasets }, options: options });
 }
 
-    if (mode === 'tempVsOil') {
-        datasets = [
-            { label: 'Oil bar (Left)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yLeft', tension: 0.3 },
-            { label: 'Temp °C (Right)', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'yTemp', tension: 0.3 },
-            { label: 'RPM (Right)', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRPM', borderDash: [5, 5], tension: 0.3 }
-        ];
-    } 
-    // ... rest of your modes (loadVsComp, etc.) ...
-
-    chart = new Chart(ctx, { type: 'line', data: { labels: d.map(x => x.date), datasets: datasets }, options: options });
-}
-
     function exportToExcel() {
         let table = document.getElementById("summary-tbl");
         let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
@@ -365,6 +349,7 @@ if (data.vitals) {
 </script>
 </body>
 </html>
+
 
 
 
