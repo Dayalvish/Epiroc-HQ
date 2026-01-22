@@ -8,7 +8,7 @@
     <style>
         :root { --ey: #f1c40f; --bg: #0d0d0d; --card: #1a1a1a; --red: #ff4d4d; --green: #2ecc71; --blue: #3498db; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 20px; overflow: hidden; }
-
+        
         /* AUTH OVERLAY */
         #login-overlay { position: fixed; inset: 0; background: var(--bg); display: flex; justify-content: center; align-items: center; z-index: 9999; }
         .login-box { background: var(--card); padding: 40px; border-radius: 12px; border-top: 5px solid var(--ey); width: 350px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
@@ -32,7 +32,7 @@
         /* GRID SYSTEM */
         .main-layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 20px; }
         .sidebar, .chart-area, .warning-sidebar { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); height: 85vh; overflow-y: auto; }
-
+        
         /* SIDEBAR VITALS */
         .vital-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #111; border: 1px solid #333; }
         .vital-table td { padding: 10px; border-bottom: 1px solid #333; font-size: 0.8rem; }
@@ -50,7 +50,7 @@
         .mini-card { background: #222; padding: 10px; border-radius: 4px; text-align: center; border: 1px solid #333; }
         .mini-card small { color: #888; display: block; font-size: 0.65rem; }
         .mini-card span { font-size: 1rem; font-weight: bold; color: var(--ey); }
-
+        
         .btn-red { background: var(--red); color: white; border:none; padding:12px; border-radius:4px; font-weight:bold; width:100%; margin-top:15px; cursor:pointer;}
         .btn-green { background: #27ae60; color: white; border:none; padding:12px; border-radius:4px; font-weight:bold; width:100%; margin-top:10px; cursor:pointer;}
 
@@ -93,10 +93,10 @@
         <div class="sidebar">
             <label>Model Classification</label>
             <select id="modelSelect" onchange="updateRigDropdown()"><option value="">All Models</option></select>
-
+            
             <label style="display:block; margin-top:15px;">Target Rig ID</label>
             <select id="rigSelect" onchange="refresh()"><option>Loading...</option></select>
-
+            
             <label style="display:block; margin-top:15px;">Target Month (Month Filter)</label>
             <input type="month" id="monthFilter" onchange="refresh()">
 
@@ -154,13 +154,13 @@
         const u = document.getElementById('userIn').value;
         const p = document.getElementById('passIn').value;
         const msg = document.getElementById('login-msg');
-
+        
         if (!u || !p) {
             msg.innerText = "Please enter credentials.";
             return;
         }
         msg.innerText = "Authenticating...";
-
+        
         try {
             const resp = await fetch(`${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`);
             const data = await resp.json();
@@ -226,72 +226,24 @@
                 document.getElementById('v-fleet-load').innerText = data.summary.length > 0 ? (totalLd / data.summary.length).toFixed(1) + "%" : "--";
                 document.getElementById('v-active-rigs').innerText = data.summary.length;
             }
-            // 1. POPULATE SUMMARY TABLE (ROBUST MAPPING)
-if (data.summary && data.summary.length > 0) {
-    document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => {
-        // Safe mapping: use avgLoad if it exists, otherwise use load
-        const load = r.avgLoad || r.load || "0";
-        const temp = r.avgTemp || r.temp || "0";
-        const oil  = r.avgOil  || r.oil  || "0";
-        const fuel = r.avgFuel || r.fuel || "0";
-        const air  = r.avgAir  || r.air  || "0";
-        const bit  = r.avgBit  || r.bit  || "0";
-        const imp  = r.avgImpact || r.impact || "0";
-        const rpm  = r.avgRpm  || r.rpm  || "0";
 
-        return `
-            <tr>
-                <td><b>${r.id}</b></td>
-                <td>${r.audits || 0}</td>
-                <td>${load}%</td>
-                <td style="color:${r.tempColor || '#fff'}">${temp}</td>
-                <td style="color:${r.oilColor  || '#fff'}">${oil}</td>
-                <td style="color:${r.fuelColor || '#fff'}">${fuel}</td>
-                <td>${air}</td>
-                <td>${bit}</td>
-                <td>${imp}</td>
-            </tr>`;
-    }).join('');
-    
-    // Update Fleet Averages
-    const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad || r.load || 0), 0);
-    document.getElementById('v-fleet-load').innerText = (totalLd / data.summary.length).toFixed(1) + "%";
-    document.getElementById('v-active-rigs').innerText = data.summary.length;
-} else {
-    document.getElementById('fleet-summary-body').innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px;">No data found for this selection.</td></tr>';
-}
-            // 2. DYNAMIC TRIGGER ALERTS (WITH CRITICAL HIGHLIGHTING)
-const alertList = document.getElementById('alert-list');
-if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
-    alertList.innerHTML = data.vitals.alerts.map(a => {
-        // Check if this is a priority alert (Oil or Temp)
-        const isCritical = a.parameter.includes("CRITICAL");
-
-        // Dynamic styling based on severity
-        const cardStyle = isCritical 
-            ? "border-left:8px solid #ff0000; background:rgba(255,0,0,0.25); animation: blinker 1.5s linear infinite;" 
-            : "border-left:5px solid var(--red); background:rgba(255,77,77,0.1);";
-
-        const labelColor = isCritical ? "#ff4d4d" : "var(--red)";
-
-        return `
-            <div class="alert-card" style="${cardStyle} padding:10px; margin-bottom:8px; border-radius:4px; border: ${isCritical ? '1px solid #ff0000' : 'none'};">
-                <b style="color:${labelColor}; font-size: 0.9rem;">⚠️ ${a.parameter}</b><br>
-                <div style="margin-top:4px; font-size: 0.85rem;">
-                    <span style="color:#bbb;">Current:</span> <b style="color:#fff;">${a.value}</b> 
-                    <span style="color:#bbb; margin-left:10px;">Limit:</span> <b style="color:var(--ey);">${a.limit}</b>
-                </div>
-            </div>`;
-    }).join('');
-} else {
-    alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green); font-weight:bold;">✅ ALL SYSTEMS NORMAL</div>`;
-}
+            // 2. DYNAMIC TRIGGER ALERTS
+            const alertList = document.getElementById('alert-list');
+            if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
+                alertList.innerHTML = data.vitals.alerts.map(a => `
+                    <div class="alert-card" style="border-left:5px solid var(--red); background:rgba(255,77,77,0.1); padding:10px; margin-bottom:8px; border-radius:4px;">
+                        <b style="color:var(--red);">⚠️ ${a.parameter} Alert</b><br>
+                        <small>Current: ${a.value} | Limit: ${a.limit}</small>
+                    </div>`).join('');
+            } else {
+                alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green);">✅ SYSTEMS NORMAL</div>`;
+            }
 
             // 3. UPDATE MACHINE VITALS & 15s WARNING TIMER
 if (data.vitals) {
     // UPDATED: This correctly pushes the date from GS to the 'v-date' span
     document.getElementById('v-date').innerText = data.vitals.date || "--";
-
+    
     document.getElementById('v-boost').innerText = data.vitals.boost || "0";
     document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
     document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
@@ -323,11 +275,12 @@ if (data.vitals) {
     if (!globalData || !globalData.monthlyData) return;
     const ctx = document.getElementById('mainChart').getContext('2d');
     if (chart) chart.destroy();
-
+    
     const mode = document.getElementById('chartMode').value;
     const d = globalData.monthlyData;
-
+    
     let datasets = [];
+    // 1. Start with standard base options
     let options = {
         responsive: true,
         maintainAspectRatio: false,
@@ -337,10 +290,11 @@ if (data.vitals) {
         },
         plugins: { 
             legend: { labels: { color: '#fff' } },
-            annotation: { annotations: {} }
+            annotation: { annotations: {} } // Start with no annotations
         }
     };
 
+    // 2. APPLY MODE-SPECIFIC SCALES AND DATA
     if (mode === 'tempVsOil') {
         datasets = [
             { label: 'Oil bar (Left)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yLeft', tension: 0.3 },
@@ -348,6 +302,7 @@ if (data.vitals) {
             { label: 'RPM (Right)', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRPM', borderDash: [5, 5], tension: 0.3 }
         ];
 
+        // Define Triple Partitioned Axes
         options.scales = {
             x: options.scales.x,
             yLeft: { position: 'left', min: 0, max: 5, title: { display: true, text: 'Oil Pressure (bar)', color: '#2ecc71' } },
@@ -355,6 +310,7 @@ if (data.vitals) {
             yRPM: { position: 'right', min: 100, max: 2200, title: { display: true, text: 'RPM', color: '#3498db' }, ticks: { color: '#3498db' }, grid: { drawOnChartArea: false } }
         };
 
+        // Add the 102°C Warning Line ONLY for this mode
         options.plugins.annotation.annotations.line1 = {
             type: 'line', yMin: 102, yMax: 102, yScaleID: 'yTemp',
             borderColor: 'rgba(255, 77, 77, 0.7)', borderWidth: 2, borderDash: [6, 6],
@@ -367,7 +323,7 @@ if (data.vitals) {
             { label: 'Compressor %', data: d.map(x => x.comp), borderColor: '#3498db', tension: 0.3 }
         ];
         options.scales.y.title.text = 'Percentage (%)';
-        options.scales.y.max = 100;
+        options.scales.y.max = 100; // Force 0-100% scale
 
     } else if (mode === 'setBit') {
         datasets = [
@@ -388,6 +344,18 @@ if (data.vitals) {
     chart = new Chart(ctx, { type: 'line', data: { labels: d.map(x => x.date), datasets: datasets }, options: options });
 }
 
+    if (mode === 'tempVsOil') {
+        datasets = [
+            { label: 'Oil bar (Left)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yLeft', tension: 0.3 },
+            { label: 'Temp °C (Right)', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'yTemp', tension: 0.3 },
+            { label: 'RPM (Right)', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRPM', borderDash: [5, 5], tension: 0.3 }
+        ];
+    } 
+    // ... rest of your modes (loadVsComp, etc.) ...
+
+    chart = new Chart(ctx, { type: 'line', data: { labels: d.map(x => x.date), datasets: datasets }, options: options });
+}
+
     function exportToExcel() {
         let table = document.getElementById("summary-tbl");
         let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
@@ -397,6 +365,3 @@ if (data.vitals) {
 </script>
 </body>
 </html>
-
-
-
