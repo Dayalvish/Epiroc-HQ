@@ -239,24 +239,28 @@
             }
 
             // 3. UPDATE MACHINE VITALS & 15s WARNING TIMER
-            if (data.vitals) {
-                document.getElementById('v-boost').innerText = data.vitals.boost || "0";
-                document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
-                document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
-                document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
-                
-                const warning = document.getElementById('auditWarning');
-                if (data.monthlyAuditCount < 15) {
-                    warning.style.display = 'block'; 
-                    const timer = setTimeout(() => { warning.style.display = 'none'; }, 15000);
-                    const closeBtn = warning.querySelector('span');
-                    if(closeBtn) {
-                        closeBtn.onclick = () => { warning.style.display = 'none'; clearTimeout(timer); };
-                    }
-                } else {
-                    warning.style.display = 'none'; 
-                }
-            }
+if (data.vitals) {
+    // UPDATED: This correctly pushes the date from GS to the 'v-date' span
+    document.getElementById('v-date').innerText = data.vitals.date || "--";
+    
+    document.getElementById('v-boost').innerText = data.vitals.boost || "0";
+    document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
+    document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
+    document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
+
+    // --- AUDIT WARNING LOGIC ---
+    const warning = document.getElementById('auditWarning');
+    if (data.monthlyAuditCount < 15) {
+        warning.style.display = 'block'; 
+        const timer = setTimeout(() => { warning.style.display = 'none'; }, 15000);
+        const closeBtn = warning.querySelector('span');
+        if(closeBtn) {
+            closeBtn.onclick = () => { warning.style.display = 'none'; clearTimeout(timer); };
+        }
+    } else {
+        warning.style.display = 'none'; 
+    }
+}
 
             drawChart(); 
             document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
@@ -318,6 +322,7 @@
 </script>
 </body>
 </html>
+
 
 
 
