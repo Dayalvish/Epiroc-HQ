@@ -215,20 +215,27 @@
         refresh();
     }
 
-    function triggerDataRefresh() { refresh(); }
+   async function refresh() {
+        const rig = document.getElementById('rigSelect').value;
+        const month = document.getElementById('monthFilter').value; 
+        const mode = document.getElementById('dataSource').value; 
+        
+        const cleanRig = (rig === "Loading..." || !rig) ? "" : rig;
 
-    async function refresh() {
-    const rig = document.getElementById('rigSelect').value;
-    const month = document.getElementById('monthFilter').value; // e.g. "2026-01"
-    const mode = document.getElementById('dataSource').value; 
-    
-    // This sends the &month parameter to the script
-    const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}&mode=${mode}`));
-    const data = await res.json();
-    updateUI(data);
-}
+        try {
+            const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(cleanRig)}&month=${month}&mode=${mode}`));
+            const data = await res.json();
+            
+            if (data.error) {
+                alert("Error: " + data.error);
+                return;
+            }
 
-        } catch (err) { console.error("Fetch failed:", err); }
+            globalData = data;
+            updateUI(data);
+        } catch (err) { 
+            console.error("Fetch failed:", err); 
+        }
     }
 
     function updateUI(data) {
@@ -382,6 +389,7 @@
 </script>
 </body>
 </html>
+
 
 
 
