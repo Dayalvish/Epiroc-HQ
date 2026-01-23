@@ -222,15 +222,12 @@
    async function refresh() {
     const rig = document.getElementById('rigSelect').value;
     const month = document.getElementById('monthFilter').value;
-    // NEW: Get the mode (Active or History) from your HTML dropdown
     const mode = document.getElementById('dataSource').value; 
     
     const cleanRig = (rig === "Loading..." || !rig) ? "" : rig;
 
     try {
-        // UPDATED: Added &mode=${mode} to the URL
         const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(cleanRig)}&month=${month}&mode=${mode}`));
-        
         const data = await res.json();
         
         if (data.error) {
@@ -240,67 +237,67 @@
         }
 
         globalData = data;
-        // Proceed to update charts, tables, etc.
-        updateUI(data); 
+        updateUI(data); // Call the new updateUI function below
 
     } catch (err) {
         console.error("Fetch failed:", err);
     }
 }
 
-            // 1. POPULATE SUMMARY TABLE
-            if (data.summary) {
-                document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
-                    <tr>
-                        <td><b>${r.id}</b></td><td>${r.audits}</td><td>${r.avgLoad}%</td>
-                        <td>${r.avgTemp}</td><td>${r.avgOil}</td><td>${r.avgFuel}</td>
-                        <td>${r.avgAir}</td><td>${r.avgBit}</td><td>${r.avgImpact}</td>
-                    </tr>`).join('');
-                
-                const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0);
-                document.getElementById('v-fleet-load').innerText = data.summary.length > 0 ? (totalLd / data.summary.length).toFixed(1) + "%" : "--";
-                document.getElementById('v-active-rigs').innerText = data.summary.length;
-            }
+// NEW: Proper function to handle UI updates
+function updateUI(data) {
+    // 1. POPULATE SUMMARY TABLE
+    if (data.summary) {
+        document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
+            <tr>
+                <td><b>${r.id}</b></td><td>${r.audits}</td><td>${r.avgLoad}%</td>
+                <td>${r.avgTemp}</td><td>${r.avgOil}</td><td>${r.avgFuel}</td>
+                <td>${r.avgAir}</td><td>${r.avgBit}</td><td>${r.avgImpact}</td>
+            </tr>`).join('');
+        
+        const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0);
+        document.getElementById('v-fleet-load').innerText = data.summary.length > 0 ? (totalLd / data.summary.length).toFixed(1) + "%" : "--";
+        document.getElementById('v-active-rigs').innerText = data.summary.length;
+    }
 
-            // 2. DYNAMIC TRIGGER ALERTS
-            const alertList = document.getElementById('alert-list');
-            if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
-                alertList.innerHTML = data.vitals.alerts.map(a => `
-                    <div class="alert-card" style="border-left:5px solid var(--red); background:rgba(255,77,77,0.15); padding:10px; margin-bottom:8px; border-radius:4px; border: 1px solid rgba(255,77,77,0.3);">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                            <b style="color:var(--ey); font-size:0.75rem;">UNIT: ${a.rig || 'N/A'}</b>
-                            <span style="font-size:0.6rem; color:#888; background:#222; padding:2px 5px; border-radius:3px;">LIVE</span>
-                        </div>
-                        <b style="color:var(--red); font-size:0.85rem;">⚠️ ${a.parameter}</b><br>
-                        <div style="margin-top:4px; font-size:0.8rem;">
-                            <span style="color:#bbb;">Current:</span> <b style="color:#fff;">${a.value}</b> 
-                            <span style="color:#666; margin:0 3px;">|</span> 
-                            <span style="color:#bbb;">Limit:</span> <b style="color:var(--ey);">${a.limit}</b>
-                        </div>
-                    </div>`).join('');
-            } else {
-                alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green); font-weight:bold; border:1px dashed var(--green); border-radius:8px;">✅ ALL RIGS NORMAL</div>`;
-            }
+    // 2. DYNAMIC TRIGGER ALERTS
+    const alertList = document.getElementById('alert-list');
+    if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
+        alertList.innerHTML = data.vitals.alerts.map(a => `
+            <div class="alert-card" style="border-left:5px solid var(--red); background:rgba(255,77,77,0.15); padding:10px; margin-bottom:8px; border-radius:4px; border: 1px solid rgba(255,77,77,0.3);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <b style="color:var(--ey); font-size:0.75rem;">UNIT: ${a.rig || 'N/A'}</b>
+                    <span style="font-size:0.6rem; color:#888; background:#222; padding:2px 5px; border-radius:3px;">LIVE</span>
+                </div>
+                <b style="color:var(--red); font-size:0.85rem;">⚠️ ${a.parameter}</b><br>
+                <div style="margin-top:4px; font-size:0.8rem;">
+                    <span style="color:#bbb;">Current:</span> <b style="color:#fff;">${a.value}</b> 
+                    <span style="color:#666; margin:0 3px;">|</span> 
+                    <span style="color:#bbb;">Limit:</span> <b style="color:var(--ey);">${a.limit}</b>
+                </div>
+            </div>`).join('');
+    } else {
+        alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green); font-weight:bold; border:1px dashed var(--green); border-radius:8px;">✅ ALL RIGS NORMAL</div>`;
+    }
 
-            // 3. UPDATE MACHINE VITALS & AUDIT WARNING
-            if (data.vitals) {
-                document.getElementById('v-date').innerText = data.vitals.date || "--"; 
-                document.getElementById('v-boost').innerText = data.vitals.boost || "0";
-                document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
-                document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
-                document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
-                
-                const warning = document.getElementById('auditWarning');
-                if (window.auditTimeout) clearTimeout(window.auditTimeout);
+    // 3. UPDATE MACHINE VITALS & AUDIT WARNING
+    if (data.vitals) {
+        document.getElementById('v-date').innerText = data.vitals.date || "--"; 
+        document.getElementById('v-boost').innerText = data.vitals.boost || "0";
+        document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
+        document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
+        document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
+        
+        const warning = document.getElementById('auditWarning');
+        if (window.auditTimeout) clearTimeout(window.auditTimeout);
 
-                if (data.monthlyAuditCount > 0 && data.monthlyAuditCount < 15) {
-                    warning.style.display = 'block';
-                    window.auditTimeout = setTimeout(() => { warning.style.display = 'none'; }, 15000);
-                } else {
-                    warning.style.display = 'none';
-                }
-            }
-
+        if (data.monthlyAuditCount > 0 && data.monthlyAuditCount < 15) {
+            warning.style.display = 'block';
+            window.auditTimeout = setTimeout(() => { warning.style.display = 'none'; }, 15000);
+        } else {
+            warning.style.display = 'none';
+        }
+    }
             drawChart(); 
             document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
         } catch (e) { 
@@ -369,6 +366,7 @@
 </script>
 </body>
 </html>
+
 
 
 
