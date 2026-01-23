@@ -286,11 +286,11 @@
         document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
     }
 
-   function drawChart() {
+  function drawChart() {
     // 1. Safety Check
     if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
         console.warn("No data available for the selected month/rig.");
-        if (chart) chart.destroy(); // Clear chart if no data found
+        if (chart) chart.destroy(); 
         return;
     }
 
@@ -312,7 +312,7 @@
         }
     };
 
-    // 2. Conditional Logic (Fixed Brackets)
+    // 2. Conditional Logic
     if (mode === 'tempVsOil') {
         datasets = [
             { label: 'Oil (bar)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yOil', tension: 0.3, pointRadius: 3 },
@@ -364,8 +364,13 @@
         }
     }
 
-    chart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options });
-}
+    // 3. FINAL INITIALIZATION (The Missing Part)
+    chart = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets },
+        options: options
+    });
+} // Closes drawChart
     function exportToExcel() {
         let table = document.getElementById("summary-tbl");
         let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
@@ -377,6 +382,7 @@
 </script>
 </body>
 </html>
+
 
 
 
