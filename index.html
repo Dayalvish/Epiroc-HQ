@@ -212,154 +212,126 @@
         refresh();
     }
 
-    async function refresh() {
-    const rig = document.getElementById('rigSelect').value;
-    const month = document.getElementById('monthFilter').value;
-    const cleanRig = (rig === "Loading..." || !rig) ? "" : rig;
+   async function refresh() {
+        const rig = document.getElementById('rigSelect').value;
+        const month = document.getElementById('monthFilter').value;
+        const cleanRig = (rig === "Loading..." || !rig) ? "" : rig;
 
-    try {
-        const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(cleanRig)}&month=${month}`));
-        const data = await res.json();
-        globalData = data; 
+        try {
+            const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(cleanRig)}&month=${month}`));
+            const data = await res.json();
+            globalData = data; 
 
-        // 1. POPULATE SUMMARY TABLE
-        if (data.summary) {
-            document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
-                <tr>
-                    <td><b>${r.id}</b></td><td>${r.audits}</td><td>${r.avgLoad}%</td>
-                    <td>${r.avgTemp}</td><td>${r.avgOil}</td><td>${r.avgFuel}</td>
-                    <td>${r.avgAir}</td><td>${r.avgBit}</td><td>${r.avgImpact}</td>
-                </tr>`).join('');
-            
-            const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0);
-            document.getElementById('v-fleet-load').innerText = data.summary.length > 0 ? (totalLd / data.summary.length).toFixed(1) + "%" : "--";
-            document.getElementById('v-active-rigs').innerText = data.summary.length;
-        }
-
-        // 2. DYNAMIC TRIGGER ALERTS (Now with Rig ID Identification)
-const alertList = document.getElementById('alert-list');
-if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
-    alertList.innerHTML = data.vitals.alerts.map(a => `
-        <div class="alert-card" style="border-left:5px solid var(--red); background:rgba(255,77,77,0.15); padding:10px; margin-bottom:8px; border-radius:4px; border: 1px solid rgba(255,77,77,0.3);">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                <b style="color:var(--ey); font-size:0.75rem;">UNIT: ${a.rig || 'N/A'}</b>
-                <span style="font-size:0.6rem; color:#888; background:#222; padding:2px 5px; border-radius:3px;">LIVE</span>
-            </div>
-            <b style="color:var(--red); font-size:0.85rem;">⚠️ ${a.parameter}</b><br>
-            <div style="margin-top:4px; font-size:0.8rem;">
-                <span style="color:#bbb;">Current:</span> <b style="color:#fff;">${a.value}</b> 
-                <span style="color:#666; margin:0 3px;">|</span> 
-                <span style="color:#bbb;">Limit:</span> <b style="color:var(--ey);">${a.limit}</b>
-            </div>
-        </div>`).join('');
-} else {
-    alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green); font-weight:bold; border:1px dashed var(--green); border-radius:8px;">✅ ALL RIGS NORMAL</div>`;
-}
-
-        // --- 3. UPDATE MACHINE VITALS & AUDIT WARNING ---
-if (data.vitals) {
-    // Populate Vitals Text
-    document.getElementById('v-date').innerText = data.vitals.date || "--"; 
-    document.getElementById('v-boost').innerText = data.vitals.boost || "0";
-    document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
-    document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
-    document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
-    
-    // --- FIXED TIMER LOGIC FOR AUDIT WARNING ---
-    const warning = document.getElementById('auditWarning');
-
-    // 1. Reset: Clear any existing timer to prevent overlapping alerts
-    if (window.auditTimeout) clearTimeout(window.auditTimeout);
-
-    // 2. Condition: Show if audits are between 1 and 14
-    if (data.monthlyAuditCount > 0 && data.monthlyAuditCount < 15) {
-        warning.style.display = 'block';
-
-        // 3. Set fresh 15-second countdown
-        window.auditTimeout = setTimeout(() => {
-            warning.style.display = 'none';
-        }, 15000);
-
-        // 4. Manual Close Button logic (if span exists in HTML)
-        const closeBtn = warning.querySelector('span');
-        if (closeBtn) {
-            closeBtn.onclick = () => {
-                warning.style.display = 'none';
-                clearTimeout(window.auditTimeout);
-            };
-        }
-    } else {
-        // Hide immediately if count is 0 or 15+
-        warning.style.display = 'none';
-    }
-}
-        drawChart(); 
-        document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
-    } catch (e) { 
-        console.error("Refresh Error", e);
-    function drawChart() {
-    if (!globalData || !globalData.monthlyData) return;
-    const ctx = document.getElementById('mainChart').getContext('2d');
-    if (chart) chart.destroy();
-    
-    const mode = document.getElementById('chartMode').value;
-    const d = globalData.monthlyData;
-    const labels = d.map(x => x.date);
-    
-    let datasets = [];
-    let options = {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-            x: { grid: { color: '#333' }, ticks: { color: '#888' } }
-        },
-        plugins: { 
-            legend: { labels: { color: '#fff' } },
-            annotation: { annotations: {} } 
-        }
-    };
-
-    if (mode === 'tempVsOil') {
-        datasets = [
-            { label: 'Oil bar (Left)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yLeft', tension: 0.3 },
-            { label: 'Temp °C (Right)', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'yTemp', tension: 0.3 },
-            { label: 'RPM (Right)', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRPM', borderDash: [5, 5], tension: 0.3 }
-        ];
-
-        options.scales = {
-            x: options.scales.x,
-            yLeft: { position: 'left', min: 0, max: 8, title: { display: true, text: 'Oil (bar)', color: '#2ecc71' }, ticks: { stepSize: 1, color: '#2ecc71' } },
-            yTemp: { position: 'right', min: 60, max: 120, title: { display: true, text: 'Temp °C', color: '#e74c3c' }, ticks: { stepSize: 3, color: '#e74c3c' } },
-            yRPM: { 
-                position: 'right', min: 500, max: 2200, title: { display: true, text: 'RPM', color: '#3498db' },
-                grid: { drawOnChartArea: false }, 
-                ticks: { stepSize: 10, color: '#3498db', callback: function(value) { return value % 200 === 0 ? value : ''; } }
+            // 1. POPULATE SUMMARY TABLE
+            if (data.summary) {
+                document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
+                    <tr>
+                        <td><b>${r.id}</b></td><td>${r.audits}</td><td>${r.avgLoad}%</td>
+                        <td>${r.avgTemp}</td><td>${r.avgOil}</td><td>${r.avgFuel}</td>
+                        <td>${r.avgAir}</td><td>${r.avgBit}</td><td>${r.avgImpact}</td>
+                    </tr>`).join('');
+                
+                const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0);
+                document.getElementById('v-fleet-load').innerText = data.summary.length > 0 ? (totalLd / data.summary.length).toFixed(1) + "%" : "--";
+                document.getElementById('v-active-rigs').innerText = data.summary.length;
             }
-        };
 
-        options.plugins.annotation.annotations.line1 = {
-            type: 'line', yMin: 102, yMax: 102, yScaleID: 'yTemp', borderColor: 'red', borderDash: [6, 6],
-            label: { display: true, content: 'CRITICAL: 102°C', backgroundColor: 'rgba(255,0,0,0.8)', color: '#fff' }
-        };
+            // 2. DYNAMIC TRIGGER ALERTS
+            const alertList = document.getElementById('alert-list');
+            if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
+                alertList.innerHTML = data.vitals.alerts.map(a => `
+                    <div class="alert-card" style="border-left:5px solid var(--red); background:rgba(255,77,77,0.15); padding:10px; margin-bottom:8px; border-radius:4px; border: 1px solid rgba(255,77,77,0.3);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                            <b style="color:var(--ey); font-size:0.75rem;">UNIT: ${a.rig || 'N/A'}</b>
+                            <span style="font-size:0.6rem; color:#888; background:#222; padding:2px 5px; border-radius:3px;">LIVE</span>
+                        </div>
+                        <b style="color:var(--red); font-size:0.85rem;">⚠️ ${a.parameter}</b><br>
+                        <div style="margin-top:4px; font-size:0.8rem;">
+                            <span style="color:#bbb;">Current:</span> <b style="color:#fff;">${a.value}</b> 
+                            <span style="color:#666; margin:0 3px;">|</span> 
+                            <span style="color:#bbb;">Limit:</span> <b style="color:var(--ey);">${a.limit}</b>
+                        </div>
+                    </div>`).join('');
+            } else {
+                alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green); font-weight:bold; border:1px dashed var(--green); border-radius:8px;">✅ ALL RIGS NORMAL</div>`;
+            }
 
-    } else if (mode === 'loadVsComp') {
-        datasets = [
-            { label: 'Engine Load %', data: d.map(x => x.load), borderColor: '#f1c40f', tension: 0.3 },
-            { label: 'Compressor %', data: d.map(x => x.comp), borderColor: '#3498db', tension: 0.3 }
-        ];
-        options.scales.y = { position: 'right', min: 0, max: 100, title: { display: true, text: 'Percentage (%)', color: '#fff' } };
+            // 3. UPDATE MACHINE VITALS & AUDIT WARNING
+            if (data.vitals) {
+                document.getElementById('v-date').innerText = data.vitals.date || "--"; 
+                document.getElementById('v-boost').innerText = data.vitals.boost || "0";
+                document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
+                document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
+                document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
+                
+                const warning = document.getElementById('auditWarning');
+                if (window.auditTimeout) clearTimeout(window.auditTimeout);
 
-    } else if (mode === 'hydro_impact') {
-        datasets = [
-            { label: 'Impact (bar)', data: d.map(x => x.impact), borderColor: '#f1c40f', tension: 0.3 },
-            { label: 'Feed (bar)', data: d.map(x => x.feed), borderColor: '#e67e22', tension: 0.3 },
-            { label: 'Damper (bar)', data: d.map(x => x.damper), borderColor: '#3498db', tension: 0.3 }
-        ];
-        options.scales.y = { position: 'right', title: { display: true, text: 'Pressure (bar)', color: '#fff' } };
+                if (data.monthlyAuditCount > 0 && data.monthlyAuditCount < 15) {
+                    warning.style.display = 'block';
+                    window.auditTimeout = setTimeout(() => { warning.style.display = 'none'; }, 15000);
+                } else {
+                    warning.style.display = 'none';
+                }
+            }
+
+            drawChart(); 
+            document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+        } catch (e) { 
+            console.error("Refresh Error", e);
+        }
     }
 
-    chart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options });
-}
+    function drawChart() {
+        if (!globalData || !globalData.monthlyData) return;
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        if (chart) chart.destroy();
+        
+        const mode = document.getElementById('chartMode').value;
+        const d = globalData.monthlyData;
+        const labels = d.map(x => x.date);
+        
+        let datasets = [];
+        let options = {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { x: { grid: { color: '#333' }, ticks: { color: '#888' } } },
+            plugins: { legend: { labels: { color: '#fff' } }, annotation: { annotations: {} } }
+        };
+
+        if (mode === 'tempVsOil') {
+            datasets = [
+                { label: 'Oil bar (Left)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yLeft', tension: 0.3 },
+                { label: 'Temp °C (Right)', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'yTemp', tension: 0.3 },
+                { label: 'RPM (Right)', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRPM', borderDash: [5, 5], tension: 0.3 }
+            ];
+            options.scales = {
+                x: options.scales.x,
+                yLeft: { position: 'left', min: 0, max: 8, title: { display: true, text: 'Oil (bar)' }, ticks: { stepSize: 1 } },
+                yTemp: { position: 'right', min: 60, max: 120, title: { display: true, text: 'Temp °C' }, ticks: { stepSize: 3 } },
+                yRPM: { position: 'right', min: 500, max: 2200, ticks: { stepSize: 10, callback: v => v % 200 === 0 ? v : '' } }
+            };
+            options.plugins.annotation.annotations.line1 = {
+                type: 'line', yMin: 102, yMax: 102, yScaleID: 'yTemp', borderColor: 'red', borderDash: [6, 6],
+                label: { display: true, content: 'CRITICAL: 102°C', backgroundColor: 'rgba(255,0,0,0.8)', color: '#fff' }
+            };
+        } else if (mode === 'loadVsComp') {
+            datasets = [
+                { label: 'Engine Load %', data: d.map(x => x.load), borderColor: '#f1c40f', tension: 0.3 },
+                { label: 'Compressor %', data: d.map(x => x.comp), borderColor: '#3498db', tension: 0.3 }
+            ];
+            options.scales.y = { position: 'right', min: 0, max: 100 };
+        } else if (mode === 'hydro_impact') {
+            datasets = [
+                { label: 'Impact (bar)', data: d.map(x => x.impact), borderColor: '#f1c40f', tension: 0.3 },
+                { label: 'Feed (bar)', data: d.map(x => x.feed), borderColor: '#e67e22', tension: 0.3 },
+                { label: 'Damper (bar)', data: d.map(x => x.damper), borderColor: '#3498db', tension: 0.3 }
+            ];
+            options.scales.y = { position: 'right' };
+        }
+        chart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options });
+    }
+
     function exportToExcel() {
         let table = document.getElementById("summary-tbl");
         let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
@@ -371,6 +343,7 @@ if (data.vitals) {
 </script>
 </body>
 </html>
+
 
 
 
