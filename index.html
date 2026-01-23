@@ -317,38 +317,58 @@
 
     // 3. Conditional Logic for Different Analysis Modes
     if (mode === 'tempVsOil') {
-        // TRIPLE AXIS MODE WITH YOUR SPECIFIC VARIATIONS
-        datasets = [
-            { label: 'Oil (bar)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yOil', tension: 0.3, pointRadius: 3 },
-            { label: 'Temp (°C)', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'yTemp', tension: 0.3, pointRadius: 3 },
-            { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRPM', borderDash: [5, 5], tension: 0.3, pointRadius: 0 }
-        ];
+    datasets = [
+        { 
+            label: 'Oil (bar)', 
+            data: d.map(x => x.oil), 
+            borderColor: '#2ecc71', 
+            yAxisID: 'yOil', // Ensure this matches the scale ID below
+            tension: 0.3, 
+            pointRadius: 3 
+        },
+        { 
+            label: 'Temp (°C)', 
+            data: d.map(x => x.temp), 
+            borderColor: '#e74c3c', 
+            yAxisID: 'yTemp', // This moves Temperature to the right axis
+            tension: 0.3, 
+            pointRadius: 3 
+        },
+        { 
+            label: 'RPM', 
+            data: d.map(x => x.rpm), 
+            borderColor: '#3498db', 
+            yAxisID: 'yRPM', // This moves RPM to its own scale
+            borderDash: [5, 5], 
+            tension: 0.3, 
+            pointRadius: 0 
+        }
+    ];
 
-        options.scales.yOil = { 
+    options.scales = {
+        yOil: { 
             position: 'left', 
             min: 0, max: 8, 
-            ticks: { stepSize: 0.1, color: '#888' }, // 0.1 bar variation
+            ticks: { stepSize: 0.1, color: '#2ecc71' },
             title: { display: true, text: 'Oil (bar)', color: '#2ecc71' },
-            grid: { color: '#444' } 
-        };
-        options.scales.yTemp = { 
+            grid: { color: '#333' } 
+        },
+        yTemp: { 
             position: 'right', 
             min: 60, max: 130, 
-            ticks: { stepSize: 2, color: '#888' }, // 2 degree variation
+            ticks: { stepSize: 2, color: '#e74c3c' },
             title: { display: true, text: 'Temp °C', color: '#e74c3c' },
-            grid: { drawOnChartArea: false } 
-        };
-        options.scales.yRPM = { 
+            grid: { drawOnChartArea: false } // Prevents messy grid lines
+        },
+        yRPM: { 
             position: 'right', 
             min: 600, max: 2200, 
-            ticks: { 
-                stepSize: 10, 
-                color: '#555',
-                callback: (v) => v % 200 === 0 ? v : '' // Show label every 200 for clarity
-            }, 
+            ticks: { stepSize: 200, color: '#3498db' },
             title: { display: true, text: 'RPM', color: '#3498db' },
-            grid: { drawOnChartArea: false } 
-        };
+            grid: { drawOnChartArea: false }
+        }
+    };
+}
 
     } else {
         // STANDARD SINGLE AXIS MODES
@@ -397,6 +417,7 @@
 </script>
 </body>
 </html>
+
 
 
 
