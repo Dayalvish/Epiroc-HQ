@@ -88,6 +88,13 @@
     <div class="main-layout">
         <div class="sidebar">
             <label>Model Classification</label>
+            <div class="filter-group">
+    <label for="dataSource">Data View:</label>
+    <select id="dataSource" onchange="triggerDataRefresh()">
+        <option value="active" selected>Live (Present)</option>
+        <option value="history">Archive (Pre-Nov 2025)</option>
+    </select>
+</div>
             <select id="modelSelect" onchange="updateRigDropdown()"><option value="">All Models</option></select>
             
             <label style="display:block; margin-top:15px;">Target Rig ID</label>
@@ -213,14 +220,33 @@
     }
 
    async function refresh() {
-        const rig = document.getElementById('rigSelect').value;
-        const month = document.getElementById('monthFilter').value;
-        const cleanRig = (rig === "Loading..." || !rig) ? "" : rig;
+    const rig = document.getElementById('rigSelect').value;
+    const month = document.getElementById('monthFilter').value;
+    // NEW: Get the mode (Active or History) from your HTML dropdown
+    const mode = document.getElementById('dataSource').value; 
+    
+    const cleanRig = (rig === "Loading..." || !rig) ? "" : rig;
 
-        try {
-            const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(cleanRig)}&month=${month}`));
-            const data = await res.json();
-            globalData = data; 
+    try {
+        // UPDATED: Added &mode=${mode} to the URL
+        const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(cleanRig)}&month=${month}&mode=${mode}`));
+        
+        const data = await res.json();
+        
+        if (data.error) {
+            console.error("Server Error:", data.error);
+            alert("Error: " + data.error);
+            return;
+        }
+
+        globalData = data;
+        // Proceed to update charts, tables, etc.
+        updateUI(data); 
+
+    } catch (err) {
+        console.error("Fetch failed:", err);
+    }
+}
 
             // 1. POPULATE SUMMARY TABLE
             if (data.summary) {
@@ -343,6 +369,7 @@
 </script>
 </body>
 </html>
+
 
 
 
