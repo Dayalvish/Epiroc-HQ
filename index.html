@@ -186,13 +186,23 @@
     }
 
     async function init() {
-        const now = new Date(); 
-        document.getElementById('monthFilter').value = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
-        const mRes = await fetch(getFullUrl("get=model_list"));
-        const mList = await mRes.json();
-        document.getElementById('modelSelect').innerHTML = '<option value="">All Models</option>' + mList.map(m => `<option value="${m}">${m}</option>`).join('');
-        updateRigDropdown(); 
-    }
+    const now = new Date(); 
+    document.getElementById('monthFilter').value = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
+    
+    const mRes = await fetch(getFullUrl("get=model_list"));
+    const mList = await mRes.json();
+    document.getElementById('modelSelect').innerHTML = '<option value="">All Models</option>' + mList.map(m => `<option value="${m}">${m}</option>`).join('');
+    
+    await updateRigDropdown(); 
+
+    // --- ADD AUTO-REFRESH TIMER HERE ---
+    // This will trigger the refresh() function every 60 seconds
+    if (window.refreshInterval) clearInterval(window.refreshInterval);
+    window.refreshInterval = setInterval(() => {
+        console.log("Auto-refreshing fleet data...");
+        refresh();
+    }, 60000); // 60000ms = 1 minute
+}
 
     async function updateRigDropdown() {
         const model = document.getElementById('modelSelect').value;
@@ -363,5 +373,6 @@ if (data.vitals) {
 </script>
 </body>
 </html>
+
 
 
