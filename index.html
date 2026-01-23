@@ -320,21 +320,52 @@ if (data.vitals) {
     };
 
     if (mode === 'tempVsOil') {
-        datasets = [
-            { label: 'Oil bar (Left)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yLeft', tension: 0.3 },
-            { label: 'Temp °C (Right)', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'yTemp', tension: 0.3 },
-            { label: 'RPM (Right)', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRPM', borderDash: [5, 5], tension: 0.3 }
-        ];
-        options.scales = {
-            x: options.scales.x,
-            yLeft: { position: 'left', min: 0, max: 5, title: { display: true, text: 'Oil (bar)' } },
-            yTemp: { position: 'right', min: 0, max: 150, title: { display: true, text: 'Temp °C' } },
-            yRPM: { position: 'right', min: 100, max: 2200, grid: { drawOnChartArea: false } }
-        };
-        options.plugins.annotation.annotations.line1 = {
-            type: 'line', yMin: 102, yMax: 102, yScaleID: 'yTemp', borderColor: 'red', borderDash: [6, 6],
-            label: { display: true, content: 'Warning: 102°C', backgroundColor: 'rgba(255,0,0,0.8)' }
-        };
+    datasets = [
+        { label: 'Oil bar (Left)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yLeft', tension: 0.3 },
+        { label: 'Temp °C (Right)', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'yTemp', tension: 0.3 },
+        { label: 'RPM (Right)', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRPM', borderDash: [5, 5], tension: 0.3 }
+    ];
+
+    options.scales = {
+        x: options.scales.x,
+        // 1. Oil Pressure: 0 to 8 bar
+        yLeft: { 
+            position: 'left', min: 0, max: 8, 
+            title: { display: true, text: 'Oil (bar)', color: '#2ecc71' },
+            ticks: { stepSize: 1, color: '#2ecc71' }
+        },
+        // 2. Temperature: 60 to 120°C with 3°C increments
+        yTemp: { 
+            position: 'right', min: 60, max: 120, 
+            title: { display: true, text: 'Temp °C', color: '#e74c3c' },
+            ticks: { stepSize: 3, color: '#e74c3c' }
+        },
+        // 3. Engine RPM: 500 to 2200 with 10 RPM increments
+        yRPM: { 
+            position: 'right', min: 500, max: 2200, 
+            title: { display: true, text: 'RPM', color: '#3498db' },
+            grid: { drawOnChartArea: false }, 
+            ticks: { 
+                stepSize: 10, 
+                color: '#3498db',
+                // This callback keeps the axis clean by only showing labels every 200 RPM
+                callback: function(value) { return value % 200 === 0 ? value : ''; }
+            }
+        }
+    };
+
+    // Keep the 102°C threshold line
+    options.plugins.annotation.annotations.line1 = {
+        type: 'line', yMin: 102, yMax: 102, yScaleID: 'yTemp',
+        borderColor: 'red', borderDash: [6, 6],
+        label: { 
+            display: true, 
+            content: 'CRITICAL: 102°C', 
+            backgroundColor: 'rgba(255,0,0,0.8)',
+            color: '#fff'
+        }
+    };
+}
 
     } else if (mode === 'loadVsComp') {
         datasets = [
@@ -373,6 +404,7 @@ if (data.vitals) {
 </script>
 </body>
 </html>
+
 
 
 
