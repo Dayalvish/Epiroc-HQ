@@ -298,7 +298,6 @@ if (data.vitals) {
     } catch (e) { 
         console.error("Refresh Error", e);
     }
-}
     function drawChart() {
     if (!globalData || !globalData.monthlyData) return;
     const ctx = document.getElementById('mainChart').getContext('2d');
@@ -404,6 +403,7 @@ if (data.vitals) {
 </script>
 </body>
 </html>
+
 
 
 
