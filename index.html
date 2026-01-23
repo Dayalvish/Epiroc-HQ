@@ -239,28 +239,31 @@
     }
 
     function updateUI(data) {
-       // 1. POPULATE SUMMARY TABLE FROM MONTHLY DATA
-if (data.summary && data.summary.length > 0) {
-    document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
-        <tr>
-            <td><b>${r.id}</b></td>
-            <td>${r.audits}</td>
-            <td>${r.avgLoad}%</td>
-            <td>${r.avgTemp}</td>
-            <td>${r.avgOil}</td>
-            <td>${r.avgFuel}</td>
-            <td>${r.avgAir}</td>
-            <td>${r.avgBit}</td>
-            <td>${r.avgImpact}</td>
-        </tr>`).join('');
-    
-    // Calculate Fleet Averages
-    const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad || 0), 0);
-    document.getElementById('v-fleet-load').innerText = (totalLd / data.summary.length).toFixed(1) + "%";
-    document.getElementById('v-active-rigs').innerText = data.summary.length;
-}
+        // 1. POPULATE SUMMARY TABLE
+        if (data.summary && data.summary.length > 0) {
+            document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
+                <tr>
+                    <td><b>${r.id}</b></td>
+                    <td>${r.audits}</td>
+                    <td>${r.avgLoad}%</td>
+                    <td>${r.avgTemp}</td>
+                    <td>${r.avgOil}</td>
+                    <td>${r.avgFuel}</td>
+                    <td>${r.avgAir}</td>
+                    <td>${r.avgBit}</td>
+                    <td>${r.avgImpact}</td>
+                </tr>`).join('');
             
-            document.getElementById('v-fleet-load').innerText = avg(data.monthlyData.map(d => d.load)) + "%";
+            // Calculate Fleet Averages safely
+            const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad || 0), 0);
+            document.getElementById('v-fleet-load').innerText = (totalLd / data.summary.length).toFixed(1) + "%";
+            document.getElementById('v-active-rigs').innerText = data.summary.length;
+        } else if (data.monthlyData && data.monthlyData.length > 0) {
+            // Fallback: If summary is missing but monthlyData exists, show single rig stats
+            const rigId = document.getElementById('rigSelect').value;
+            const calcAvg = (arr) => (arr.reduce((a, b) => a + parseFloat(b || 0), 0) / arr.length).toFixed(1);
+            
+            document.getElementById('v-fleet-load').innerText = calcAvg(data.monthlyData.map(d => d.load)) + "%";
             document.getElementById('v-active-rigs').innerText = "1";
         }
 
@@ -401,6 +404,7 @@ if (data.summary && data.summary.length > 0) {
 </script>
 </body>
 </html>
+
 
 
 
