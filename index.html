@@ -303,110 +303,108 @@
     }
 
     // --- 5. THE PATCH: CASCADING FILTERS ---
-    function handleRegionChange() {
-        // When region changes, we need to refresh the Rig list from the server
-        // to ensure we get the correct models/rigs for that sector
-        applyGlobalFilters(); 
-        updateRigDropdown(); 
-    }
-
     function applyGlobalFilters() {
-    const selectedRegion = document.getElementById('cityFocus').value;
-    const selectedModel = document.getElementById('modelSelect').value;
-    const rows = document.querySelectorAll('#fleet-summary-body tr');
-    
-    let visibleCount = 0;
-    let totalLoad = 0;
+        const selectedRegion = document.getElementById('cityFocus').value;
+        const selectedModel = document.getElementById('modelSelect').value;
+        const rows = document.querySelectorAll('#fleet-summary-body tr');
+        
+        let visibleCount = 0;
+        let totalLoad = 0;
 
-    rows.forEach(row => {
-        // These attributes must be stamped on your <tr> in updateUI()
-        const rowRegion = row.getAttribute('data-region') || "";
-        const rowModel = row.getAttribute('data-model') || "";
+        rows.forEach(row => {
+            // These attributes must be stamped on your <tr> in updateUI()
+            const rowRegion = row.getAttribute('data-region') || "";
+            const rowModel = row.getAttribute('data-model') || "";
 
-        const regionMatch = (selectedRegion === "All India (National)" || rowRegion === selectedRegion);
-        const modelMatch = (selectedModel === "" || rowModel === selectedModel);
+            // Unified matching logic for MGMT Dropdowns
+            const regionMatch = (selectedRegion === "All India (National)" || selectedRegion === "All" || rowRegion === selectedRegion);
+            const modelMatch = (selectedModel === "" || rowModel === selectedModel);
 
-        if (regionMatch && modelMatch) {
-            row.style.display = ""; // Show matching row
-            visibleCount++;
-            
-            // Extract Load % from the 3rd column (index 2)
-            const loadVal = parseFloat(row.cells[2].innerText.replace('%', '')) || 0;
-            totalLoad += loadVal;
-        } else {
-            row.style.display = "none"; // Hide non-matching row
-        }
-    });
+            if (regionMatch && modelMatch) {
+                row.style.display = ""; // Show matching row
+                visibleCount++;
+                
+                // Extract Load % from the 3rd column (index 2)
+                const loadVal = parseFloat(row.cells[2].innerText.replace('%', '')) || 0;
+                totalLoad += loadVal;
+            } else {
+                row.style.display = "none"; // Hide non-matching row
+            }
+        });
 
-    // Update Sidebar Stats
-    document.getElementById('v-active-rigs').innerText = visibleCount;
-    document.getElementById('v-fleet-load').innerText = visibleCount > 0 
-        ? (totalLoad / visibleCount).toFixed(1) + "%" 
-        : "0%";
-}
-        // Update Stats Boxes
-        if (document.getElementById('v-active-rigs')) document.getElementById('v-active-rigs').innerText = visibleCount;
-        if (document.getElementById('v-fleet-load')) {
-            document.getElementById('v-fleet-load').innerText = visibleCount > 0 ? (totalLoad / visibleCount).toFixed(1) + "%" : "0%";
+        // Update Sidebar Stats Dynamically
+        const activeRigDisp = document.getElementById('v-active-rigs');
+        const fleetLoadDisp = document.getElementById('v-fleet-load');
+
+        if (activeRigDisp) activeRigDisp.innerText = visibleCount;
+        if (fleetLoadDisp) {
+            fleetLoadDisp.innerText = visibleCount > 0 
+                ? (totalLoad / visibleCount).toFixed(1) + "%" 
+                : "0%";
         }
     }
 
     function resetCityFilter() {
-    document.getElementById('cityFocus').value = "All India (National)";
-    document.getElementById('modelSelect').value = "";
-    applyGlobalFilters(); // Reset the fleet view immediately
-}
-
-    // --- 6. CHARTING & EXPORT ---
-    function drawChart() {
-    if (!globalData || !globalData.monthlyData) return;
-    const ctx = document.getElementById('mainChart').getContext('2d');
-    if (chart) chart.destroy();
-    
-    const mode = document.getElementById('chartMode').value;
-    const d = globalData.monthlyData;
-    const labels = d.map(x => x.date);
-    
-    let datasets = [];
-    let options = {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: { 
-            x: { grid: { color: '#333' }, ticks: { color: '#888' } }
-        }
-    };
-
-    if (mode === 'tempVsOil') {
-        // --- RESTORE TRIPLE AXIS ---
-        datasets = [
-            { label: 'Oil (bar)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yOil', tension: 0.3 },
-            { label: 'Temp (°C)', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'yTemp', tension: 0.3 },
-            { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRPM', borderDash: [5, 5], tension: 0.3 }
-        ];
-
-        options.scales.yOil = { position: 'left', min: 0, max: 8, title: { display: true, text: 'Oil (bar)', color: '#2ecc71' } };
-        options.scales.yTemp = { position: 'right', min: 60, max: 130, title: { display: true, text: 'Temp °C', color: '#e74c3c' } };
-        options.scales.yRPM = { position: 'right', min: 600, max: 2200, grid: { drawOnChartArea: false }, title: { display: true, text: 'RPM', color: '#3498db' } };
-    } else {
-        // Standard Single/Dual Axis for other modes
-        datasets = [{ label: 'Engine Load %', data: d.map(x => x.load), borderColor: '#f1c40f', tension: 0.3 }];
-        options.scales.y = { position: 'left', min: 0, max: 100 };
+        document.getElementById('cityFocus').value = "All India (National)";
+        document.getElementById('modelSelect').value = "";
+        applyGlobalFilters(); // Reset the fleet view immediately without server call
     }
 
-    chart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options });
-}
+    // --- 6. ANALYTICAL CHARTING & EXPORT ---
+    function drawChart() {
+        if (!globalData || !globalData.monthlyData) return;
+        const canvas = document.getElementById('mainChart');
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext('2d');
+        if (chart) chart.destroy();
+        
+        const mode = document.getElementById('chartMode').value;
+        const d = globalData.monthlyData;
+        const labels = d.map(x => x.date);
+        
+        let datasets = [];
+        let options = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#fff' } } },
+            scales: { 
+                x: { grid: { color: '#333' }, ticks: { color: '#888' } }
+            }
+        };
+
+        if (mode === 'tempVsOil') {
+            // --- RESTORE TRIPLE AXIS TREND ---
+            datasets = [
+                { label: 'Oil (bar)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yOil', tension: 0.3 },
+                { label: 'Temp (°C)', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'yTemp', tension: 0.3 },
+                { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRPM', borderDash: [5, 5], tension: 0.3 }
+            ];
+
+            options.scales.yOil = { position: 'left', min: 0, max: 8, title: { display: true, text: 'Oil (bar)', color: '#2ecc71' }, ticks: { color: '#2ecc71' } };
+            options.scales.yTemp = { position: 'right', min: 60, max: 130, title: { display: true, text: 'Temp °C', color: '#e74c3c' }, ticks: { color: '#e74c3c' } };
+            options.scales.yRPM = { position: 'right', min: 600, max: 2200, grid: { drawOnChartArea: false }, title: { display: true, text: 'RPM', color: '#3498db' }, ticks: { color: '#3498db' } };
+        } else {
+            // Standard Single Axis for Load/Productivity
+            datasets = [{ label: 'Engine Load %', data: d.map(x => x.load), borderColor: '#f1c40f', tension: 0.3 }];
+            options.scales.y = { position: 'left', min: 0, max: 100, ticks: { color: '#fff' } };
+        }
+
+        chart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options });
+    }
 
     function exportToExcel() {
         let table = document.getElementById("summary-tbl");
         let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
         let link = document.createElement('a'); 
-        link.download = "Fleet_Report.xls"; 
+        link.download = "Fleet_Performance_Report.xls"; 
         link.href = url; 
         link.click();
     }
 </script>
 </body>
 </html>
+
 
 
 
