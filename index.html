@@ -153,13 +153,15 @@
     const API = "https://script.google.com/macros/s/AKfycby0gNPIJYLW0R4bdjUNPrNlQ4IEUOWxgqymboYh-KZSxc6tMGebcKPQ4LEk9jKYTr4L/exec"; 
     let chart = null, globalData = null;
 
-    // --- 1. AUTHENTICATION ---
     async function handleLogin() {
         const u = document.getElementById('userIn').value;
         const p = document.getElementById('passIn').value;
         const msg = document.getElementById('login-msg');
         
-        if (!u || !p) { msg.innerText = "Please enter credentials."; return; }
+        if (!u || !p) {
+            msg.innerText = "Please enter credentials.";
+            return;
+        }
         msg.innerText = "Authenticating...";
         
         try {
@@ -174,9 +176,7 @@
                 
                 document.getElementById('id-badge').innerText = `${u}-${data.logger}`;
                 document.body.classList.add('authorized');
-                
-                // Initialize dashboard after login
-                await init(); 
+                init(); 
             } else {
                 msg.innerText = "Invalid Login. Access Denied.";
             }
@@ -186,59 +186,40 @@
         }
     }
 
-    // --- 2. URL HELPER ---
     function getFullUrl(params) {
-        const r = sessionStorage.getItem('region'), 
-              s = sessionStorage.getItem('siteView'), 
-              u = sessionStorage.getItem('user');
+        const r = sessionStorage.getItem('region'), s = sessionStorage.getItem('siteView'), u = sessionStorage.getItem('user');
         return `${API}?${params}&userRegion=${encodeURIComponent(r)}&siteView=${encodeURIComponent(s)}&user=${encodeURIComponent(u)}&v=${Date.now()}`;
     }
 
-    // --- 3. INITIALIZATION ---
     async function init() {
         const now = new Date(); 
         document.getElementById('monthFilter').value = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
         
         try {
-            // Get model list first
             const mRes = await fetch(getFullUrl("get=model_list"));
             const mList = await mRes.json();
+            document.getElementById('modelSelect').innerHTML = '<option value="">All Models</option>' + mList.map(m => `<option value="${m}">${m}</option>`).join('');
             
-            const modelSelect = document.getElementById('modelSelect');
-            modelSelect.innerHTML = '<option value="">All Models</option>' + 
-                                    mList.map(m => `<option value="${m}">${m}</option>`).join('');
-            
-            // Populate rig list without triggering refresh loop
-            await updateRigDropdown(false); 
-            
-            // Initial manual data refresh
-            await refresh();
+            await updateRigDropdown(); 
 
-            // Set background auto-refresh interval
             if (window.refreshInterval) clearInterval(window.refreshInterval);
-            window.refreshInterval = setInterval(refresh, 60000); 
+            window.refreshInterval = setInterval(() => { refresh(); }, 60000); 
         } catch (e) { console.error("Init failed", e); }
     }
 
-    // --- 4. DROPDOWN LOGIC ---
-    async function updateRigDropdown(triggerRefresh = true) {
+    async function updateRigDropdown() {
         const model = document.getElementById('modelSelect').value;
-        try {
-            const res = await fetch(getFullUrl(`get=list&model=${encodeURIComponent(model)}`));
-            const rigs = await res.json();
-            
-            const rigSelect = document.getElementById('rigSelect');
-            rigSelect.innerHTML = rigs.map(id => `<option value="${id}">${id}</option>`).join('');
-            
-            if (triggerRefresh) await refresh();
-        } catch (e) { console.error("Dropdown update failed", e); }
+        const res = await fetch(getFullUrl(`get=list&model=${encodeURIComponent(model)}`));
+        const rigs = await res.json();
+        document.getElementById('rigSelect').innerHTML = rigs.map(id => `<option value="${id}">${id}</option>`).join('');
+        refresh();
     }
 
-    // --- 5. DATA FETCHING ---
-    async function refresh() {
+   async function refresh() {
         const rig = document.getElementById('rigSelect').value;
         const month = document.getElementById('monthFilter').value; 
         const mode = document.getElementById('dataSource').value; 
+        
         const cleanRig = (rig === "Loading..." || !rig) ? "" : rig;
 
         try {
@@ -246,23 +227,21 @@
             const data = await res.json();
             
             if (data.error) {
-                console.error("Server Error: " + data.error);
+                alert("Error: " + data.error);
                 return;
             }
 
             globalData = data;
             updateUI(data);
         } catch (err) { 
-            console.error("Refresh fetch failed:", err); 
+            console.error("Fetch failed:", err); 
         }
     }
 
-    // --- 6. UI UPDATE ---
     function updateUI(data) {
-        // Populate Summary Table
-        const summaryBody = document.getElementById('fleet-summary-body');
+        // 1. POPULATE SUMMARY TABLE
         if (data.summary && data.summary.length > 0) {
-            summaryBody.innerHTML = data.summary.map(r => `
+            document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
                 <tr>
                     <td><b>${r.id}</b></td>
                     <td>${r.audits}</td>
@@ -275,12 +254,33 @@
                     <td>${r.avgImpact}</td>
                 </tr>`).join('');
             
+            // Calculate Fleet Averages safely
             const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad || 0), 0);
             document.getElementById('v-fleet-load').innerText = (totalLd / data.summary.length).toFixed(1) + "%";
             document.getElementById('v-active-rigs').innerText = data.summary.length;
+        } else if (data.monthlyData && data.monthlyData.length > 0) {
+            // Fallback: If summary is missing but monthlyData exists, show single rig stats
+            const rigId = document.getElementById('rigSelect').value;
+            const calcAvg = (arr) => (arr.reduce((a, b) => a + parseFloat(b || 0), 0) / arr.length).toFixed(1);
+            
+            document.getElementById('v-fleet-load').innerText = calcAvg(data.monthlyData.map(d => d.load)) + "%";
+            document.getElementById('v-active-rigs').innerText = "1";
         }
 
-        // Vitals & Alerts
+        // 2. TRIGGER ALERTS
+        const alertList = document.getElementById('alert-list');
+        if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
+            alertList.innerHTML = data.vitals.alerts.map(a => `
+                <div class="alert-card" style="border-left:5px solid var(--red); background:rgba(255,77,77,0.1); padding:10px; margin-bottom:8px;">
+                    <b style="color:var(--ey); font-size:0.75rem;">UNIT: ${a.rig}</b><br>
+                    <b style="color:var(--red); font-size:0.85rem;">⚠️ ${a.parameter}</b><br>
+                    <span style="font-size:0.8rem;">Value: ${a.value} | Limit: ${a.limit}</span>
+                </div>`).join('');
+        } else {
+            alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green);">✅ ALL RIGS NORMAL</div>`;
+        }
+
+       // 3. MACHINE VITALS & AUDIT WARNING
         if (data.vitals) {
             document.getElementById('v-date').innerText = data.vitals.date || "--"; 
             document.getElementById('v-boost').innerText = data.vitals.boost || "0";
@@ -288,96 +288,121 @@
             document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
             document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
 
-            const alertList = document.getElementById('alert-list');
-            if (data.vitals.alerts && data.vitals.alerts.length > 0) {
-                alertList.innerHTML = data.vitals.alerts.map(a => `
-                    <div class="alert-card" style="border-left:5px solid var(--red); background:rgba(255,77,77,0.1); padding:10px; margin-bottom:8px;">
-                        <b style="color:var(--ey); font-size:0.75rem;">UNIT: ${a.rig}</b><br>
-                        <b style="color:var(--red); font-size:0.85rem;">⚠️ ${a.parameter}</b><br>
-                        <span style="font-size:0.8rem;">Value: ${a.value} | Limit: ${a.limit}</span>
-                    </div>`).join('');
+            // --- 15-SECOND AUDIT ALERT (REMOVED DUPLICATE CONSTS) ---
+            const warning = document.getElementById('auditWarning');
+            const selectedRigId = document.getElementById('rigSelect').value;
+            
+            const rigStats = data.summary ? data.summary.find(r => r.id === selectedRigId) : null;
+            const currentAudits = rigStats ? parseInt(rigStats.audits) : 0;
+
+            if (selectedRigId && currentAudits > 0 && currentAudits < 15) {
+                // 1. Show the warning
+                warning.style.display = 'block';
+                warning.style.opacity = '1';
+                warning.innerText = `⚠️ RIG HAS ONLY COVERED ${currentAudits} AUDITS THIS MONTH (Min: 15)`;
+
+                // 2. Clear any existing timer and start a new 15-second one
+                if (window.auditTimer) clearTimeout(window.auditTimer);
+                
+                window.auditTimer = setTimeout(() => {
+                    warning.style.transition = "opacity 1s";
+                    warning.style.opacity = '0'; 
+                    setTimeout(() => { warning.style.display = 'none'; }, 1000);
+                }, 15000); 
+
             } else {
-                alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green);">✅ ALL RIGS NORMAL</div>`;
+                warning.style.display = 'none';
             }
-        }
+        } // This correctly closes 'if (data.vitals)'
 
-        // Audit Compliance Warning
-        handleAuditWarning(data);
-
-        // Visuals
         drawChart(); 
         document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+    } // This correctly closes 'function updateUI(data)'
+  function drawChart() {
+    // 1. Safety Check
+    if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
+        console.warn("No data available for the selected month/rig.");
+        if (chart) chart.destroy(); 
+        return;
     }
 
-    function handleAuditWarning(data) {
-        const warning = document.getElementById('auditWarning');
-        const selectedRigId = document.getElementById('rigSelect').value;
-        const rigStats = data.summary ? data.summary.find(r => r.id === selectedRigId) : null;
-        const currentAudits = rigStats ? parseInt(rigStats.audits) : 0;
-
-        if (selectedRigId && currentAudits > 0 && currentAudits < 15) {
-            warning.style.display = 'block';
-            warning.innerText = `⚠️ RIG HAS ONLY COVERED ${currentAudits} AUDITS THIS MONTH (Min: 15)`;
-
-            if (window.auditTimer) clearTimeout(window.auditTimer);
-            window.auditTimer = setTimeout(() => {
-                warning.style.display = 'none';
-            }, 15000); 
-        } else {
-            warning.style.display = 'none';
+    const canvas = document.getElementById('mainChart');
+    const ctx = canvas.getContext('2d');
+    if (chart) chart.destroy();
+    
+    const mode = document.getElementById('chartMode').value;
+    const d = globalData.monthlyData;
+    const labels = d.map(x => x.date);
+    
+    let datasets = [];
+    let options = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#fff' } } },
+        scales: {
+            x: { grid: { color: '#333' }, ticks: { color: '#888' } }
         }
-    }
+    };
 
-    // --- 7. VISUALS & EXPORT ---
-    function drawChart() {
-        if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
-            if (chart) chart.destroy(); 
-            return;
-        }
+    // 2. Conditional Logic
+    if (mode === 'tempVsOil') {
+        datasets = [
+            { label: 'Oil (bar)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yOil', tension: 0.3, pointRadius: 3 },
+            { label: 'Temp (°C)', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'yTemp', tension: 0.3, pointRadius: 3 },
+            { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRPM', borderDash: [5, 5], tension: 0.3, pointRadius: 4 }
+        ];
 
-        const canvas = document.getElementById('mainChart');
-        const ctx = canvas.getContext('2d');
-        if (chart) chart.destroy();
-        
-        const mode = document.getElementById('chartMode').value;
-        const d = globalData.monthlyData;
-        const labels = d.map(x => x.date);
-        
-        let datasets = [];
-        let options = {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { labels: { color: '#fff' } } },
-            scales: { x: { grid: { color: '#333' }, ticks: { color: '#888' } } }
+        options.scales.yOil = { 
+            position: 'left', min: 0, max: 8, 
+            ticks: { stepSize: 0.1, color: '#2ecc71' },
+            title: { display: true, text: 'Oil (bar)', color: '#2ecc71' }
+        };
+        options.scales.yTemp = { 
+            position: 'right', min: 60, max: 130, 
+            ticks: { stepSize: 2, color: '#e74c3c' },
+            title: { display: true, text: 'Temp °C', color: '#e74c3c' },
+            grid: { drawOnChartArea: false }
+        };
+        options.scales.yRPM = { 
+            position: 'right', min: 600, max: 2200, 
+            ticks: { stepSize: 200, color: '#3498db' },
+            title: { display: true, text: 'RPM', color: '#3498db' },
+            grid: { drawOnChartArea: false }
         };
 
-        if (mode === 'tempVsOil') {
-            datasets = [
-                { label: 'Oil (bar)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yOil' },
-                { label: 'Temp (°C)', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'yTemp' },
-                { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRPM' }
-            ];
-            options.scales.yOil = { position: 'left', min: 0, max: 8 };
-            options.scales.yTemp = { position: 'right', min: 60, max: 130 };
-            options.scales.yRPM = { position: 'right', min: 600, max: 2200 };
-        } else {
-            options.scales.y = { position: 'left', min: 0 };
-            if (mode === 'loadVsComp') {
-                datasets = [
-                    { label: 'Load %', data: d.map(x => x.load), borderColor: '#f1c40f' },
-                    { label: 'Compressor %', data: d.map(x => x.comp), borderColor: '#3498db' }
-                ];
-            } else if (mode === 'hydro_impact') {
-                datasets = [
-                    { label: 'Impact', data: d.map(x => x.impact), borderColor: '#f1c40f' },
-                    { label: 'Feed', data: d.map(x => x.feed), borderColor: '#e67e22' }
-                ];
-            }
-        }
+    } else {
+        // RESET TO SINGLE AXIS
+        options.scales.y = { position: 'left', min: 0, grid: { color: '#333' }, ticks: { color: '#888' } };
 
-        chart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options });
+        if (mode === 'loadVsComp') {
+            datasets = [
+                { label: 'Engine Load %', data: d.map(x => x.load), borderColor: '#f1c40f', tension: 0.3 },
+                { label: 'Compressor %', data: d.map(x => x.comp), borderColor: '#3498db', tension: 0.3 }
+            ];
+            options.scales.y.max = 100;
+        } 
+        else if (mode === 'hydro_impact') {
+            datasets = [
+                { label: 'Impact (bar)', data: d.map(x => x.impact), borderColor: '#f1c40f', tension: 0.3 },
+                { label: 'Feed (bar)', data: d.map(x => x.feed), borderColor: '#e67e22', tension: 0.3 },
+                { label: 'Damper (bar)', data: d.map(x => x.damper), borderColor: '#3498db', tension: 0.3 }
+            ];
+        } 
+        else if (mode === 'setBit') {
+            datasets = [
+                { label: 'Bit Pressure', data: d.map(x => x.bit), borderColor: '#3498db', tension: 0.3 },
+                { label: 'Air Set (bar)', data: d.map(x => x.air), borderColor: '#2ecc71', tension: 0.3 }
+            ];
+        }
     }
 
+    // 3. FINAL INITIALIZATION (The Missing Part)
+    chart = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets },
+        options: options
+    });
+} // Closes drawChart
     function exportToExcel() {
         let table = document.getElementById("summary-tbl");
         let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
@@ -389,5 +414,3 @@
 </script>
 </body>
 </html>
-
-
