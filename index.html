@@ -93,49 +93,40 @@
     </div>
 
     <div class="main-layout">
-       <div class="sidebar">
-    <div class="filter-group" id="mgmt-city-box" style="display:none; margin-bottom: 15px; border-top: 1px solid #444; padding-top: 10px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <label style="color: var(--gold); font-size: 0.85rem;"><i class="fas fa-map-marker-alt"></i> TERRITORY SELECTION</label>
-            <button onclick="resetCityFilter()" style="background: none; border: 1px solid var(--gold); color: var(--gold); font-size: 0.7rem; padding: 2px 5px; cursor: pointer; border-radius: 3px;">
-                <i class="fas fa-undo"></i> Reset
-            </button>
-        </div>
-        <select id="cityFocus" onchange="applyCityTableFilter()" style="width: 100%; background: #222; color: white; border: 1px solid #444; padding: 8px; margin-top: 5px; border-radius: 4px;">
-            <option value="All">All India (National View)</option>
-            <option value="Ranchi">Ranchi Fleet</option>
-            <option value="Hyderabad">Hyderabad Fleet</option>
-            <option value="Delhi">Delhi Fleet</option>
-            <option value="Nagpur">Nagpur Fleet</option>
-            <option value="Udaipur">Udaipur Fleet</option>
-            <option value="Kolkata">Kolkata Fleet</option>
-        </select>
-    </div>
-    
-    <label>Model Classification</label>
-    <div class="filter-group">
-        <label for="dataSource">Data View:</label>
-        <select id="dataSource" onchange="triggerDataRefresh()">
-            <option value="active" selected>Live (Present)</option>
-            <option value="history">Archive (Pre-Nov 2025)</option>
-        </select>
-    </div>
-</div> ```
-    
-    <label>Model Classification</label>
-    <div class="filter-group">
-        <label for="dataSource">Data View:</label>
-        <select id="dataSource" onchange="triggerDataRefresh()">
-            <option value="active" selected>Live (Present)</option>
-            <option value="history">Archive (Pre-Nov 2025)</option>
-        </select>
-    </div>
-</div>
+        <div class="sidebar">
+            <div class="filter-group" id="mgmt-city-box" style="display:none; margin-bottom: 15px; border-top: 1px solid #444; padding-top: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label style="color: var(--ey); font-size: 0.85rem;"><i class="fas fa-map-marker-alt"></i> TERRITORY SELECTION</label>
+                    <button onclick="resetCityFilter()" style="background: none; border: 1px solid var(--ey); color: var(--ey); font-size: 0.7rem; padding: 2px 5px; cursor: pointer; border-radius: 3px;">
+                        <i class="fas fa-undo"></i> Reset
+                    </button>
+                </div>
+                <select id="cityFocus" onchange="applyCityTableFilter()" style="width: 100%; background: #222; color: white; border: 1px solid #444; padding: 8px; margin-top: 5px; border-radius: 4px;">
+                    <option value="All">All India (National View)</option>
+                    <option value="Ranchi">Ranchi Fleet</option>
+                    <option value="Hyderabad">Hyderabad Fleet</option>
+                    <option value="Delhi">Delhi Fleet</option>
+                    <option value="Nagpur">Nagpur Fleet</option>
+                    <option value="Udaipur">Udaipur Fleet</option>
+                    <option value="Kolkata">Kolkata Fleet</option>
+                </select>
+            </div>
+
+            <label>Model Classification</label>
+            <select id="modelSelect" onchange="updateRigDropdown()"><option value="">All Models</option></select>
+
+            <div class="filter-group" style="margin-top:15px;">
+                <label for="dataSource">Data View:</label>
+                <select id="dataSource" onchange="refresh()">
+                    <option value="active" selected>Live (Present)</option>
+                    <option value="history">Archive (Pre-Nov 2025)</option>
+                </select>
+            </div>
             
             <label style="display:block; margin-top:15px;">Target Rig ID</label>
             <select id="rigSelect" onchange="refresh()"><option>Loading...</option></select>
             
-            <label style="display:block; margin-top:15px;">Target Month (Month Filter)</label>
+            <label style="display:block; margin-top:15px;">Target Month</label>
             <input type="month" id="monthFilter" onchange="refresh()">
 
             <h4 style="color:var(--ey); margin: 25px 0 5px 0; font-size: 0.85rem; border-bottom: 1px solid #333; padding-bottom: 5px;">
@@ -148,7 +139,7 @@
                 <tr><td class="v-label">Hyd-Oil Temp</td><td id="v-hyd-temp" class="v-value">--</td></tr>
             </table>
 
-            <label style="display:block; margin-top:15px;">Analysis Mode (Analytical Dropdown)</label>
+            <label style="display:block; margin-top:15px;">Analysis Mode</label>
             <select id="chartMode" onchange="drawChart()">
                 <option value="tempVsOil">Trend: Temp / Oil / RPM</option>
                 <option value="loadVsComp">Load vs Compressor %</option>
@@ -162,7 +153,7 @@
             </div>
 
             <button onclick="window.print()" class="btn-red">📄 GENERATE PDF</button>
-            <button onclick="exportToExcel()" class="btn-green">📊 EXCEL EXPORT (Excel Dropdown)</button>
+            <button onclick="exportToExcel()" class="btn-green">📊 EXCEL EXPORT</button>
         </div>
 
         <div class="chart-area">
@@ -193,32 +184,26 @@
         const p = document.getElementById('passIn').value;
         const msg = document.getElementById('login-msg');
         
-        if (!u || !p) {
-            msg.innerText = "Please enter credentials.";
-            return;
-        }
+        if (!u || !p) { msg.innerText = "Please enter credentials."; return; }
         msg.innerText = "Authenticating...";
         
         try {
             const resp = await fetch(`${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`);
             const data = await resp.json();
-
             if (data.success) {
                 sessionStorage.setItem('region', data.region);
                 sessionStorage.setItem('siteView', data.siteView);
                 sessionStorage.setItem('user', u);
                 sessionStorage.setItem('logger', data.logger);
-                
                 document.getElementById('id-badge').innerText = `${u}-${data.logger}`;
+                
+                // Show Territory Box for Mgmt
+                if(data.role === 'mgmt') { document.getElementById('mgmt-city-box').style.display = 'block'; }
+                
                 document.body.classList.add('authorized');
                 init(); 
-            } else {
-                msg.innerText = "Invalid Login. Access Denied.";
-            }
-        } catch (e) {
-            console.error("Login Error:", e);
-            msg.innerText = "Connection Failed. Check Web App URL.";
-        }
+            } else { msg.innerText = "Invalid Login."; }
+        } catch (e) { msg.innerText = "Connection Failed."; }
     }
 
     function getFullUrl(params) {
@@ -229,17 +214,14 @@
     async function init() {
         const now = new Date(); 
         document.getElementById('monthFilter').value = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
-        
         try {
             const mRes = await fetch(getFullUrl("get=model_list"));
             const mList = await mRes.json();
             document.getElementById('modelSelect').innerHTML = '<option value="">All Models</option>' + mList.map(m => `<option value="${m}">${m}</option>`).join('');
-            
             await updateRigDropdown(); 
-
             if (window.refreshInterval) clearInterval(window.refreshInterval);
             window.refreshInterval = setInterval(() => { refresh(); }, 60000); 
-        } catch (e) { console.error("Init failed", e); }
+        } catch (e) { console.error(e); }
     }
 
     async function updateRigDropdown() {
@@ -250,31 +232,20 @@
         refresh();
     }
 
-   async function refresh() {
+    async function refresh() {
         const rig = document.getElementById('rigSelect').value;
         const month = document.getElementById('monthFilter').value; 
         const mode = document.getElementById('dataSource').value; 
-        
         const cleanRig = (rig === "Loading..." || !rig) ? "" : rig;
-
         try {
             const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(cleanRig)}&month=${month}&mode=${mode}`));
             const data = await res.json();
-            
-            if (data.error) {
-                alert("Error: " + data.error);
-                return;
-            }
-
             globalData = data;
             updateUI(data);
-        } catch (err) { 
-            console.error("Fetch failed:", err); 
-        }
+        } catch (err) { console.error(err); }
     }
 
     function updateUI(data) {
-        // 1. POPULATE SUMMARY TABLE
         if (data.summary && data.summary.length > 0) {
             document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
                 <tr>
@@ -288,34 +259,20 @@
                     <td>${r.avgBit}</td>
                     <td>${r.avgImpact}</td>
                 </tr>`).join('');
-            
-            // Calculate Fleet Averages safely
             const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad || 0), 0);
             document.getElementById('v-fleet-load').innerText = (totalLd / data.summary.length).toFixed(1) + "%";
             document.getElementById('v-active-rigs').innerText = data.summary.length;
-        } else if (data.monthlyData && data.monthlyData.length > 0) {
-            // Fallback: If summary is missing but monthlyData exists, show single rig stats
-            const rigId = document.getElementById('rigSelect').value;
-            const calcAvg = (arr) => (arr.reduce((a, b) => a + parseFloat(b || 0), 0) / arr.length).toFixed(1);
-            
-            document.getElementById('v-fleet-load').innerText = calcAvg(data.monthlyData.map(d => d.load)) + "%";
-            document.getElementById('v-active-rigs').innerText = "1";
         }
 
-        // 2. TRIGGER ALERTS
         const alertList = document.getElementById('alert-list');
         if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
             alertList.innerHTML = data.vitals.alerts.map(a => `
                 <div class="alert-card" style="border-left:5px solid var(--red); background:rgba(255,77,77,0.1); padding:10px; margin-bottom:8px;">
                     <b style="color:var(--ey); font-size:0.75rem;">UNIT: ${a.rig}</b><br>
-                    <b style="color:var(--red); font-size:0.85rem;">⚠️ ${a.parameter}</b><br>
-                    <span style="font-size:0.8rem;">Value: ${a.value} | Limit: ${a.limit}</span>
+                    <b style="color:var(--red); font-size:0.85rem;">⚠️ ${a.parameter}</b>
                 </div>`).join('');
-        } else {
-            alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green);">✅ ALL RIGS NORMAL</div>`;
-        }
+        } else { alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green);">✅ ALL NORMAL</div>`; }
 
-       // 3. MACHINE VITALS & AUDIT WARNING
         if (data.vitals) {
             document.getElementById('v-date').innerText = data.vitals.date || "--"; 
             document.getElementById('v-boost').innerText = data.vitals.boost || "0";
@@ -323,166 +280,75 @@
             document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
             document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
 
-            // --- 15-SECOND AUDIT ALERT (REMOVED DUPLICATE CONSTS) ---
             const warning = document.getElementById('auditWarning');
             const selectedRigId = document.getElementById('rigSelect').value;
-            
             const rigStats = data.summary ? data.summary.find(r => r.id === selectedRigId) : null;
             const currentAudits = rigStats ? parseInt(rigStats.audits) : 0;
 
             if (selectedRigId && currentAudits > 0 && currentAudits < 15) {
-                // 1. Show the warning
                 warning.style.display = 'block';
-                warning.style.opacity = '1';
                 warning.innerText = `⚠️ RIG HAS ONLY COVERED ${currentAudits} AUDITS THIS MONTH (Min: 15)`;
-
-                // 2. Clear any existing timer and start a new 15-second one
                 if (window.auditTimer) clearTimeout(window.auditTimer);
-                
-                window.auditTimer = setTimeout(() => {
-                    warning.style.transition = "opacity 1s";
-                    warning.style.opacity = '0'; 
-                    setTimeout(() => { warning.style.display = 'none'; }, 1000);
-                }, 15000); 
-
-            } else {
-                warning.style.display = 'none';
-            }
-        } // This correctly closes 'if (data.vitals)'
-
+                window.auditTimer = setTimeout(() => { warning.style.display = 'none'; }, 15000); 
+            } else { warning.style.display = 'none'; }
+        }
         drawChart(); 
         document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
-    } // This correctly closes 'function updateUI(data)'
-  function drawChart() {
-    // 1. Safety Check
-    if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
-        console.warn("No data available for the selected month/rig.");
-        if (chart) chart.destroy(); 
-        return;
     }
 
-    const canvas = document.getElementById('mainChart');
-    const ctx = canvas.getContext('2d');
-    if (chart) chart.destroy();
-    
-    const mode = document.getElementById('chartMode').value;
-    const d = globalData.monthlyData;
-    const labels = d.map(x => x.date);
-    
-    let datasets = [];
-    let options = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { labels: { color: '#fff' } } },
-        scales: {
-            x: { grid: { color: '#333' }, ticks: { color: '#888' } }
+    function drawChart() {
+        if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
+            if (chart) chart.destroy(); return;
         }
-    };
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        if (chart) chart.destroy();
+        const mode = document.getElementById('chartMode').value;
+        const d = globalData.monthlyData;
+        const labels = d.map(x => x.date);
+        let datasets = [], options = { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#fff' } } }, scales: { x: { grid: { color: '#333' }, ticks: { color: '#888' } }, y: { grid: { color: '#333' }, ticks: { color: '#888' } } } };
 
-    // 2. Conditional Logic
-    if (mode === 'tempVsOil') {
-        datasets = [
-            { label: 'Oil (bar)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yOil', tension: 0.3, pointRadius: 3 },
-            { label: 'Temp (°C)', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'yTemp', tension: 0.3, pointRadius: 3 },
-            { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRPM', borderDash: [5, 5], tension: 0.3, pointRadius: 4 }
-        ];
-
-        options.scales.yOil = { 
-            position: 'left', min: 0, max: 8, 
-            ticks: { stepSize: 0.1, color: '#2ecc71' },
-            title: { display: true, text: 'Oil (bar)', color: '#2ecc71' }
-        };
-        options.scales.yTemp = { 
-            position: 'right', min: 60, max: 130, 
-            ticks: { stepSize: 2, color: '#e74c3c' },
-            title: { display: true, text: 'Temp °C', color: '#e74c3c' },
-            grid: { drawOnChartArea: false }
-        };
-        options.scales.yRPM = { 
-            position: 'right', min: 600, max: 2200, 
-            ticks: { stepSize: 200, color: '#3498db' },
-            title: { display: true, text: 'RPM', color: '#3498db' },
-            grid: { drawOnChartArea: false }
-        };
-
-    } else {
-        // RESET TO SINGLE AXIS
-        options.scales.y = { position: 'left', min: 0, grid: { color: '#333' }, ticks: { color: '#888' } };
-
-        if (mode === 'loadVsComp') {
+        if (mode === 'tempVsOil') {
             datasets = [
-                { label: 'Engine Load %', data: d.map(x => x.load), borderColor: '#f1c40f', tension: 0.3 },
-                { label: 'Compressor %', data: d.map(x => x.comp), borderColor: '#3498db', tension: 0.3 }
+                { label: 'Oil (bar)', data: d.map(x => x.oil), borderColor: '#2ecc71', tension: 0.3 },
+                { label: 'Temp (°C)', data: d.map(x => x.temp), borderColor: '#e74c3c', tension: 0.3 }
             ];
-            options.scales.y.max = 100;
-        } 
-        else if (mode === 'hydro_impact') {
-            datasets = [
-                { label: 'Impact (bar)', data: d.map(x => x.impact), borderColor: '#f1c40f', tension: 0.3 },
-                { label: 'Feed (bar)', data: d.map(x => x.feed), borderColor: '#e67e22', tension: 0.3 },
-                { label: 'Damper (bar)', data: d.map(x => x.damper), borderColor: '#3498db', tension: 0.3 }
-            ];
-        } 
-        else if (mode === 'setBit') {
-            datasets = [
-                { label: 'Bit Pressure', data: d.map(x => x.bit), borderColor: '#3498db', tension: 0.3 },
-                { label: 'Air Set (bar)', data: d.map(x => x.air), borderColor: '#2ecc71', tension: 0.3 }
-            ];
+        } else if (mode === 'loadVsComp') {
+            datasets = [{ label: 'Load %', data: d.map(x => x.load), borderColor: '#f1c40f' }];
+        } else if (mode === 'hydro_impact') {
+            datasets = [{ label: 'Impact', data: d.map(x => x.impact), borderColor: '#f1c40f' }];
+        } else if (mode === 'setBit') {
+            datasets = [{ label: 'Bit Pressure', data: d.map(x => x.bit), borderColor: '#3498db' }];
         }
+
+        chart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: options });
     }
 
-    // 3. FINAL INITIALIZATION (The Missing Part)
-    chart = new Chart(ctx, {
-        type: 'line',
-        data: { labels, datasets },
-        options: options
-    });
-} // Closes drawChart
+    function applyCityTableFilter() {
+        const val = document.getElementById('cityFocus').value;
+        const rows = document.querySelectorAll('#fleet-summary-body tr');
+        let count = 0;
+        rows.forEach(row => {
+            const city = row.cells[0].innerText;
+            if (val === "All" || city.includes(val)) { row.style.display = ""; count++; }
+            else { row.style.display = "none"; }
+        });
+        document.getElementById('v-active-rigs').innerText = count;
+    }
+
+    function resetCityFilter() {
+        document.getElementById('cityFocus').value = "All";
+        applyCityTableFilter();
+    }
+
     function exportToExcel() {
         let table = document.getElementById("summary-tbl");
         let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
-        let link = document.createElement('a'); 
-        link.download = "Fleet_Report.xls"; 
-        link.href = url; 
-        link.click();
-    }
-</script>
-    // --- EXISTING FUNCTIONS ---
-    function handleLogin(response) { ... }
-    function updateUI(data) { ... }
-
-    // --- INSERT THE FILTER FUNCTION HERE ---
-    function applyCityTableFilter() {
-        const selectedCity = document.getElementById('cityFocus').value;
-        const rows = document.querySelectorAll('#summary-body tr');
-        let visibleCount = 0;
-
-        rows.forEach(row => {
-            // Reads city name from the first column (index 0)
-            const rowCity = row.cells[0].innerText.trim();
-
-            if (selectedCity === "All" || rowCity === selectedCity) {
-                row.style.display = ""; // Show
-                visibleCount++;
-            } else {
-                row.style.display = "none"; // Hide
-            }
-        });
-// --- ADD THIS AT LINE 461 ---
-function resetCityFilter() {
-    const dropdown = document.getElementById('cityFocus');
-    if (dropdown) {
-        dropdown.value = "All"; // Set back to National View
-        applyCityTableFilter(); // Re-run the filter to show all rows
-    }
-}
-        // Updates the "Active Assets" counter in your sidebar
-        const assetCounter = document.getElementById('active-assets');
-        if (assetCounter) assetCounter.innerText = visibleCount;
+        let link = document.createElement('a'); link.download = "Fleet_Report.xls"; link.href = url; link.click();
     }
 </script>
 </body>
 </html>
+
 
 
 
