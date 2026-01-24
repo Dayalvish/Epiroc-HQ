@@ -93,30 +93,33 @@
     </div>
 
     <div class="main-layout">
-        <div class="sidebar">
-    <div class="filter-group" id="mgmt-city-box" style="display:none; margin-bottom: 15px; border-top: 1px solid #444; padding-top: 10px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-            <label style="color: var(--ey); font-size: 0.85rem;"><i class="fas fa-globe-asia"></i> REGION SECTOR</label>
-            <button onclick="resetCityFilter()" style="background: none; border: 1px solid var(--ey); color: var(--ey); font-size: 0.65rem; padding: 2px 6px; cursor: pointer; border-radius: 3px;">RESET</button>
-        </div>
-        <select id="cityFocus" onchange="applyGlobalFilters()" style="width: 100%; background: #222; color: white; border: 1px solid #444; padding: 8px; border-radius: 4px;">
-            <option value="All">All India (National)</option>
-            <option value="Ranchi">Ranchi</option>
-            <option value="Hyderabad">Hyderabad</option>
-            <option value="Delhi">Delhi</option>
-            <option value="Nagpur">Nagpur</option>
-            <option value="Udaipur">Udaipur</option>
-            <option value="Kolkata">Kolkata</option>
-        </select>
+       <div class="sidebar">
+    <div class="filter-group" id="mgmt-city-box" style="display:none; ...">
+        ... (rest of territory box) ...
     </div>
 
     <label>Model Classification</label>
-    <select id="modelSelect" onchange="applyGlobalFilters()" style="width: 100%; background: #222; color: white; border: 1px solid #444; padding: 8px; border-radius: 4px;">
+    <select id="modelSelect" onchange="applyGlobalFilters()" style="...">
         <option value="">All Models</option>
-        </select>
-    
+    </select>
+    <div class="filter-group" style="margin-top:15px;">
+         ...
     </div>
+</div> ```
 
+### 3. Cleaning up Redundant Functions
+You currently have both `applyCityTableFilter` and `applyGlobalFilters`. Since `applyGlobalFilters` is the superior, database-driven version, delete the old `applyCityTableFilter` to keep your file clean and avoid conflicts.
+
+
+
+### Final Check of the "Reset" Button
+Update your `resetCityFilter` function to point to the new filter:
+```javascript
+function resetCityFilter() {
+    document.getElementById('cityFocus').value = "All";
+    document.getElementById('modelSelect').value = ""; // Also reset model
+    applyGlobalFilters(); // Use the new universal filter
+}
             <div class="filter-group" style="margin-top:15px;">
                 <label for="dataSource">Data View:</label>
                 <select id="dataSource" onchange="refresh()">
@@ -248,6 +251,7 @@
     }
 
     function updateUI(data) {
+    // 1. BUILD SUMMARY TABLE
     if (data.summary && data.summary.length > 0) {
         document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
             <tr data-region="${r.region}" data-model="${r.model}">
@@ -262,38 +266,48 @@
                 <td>${r.avgImpact}</td>
             </tr>`).join('');
     }
-    // Call the filter immediately after building the table to respect current dropdown settings
-    applyGlobalFilters();
-}
 
-        const alertList = document.getElementById('alert-list');
-        if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
-            alertList.innerHTML = data.vitals.alerts.map(a => `
-                <div class="alert-card" style="border-left:5px solid var(--red); background:rgba(255,77,77,0.1); padding:10px; margin-bottom:8px;">
-                    <b style="color:var(--ey); font-size:0.75rem;">UNIT: ${a.rig}</b><br>
-                    <b style="color:var(--red); font-size:0.85rem;">⚠️ ${a.parameter}</b>
-                </div>`).join('');
-        } else { alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green);">✅ ALL NORMAL</div>`; }
+    // 2. TRIGGER ALERTS
+    const alertList = document.getElementById('alert-list');
+    if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
+        alertList.innerHTML = data.vitals.alerts.map(a => `
+            <div class="alert-card" style="border-left:5px solid var(--red); background:rgba(255,77,77,0.1); padding:10px; margin-bottom:8px;">
+                <b style="color:var(--ey); font-size:0.75rem;">UNIT: ${a.rig}</b><br>
+                <b style="color:var(--red); font-size:0.85rem;">⚠️ ${a.parameter}</b>
+            </div>`).join('');
+    } else { 
+        alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green);">✅ ALL NORMAL</div>`; 
+    }
 
-        if (data.vitals) {
-            document.getElementById('v-date').innerText = data.vitals.date || "--"; 
-            document.getElementById('v-boost').innerText = data.vitals.boost || "0";
-            document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
-            document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
-            document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
+    // 3. MACHINE VITALS
+    if (data.vitals) {
+        document.getElementById('v-date').innerText = data.vitals.date || "--"; 
+        document.getElementById('v-boost').innerText = data.vitals.boost || "0";
+        document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
+        document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
+        document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
 
-            const warning = document.getElementById('auditWarning');
-            const selectedRigId = document.getElementById('rigSelect').value;
-            const rigStats = data.summary ? data.summary.find(r => r.id === selectedRigId) : null;
-            const currentAudits = rigStats ? parseInt(rigStats.audits) : 0;
+        // Audit Warning Logic
+        const warning = document.getElementById('auditWarning');
+        const selectedRigId = document.getElementById('rigSelect').value;
+        const rigStats = data.summary ? data.summary.find(r => r.id === selectedRigId) : null;
+        const currentAudits = rigStats ? parseInt(rigStats.audits) : 0;
 
-            if (selectedRigId && currentAudits > 0 && currentAudits < 15) {
-                warning.style.display = 'block';
-                warning.innerText = `⚠️ RIG HAS ONLY COVERED ${currentAudits} AUDITS THIS MONTH (Min: 15)`;
-                if (window.auditTimer) clearTimeout(window.auditTimer);
-                window.auditTimer = setTimeout(() => { warning.style.display = 'none'; }, 15000); 
-            } else { warning.style.display = 'none'; }
+        if (selectedRigId && currentAudits > 0 && currentAudits < 15) {
+            warning.style.display = 'block';
+            warning.innerText = `⚠️ RIG HAS ONLY COVERED ${currentAudits} AUDITS THIS MONTH (Min: 15)`;
+            if (window.auditTimer) clearTimeout(window.auditTimer);
+            window.auditTimer = setTimeout(() => { warning.style.display = 'none'; }, 15000); 
+        } else { 
+            warning.style.display = 'none'; 
         }
+    }
+
+    // 4. SYNC DASHBOARD
+    applyGlobalFilters(); // Respect current dropdowns
+    drawChart(); 
+    document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+} // Function finally closed here
         drawChart(); 
         document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
     }
@@ -463,6 +477,7 @@ function applyGlobalFilters() {
 </script>
 </body>
 </html>
+
 
 
 
