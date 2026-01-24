@@ -311,29 +311,39 @@
     }
 
     function applyGlobalFilters() {
-        const selRegion = document.getElementById('cityFocus').value;
-        const selModel = document.getElementById('modelSelect').value;
-        const rows = document.querySelectorAll('#fleet-summary-body tr');
-        let visibleCount = 0;
-        let totalLoad = 0;
+    const selectedRegion = document.getElementById('cityFocus').value;
+    const selectedModel = document.getElementById('modelSelect').value;
+    const rows = document.querySelectorAll('#fleet-summary-body tr');
+    
+    let visibleCount = 0;
+    let totalLoad = 0;
 
-        rows.forEach(row => {
-            const rReg = row.getAttribute('data-region') || "";
-            const rMod = row.getAttribute('data-model') || "";
+    rows.forEach(row => {
+        // These attributes must be stamped on your <tr> in updateUI()
+        const rowRegion = row.getAttribute('data-region') || "";
+        const rowModel = row.getAttribute('data-model') || "";
+
+        const regionMatch = (selectedRegion === "All India (National)" || rowRegion === selectedRegion);
+        const modelMatch = (selectedModel === "" || rowModel === selectedModel);
+
+        if (regionMatch && modelMatch) {
+            row.style.display = ""; // Show matching row
+            visibleCount++;
             
-            const matchReg = (selRegion === "All India (National)" || selRegion === "All" || rReg === selRegion);
-            const matchMod = (selMod === "" || rMod === selMod);
+            // Extract Load % from the 3rd column (index 2)
+            const loadVal = parseFloat(row.cells[2].innerText.replace('%', '')) || 0;
+            totalLoad += loadVal;
+        } else {
+            row.style.display = "none"; // Hide non-matching row
+        }
+    });
 
-            if (matchReg && matchMod) {
-                row.style.display = "";
-                visibleCount++;
-                const loadText = row.cells[2].innerText.replace('%', '');
-                totalLoad += parseFloat(loadText) || 0;
-            } else {
-                row.style.display = "none";
-            }
-        });
-
+    // Update Sidebar Stats
+    document.getElementById('v-active-rigs').innerText = visibleCount;
+    document.getElementById('v-fleet-load').innerText = visibleCount > 0 
+        ? (totalLoad / visibleCount).toFixed(1) + "%" 
+        : "0%";
+}
         // Update Stats Boxes
         if (document.getElementById('v-active-rigs')) document.getElementById('v-active-rigs').innerText = visibleCount;
         if (document.getElementById('v-fleet-load')) {
@@ -342,42 +352,49 @@
     }
 
     function resetCityFilter() {
-        document.getElementById('cityFocus').value = "All India (National)";
-        document.getElementById('modelSelect').value = "";
-        applyGlobalFilters();
-        updateRigDropdown();
-    }
+    document.getElementById('cityFocus').value = "All India (National)";
+    document.getElementById('modelSelect').value = "";
+    applyGlobalFilters(); // Reset the fleet view immediately
+}
 
     // --- 6. CHARTING & EXPORT ---
     function drawChart() {
-        if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
-            if (chart) chart.destroy(); 
-            return;
+    if (!globalData || !globalData.monthlyData) return;
+    const ctx = document.getElementById('mainChart').getContext('2d');
+    if (chart) chart.destroy();
+    
+    const mode = document.getElementById('chartMode').value;
+    const d = globalData.monthlyData;
+    const labels = d.map(x => x.date);
+    
+    let datasets = [];
+    let options = {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: { 
+            x: { grid: { color: '#333' }, ticks: { color: '#888' } }
         }
-        const ctx = document.getElementById('mainChart').getContext('2d');
-        if (chart) chart.destroy();
-        
-        const mode = document.getElementById('chartMode').value;
-        const d = globalData.monthlyData;
-        const labels = d.map(x => x.date);
-        let datasets = [];
-        
-        // Simple Single Axis Charting Logic
-        if (mode === 'tempVsOil') {
-            datasets = [
-                { label: 'Oil', data: d.map(x => x.oil), borderColor: '#2ecc71', tension: 0.3 },
-                { label: 'Temp', data: d.map(x => x.temp), borderColor: '#e74c3c', tension: 0.3 }
-            ];
-        } else {
-            datasets = [{ label: mode, data: d.map(x => x.load || 0), borderColor: '#f1c40f', tension: 0.3 }];
-        }
+    };
 
-        chart = new Chart(ctx, { 
-            type: 'line', 
-            data: { labels, datasets },
-            options: { responsive: true, maintainAspectRatio: false } 
-        });
+    if (mode === 'tempVsOil') {
+        // --- RESTORE TRIPLE AXIS ---
+        datasets = [
+            { label: 'Oil (bar)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yOil', tension: 0.3 },
+            { label: 'Temp (°C)', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'yTemp', tension: 0.3 },
+            { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRPM', borderDash: [5, 5], tension: 0.3 }
+        ];
+
+        options.scales.yOil = { position: 'left', min: 0, max: 8, title: { display: true, text: 'Oil (bar)', color: '#2ecc71' } };
+        options.scales.yTemp = { position: 'right', min: 60, max: 130, title: { display: true, text: 'Temp °C', color: '#e74c3c' } };
+        options.scales.yRPM = { position: 'right', min: 600, max: 2200, grid: { drawOnChartArea: false }, title: { display: true, text: 'RPM', color: '#3498db' } };
+    } else {
+        // Standard Single/Dual Axis for other modes
+        datasets = [{ label: 'Engine Load %', data: d.map(x => x.load), borderColor: '#f1c40f', tension: 0.3 }];
+        options.scales.y = { position: 'left', min: 0, max: 100 };
     }
+
+    chart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options });
+}
 
     function exportToExcel() {
         let table = document.getElementById("summary-tbl");
@@ -390,6 +407,7 @@
 </script>
 </body>
 </html>
+
 
 
 
