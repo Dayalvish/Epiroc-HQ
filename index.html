@@ -184,7 +184,7 @@ function resetCityFilter() {
     const API = "https://script.google.com/macros/s/AKfycbw7md2m_7zkOYB0Q20VmEEc_f-bJno2VdnEOpQ83752-TUOppl48CdeUgZFZyucHYzi/exec"; 
     let chart = null, globalData = null;
 
-    // --- 1. AUTHENTICATION ---
+    // --- 1. LOGIN & AUTH ---
     async function handleLogin() {
         const u = document.getElementById('userIn').value;
         const p = document.getElementById('passIn').value;
@@ -203,8 +203,9 @@ function resetCityFilter() {
                 sessionStorage.setItem('logger', data.logger);
                 document.getElementById('id-badge').innerText = `${u}-${data.logger}`;
                 
-                // Show Territory Box for Mgmt
-                if(data.role === 'mgmt') { document.getElementById('mgmt-city-box').style.display = 'block'; }
+                if(data.role === 'mgmt') { 
+                    document.getElementById('mgmt-city-box').style.display = 'block'; 
+                }
                 
                 document.body.classList.add('authorized');
                 init(); 
@@ -233,6 +234,7 @@ function resetCityFilter() {
         } catch (e) { console.error("Init Error:", e); }
     }
 
+    // --- 3. DROPDOWN & DATA REFRESH ---
     async function updateRigDropdown() {
         const model = document.getElementById('modelSelect').value;
         const res = await fetch(getFullUrl(`get=list&model=${encodeURIComponent(model)}`));
@@ -241,7 +243,6 @@ function resetCityFilter() {
         refresh();
     }
 
-    // --- 3. DATA REFRESH ---
     async function refresh() {
         const rig = document.getElementById('rigSelect').value;
         const month = document.getElementById('monthFilter').value; 
@@ -255,9 +256,9 @@ function resetCityFilter() {
         } catch (err) { console.error("Refresh Error:", err); }
     }
 
-    // --- 4. UI POPULATION ---
+    // --- 4. UI UPDATE (THE PATCHED SECTION) ---
     function updateUI(data) {
-        // Build Summary Table with Data Tags
+        // Build Table with data attributes for filtering
         if (data.summary && data.summary.length > 0) {
             document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
                 <tr data-region="${r.region}" data-model="${r.model}">
@@ -273,7 +274,29 @@ function resetCityFilter() {
                 </tr>`).join('');
         }
 
-        // Trigger Alerts
+        // Machine Vitals Display
+        if (data.vitals) {
+            document.getElementById('v-date').innerText = data.vitals.date || "--"; 
+            document.getElementById('v-boost').innerText = data.vitals.boost || "0";
+            document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
+            document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
+            document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
+
+            // Audit Alerts
+            const warning = document.getElementById('auditWarning');
+            const selectedRigId = document.getElementById('rigSelect').value;
+            const rigStats = data.summary ? data.summary.find(r => r.id === selectedRigId) : null;
+            const currentAudits = rigStats ? parseInt(rigStats.audits) : 0;
+
+            if (selectedRigId && currentAudits > 0 && currentAudits < 15) {
+                warning.style.display = 'block';
+                warning.innerText = `⚠️ RIG HAS ONLY COVERED ${currentAudits} AUDITS THIS MONTH (Min: 15)`;
+                if (window.auditTimer) clearTimeout(window.auditTimer);
+                window.auditTimer = setTimeout(() => { warning.style.display = 'none'; }, 15000); 
+            } else { warning.style.display = 'none'; }
+        }
+
+        // Trigger Alerts Sidebar
         const alertList = document.getElementById('alert-list');
         if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
             alertList.innerHTML = data.vitals.alerts.map(a => `
@@ -285,97 +308,35 @@ function resetCityFilter() {
             alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green);">✅ ALL NORMAL</div>`; 
         }
 
-        // Machine Vitals
-        if (data.vitals) {
-            document.getElementById('v-date').innerText = data.vitals.date || "--"; 
-            document.getElementById('v-boost').innerText = data.vitals.boost || "0";
-            document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
-            document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
-            document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
-
-            // Audit Compliance Logic
-            const warning = document.getElementById('auditWarning');
-            const selectedRigId = document.getElementById('rigSelect').value;
-            const rigStats = data.summary ? data.summary.find(r => r.id === selectedRigId) : null;
-            const currentAudits = rigStats ? parseInt(rigStats.audits) : 0;
-
-            if (selectedRigId && currentAudits > 0 && currentAudits < 15) {
-                warning.style.display = 'block';
-                warning.innerText = `⚠️ RIG HAS ONLY COVERED ${currentAudits} AUDITS THIS MONTH (Min: 15)`;
-                if (window.auditTimer) clearTimeout(window.auditTimer);
-                window.auditTimer = setTimeout(() => { warning.style.display = 'none'; }, 15000); 
-            } else { 
-                warning.style.display = 'none'; 
-            }
-        }
-
-        applyGlobalFilters(); // Sync filters immediately
+        // Run Global Filter and Chart
+        applyGlobalFilters(); 
         drawChart(); 
         document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
     }
 
-    // --- 5. ANALYTICS & CHARTS ---
-    function drawChart() {
-        if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
-            if (chart) chart.destroy(); 
-            return;
-        }
-
-        const canvas = document.getElementById('mainChart');
-        const ctx = canvas.getContext('2d');
-        if (chart) chart.destroy();
-        
-        const mode = document.getElementById('chartMode').value;
-        const d = globalData.monthlyData;
-        const labels = d.map(x => x.date);
-        
-        let datasets = [];
-        let options = {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { labels: { color: '#fff', font: { size: 11 } } } },
-            scales: { x: { grid: { color: '#333' }, ticks: { color: '#888', font: { size: 10 } } } }
-        };
-
-        if (mode === 'tempVsOil') {
-            datasets = [
-                { label: 'Oil (bar)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yOil', tension: 0.3, pointRadius: 3 },
-                { label: 'Temp (°C)', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'yTemp', tension: 0.3, pointRadius: 3 },
-                { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRPM', borderDash: [5, 5], tension: 0.3, pointRadius: 4 }
-            ];
-            options.scales.yOil = { position: 'left', min: 0, max: 8, ticks: { color: '#2ecc71' } };
-            options.scales.yTemp = { position: 'right', min: 60, max: 130, ticks: { color: '#e74c3c' } };
-            options.scales.yRPM = { position: 'right', min: 600, max: 2200, ticks: { color: '#3498db' } };
-        } else {
-            options.scales.y = { position: 'left', min: 0, grid: { color: '#333' }, ticks: { color: '#888' } };
-            if (mode === 'loadVsComp') {
-                datasets = [{ label: 'Engine Load %', data: d.map(x => x.load), borderColor: '#f1c40f', tension: 0.3 }, { label: 'Compressor %', data: d.map(x => x.comp), borderColor: '#3498db', tension: 0.3 }];
-                options.scales.y.max = 100;
-            } else if (mode === 'setBit') {
-                datasets = [{ label: 'Bit Pressure', data: d.map(x => x.bit), borderColor: '#3498db', tension: 0.3 }, { label: 'Air Set', data: d.map(x => x.air), borderColor: '#2ecc71', tension: 0.3 }];
-            } else if (mode === 'hydro_impact') {
-                datasets = [{ label: 'Impact', data: d.map(x => x.impact), borderColor: '#f1c40f', tension: 0.3 }, { label: 'Feed', data: d.map(x => x.feed), borderColor: '#e67e22', tension: 0.3 }, { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db', tension: 0.3 }];
-            }
-        }
-
-        chart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options });
+    // --- 5. THE PATCH: CASCADING FILTERS ---
+    function handleRegionChange() {
+        // When region changes, we need to refresh the Rig list from the server
+        // to ensure we get the correct models/rigs for that sector
+        applyGlobalFilters(); 
+        updateRigDropdown(); 
     }
 
-    // --- 6. CASCADING FILTERS & EXPORTS ---
     function applyGlobalFilters() {
-        const selectedRegion = document.getElementById('cityFocus').value;
-        const selectedModel = document.getElementById('modelSelect').value;
+        const selRegion = document.getElementById('cityFocus').value;
+        const selModel = document.getElementById('modelSelect').value;
         const rows = document.querySelectorAll('#fleet-summary-body tr');
         let visibleCount = 0;
         let totalLoad = 0;
 
         rows.forEach(row => {
-            const rowRegion = row.getAttribute('data-region') || "";
-            const rowModel = row.getAttribute('data-model') || "";
-            const regionMatch = (selectedRegion === "All" || rowRegion === selectedRegion);
-            const modelMatch = (selectedModel === "" || rowModel === selectedModel);
+            const rReg = row.getAttribute('data-region') || "";
+            const rMod = row.getAttribute('data-model') || "";
+            
+            const matchReg = (selRegion === "All India (National)" || selRegion === "All" || rReg === selRegion);
+            const matchMod = (selMod === "" || rMod === selMod);
 
-            if (regionMatch && modelMatch) {
+            if (matchReg && matchMod) {
                 row.style.display = "";
                 visibleCount++;
                 const loadText = row.cells[2].innerText.replace('%', '');
@@ -385,6 +346,7 @@ function resetCityFilter() {
             }
         });
 
+        // Update Stats Boxes
         if (document.getElementById('v-active-rigs')) document.getElementById('v-active-rigs').innerText = visibleCount;
         if (document.getElementById('v-fleet-load')) {
             document.getElementById('v-fleet-load').innerText = visibleCount > 0 ? (totalLoad / visibleCount).toFixed(1) + "%" : "0%";
@@ -392,8 +354,41 @@ function resetCityFilter() {
     }
 
     function resetCityFilter() {
-        document.getElementById('cityFocus').value = "All";
+        document.getElementById('cityFocus').value = "All India (National)";
+        document.getElementById('modelSelect').value = "";
         applyGlobalFilters();
+        updateRigDropdown();
+    }
+
+    // --- 6. CHARTING & EXPORT ---
+    function drawChart() {
+        if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
+            if (chart) chart.destroy(); 
+            return;
+        }
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        if (chart) chart.destroy();
+        
+        const mode = document.getElementById('chartMode').value;
+        const d = globalData.monthlyData;
+        const labels = d.map(x => x.date);
+        let datasets = [];
+        
+        // Simple Single Axis Charting Logic
+        if (mode === 'tempVsOil') {
+            datasets = [
+                { label: 'Oil', data: d.map(x => x.oil), borderColor: '#2ecc71', tension: 0.3 },
+                { label: 'Temp', data: d.map(x => x.temp), borderColor: '#e74c3c', tension: 0.3 }
+            ];
+        } else {
+            datasets = [{ label: mode, data: d.map(x => x.load || 0), borderColor: '#f1c40f', tension: 0.3 }];
+        }
+
+        chart = new Chart(ctx, { 
+            type: 'line', 
+            data: { labels, datasets },
+            options: { responsive: true, maintainAspectRatio: false } 
+        });
     }
 
     function exportToExcel() {
@@ -407,4 +402,5 @@ function resetCityFilter() {
 </script>
 </body>
 </html>
+
 
