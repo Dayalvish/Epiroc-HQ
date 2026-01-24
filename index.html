@@ -32,15 +32,18 @@
         .main-layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 20px; }
         .sidebar, .chart-area, .warning-sidebar { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); height: 85vh; overflow-y: auto; }
         
+        /* SIDEBAR VITALS */
         .vital-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #111; border: 1px solid #333; }
         .vital-table td { padding: 10px; border-bottom: 1px solid #333; font-size: 0.8rem; }
         .v-label { color: #888; text-transform: uppercase; font-size: 0.65rem; }
         .v-value { text-align: right; color: var(--ey); font-weight: bold; font-size: 0.95rem; }
 
+        /* SUMMARY TABLE */
         .summary-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #111; font-size: 0.75rem; }
         .summary-table th, .summary-table td { padding: 8px; border: 1px solid #333; text-align: center; }
         .summary-table th { background: #222; color: var(--ey); text-transform: uppercase; }
 
+        /* BUTTONS & SELECTS */
         select, input { width: 100%; padding: 10px; margin-top: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; }
         .mini-stats { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .mini-card { background: #222; padding: 10px; border-radius: 4px; text-align: center; border: 1px solid #333; }
@@ -51,7 +54,14 @@
         .btn-green { background: #27ae60; color: white; border:none; padding:12px; border-radius:4px; font-weight:bold; width:100%; margin-top:10px; cursor:pointer;}
 
         #auditWarning { display: none; position: fixed; top: 15%; left: 50%; transform: translateX(-50%); background: var(--red); color: white; padding: 15px 30px; border-radius: 8px; font-weight: bold; z-index: 10000; animation: blinker 1s linear infinite; }
-        @keyframes blinker { 0% { opacity: 1; } 50% { opacity: 0.7; box-shadow: 0 0 20px rgba(255, 77, 77, 0.6); } 100% { opacity: 1; } }
+       @keyframes blinker { 
+    0% { opacity: 1; }
+    50% { 
+        opacity: 0.7; 
+        box-shadow: 0 0 20px rgba(255, 77, 77, 0.6); 
+    }
+    100% { opacity: 1; }
+}
     </style>
 </head>
 <body>
@@ -83,38 +93,34 @@
     </div>
 
     <div class="main-layout">
-        <div class="sidebar">
-            <div class="filter-group" id="mgmt-city-box" style="display:none; margin-bottom: 15px; border-top: 1px solid #444; padding-top: 10px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                    <label style="color: var(--ey); font-size: 0.85rem;"><i class="fas fa-globe-asia"></i> REGION SECTOR</label>
-                    <button onclick="resetCityFilter()" style="background: none; border: 1px solid var(--ey); color: var(--ey); font-size: 0.65rem; padding: 2px 6px; cursor: pointer; border-radius: 3px;">RESET</button>
-                </div>
-                <select id="cityFocus" onchange="handleRegionChange()" style="width: 100%; background: #222; color: white; border: 1px solid #444; padding: 8px; border-radius: 4px;">
-                    <option value="All">All India (National)</option>
-                    <option value="Ranchi">Ranchi</option>
-                    <option value="Hyderabad">Hyderabad</option>
-                    <option value="Delhi">Delhi</option>
-                    <option value="Nagpur">Nagpur</option>
-                    <option value="Udaipur">Udaipur</option>
-                    <option value="Kolkata">Kolkata</option>
-                </select>
-            </div>
-
-            <label>Model Classification</label>
-            <select id="modelSelect" onchange="applyGlobalFilters()" style="width: 100%; background: #222; color: white; border: 1px solid #444; padding: 8px; border-radius: 4px; margin-bottom: 15px;">
-                <option value="">All Models</option>
-            </select>
-
-            <label for="dataSource">Data View:</label>
-            <select id="dataSource" onchange="refresh()">
-                <option value="active" selected>Live (Present)</option>
-                <option value="history">Archive (Pre-Nov 2025)</option>
-            </select>
-
+       <div class="sidebar">
+    <div class="filter-group" id="mgmt-city-box" style="display:none; margin-bottom: 15px; border-top: 1px solid #444; padding-top: 10px;">
+        <label style="color: var(--gold); font-size: 0.85rem;"><i class="fas fa-map-marker-alt"></i> TERRITORY SELECTION</label>
+        <select id="cityFocus" onchange="applyCityTableFilter()" style="width: 100%; background: #222; color: white; border: 1px solid #444; padding: 8px; margin-top: 5px;">
+            <option value="All">All India (National View)</option>
+            <option value="Ranchi">Ranchi Fleet</option>
+            <option value="Hyderabad">Hyderabad Fleet</option>
+            <option value="Delhi">Delhi Fleet</option>
+            <option value="Nagpur">Nagpur Fleet</option>
+            <option value="Udaipur">Udaipur Fleet</option>
+            <option value="Kolkata">Kolkata Fleet</option>
+        </select>
+    </div>
+    
+    <label>Model Classification</label>
+    <div class="filter-group">
+        <label for="dataSource">Data View:</label>
+        <select id="dataSource" onchange="triggerDataRefresh()">
+            <option value="active" selected>Live (Present)</option>
+            <option value="history">Archive (Pre-Nov 2025)</option>
+        </select>
+    </div>
+</div>
+            
             <label style="display:block; margin-top:15px;">Target Rig ID</label>
             <select id="rigSelect" onchange="refresh()"><option>Loading...</option></select>
             
-            <label style="display:block; margin-top:15px;">Target Month</label>
+            <label style="display:block; margin-top:15px;">Target Month (Month Filter)</label>
             <input type="month" id="monthFilter" onchange="refresh()">
 
             <h4 style="color:var(--ey); margin: 25px 0 5px 0; font-size: 0.85rem; border-bottom: 1px solid #333; padding-bottom: 5px;">
@@ -127,7 +133,7 @@
                 <tr><td class="v-label">Hyd-Oil Temp</td><td id="v-hyd-temp" class="v-value">--</td></tr>
             </table>
 
-            <label style="display:block; margin-top:15px;">Analysis Mode</label>
+            <label style="display:block; margin-top:15px;">Analysis Mode (Analytical Dropdown)</label>
             <select id="chartMode" onchange="drawChart()">
                 <option value="tempVsOil">Trend: Temp / Oil / RPM</option>
                 <option value="loadVsComp">Load vs Compressor %</option>
@@ -141,7 +147,7 @@
             </div>
 
             <button onclick="window.print()" class="btn-red">📄 GENERATE PDF</button>
-            <button onclick="exportToExcel()" class="btn-green">📊 EXCEL EXPORT</button>
+            <button onclick="exportToExcel()" class="btn-green">📊 EXCEL EXPORT (Excel Dropdown)</button>
         </div>
 
         <div class="chart-area">
@@ -164,222 +170,285 @@
 </div>
 
 <script>
-const API = "https://script.google.com/macros/s/AKfycbxtu2Dd1taiiIwBaRM3Usa2_5WRoYRLHsZYePINQHbQcj4J7OfeWdhjBtL_6Jf32hun/exec"; 
-let chart = null, globalData = null;
+    const API = "https://script.google.com/macros/s/AKfycbw7md2m_7zkOYB0Q20VmEEc_f-bJno2VdnEOpQ83752-TUOppl48CdeUgZFZyucHYzi/exec"; 
+    let chart = null, globalData = null;
 
-// --- 1. LOGIN & INIT (Keep these as they were) ---
-async function handleLogin() {
-    const u = document.getElementById('userIn').value;
-    const p = document.getElementById('passIn').value;
-    const msg = document.getElementById('login-msg');
-    if (!u || !p) { msg.innerText = "Please enter credentials."; return; }
-    msg.innerText = "Authenticating...";
-    try {
-        const resp = await fetch(`${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`);
-        const data = await resp.json();
-        if (data.success) {
-            sessionStorage.setItem('region', data.region);
-            sessionStorage.setItem('siteView', data.siteView);
-            sessionStorage.setItem('user', u);
-            sessionStorage.setItem('logger', data.logger);
-            document.getElementById('id-badge').innerText = `${u}-${data.logger}`;
-            if (data.role === 'mgmt' || data.region === 'All') {
-                document.getElementById('mgmt-city-box').style.display = 'block';
+    async function handleLogin() {
+        const u = document.getElementById('userIn').value;
+        const p = document.getElementById('passIn').value;
+        const msg = document.getElementById('login-msg');
+        
+        if (!u || !p) {
+            msg.innerText = "Please enter credentials.";
+            return;
+        }
+        msg.innerText = "Authenticating...";
+        
+        try {
+            const resp = await fetch(`${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`);
+            const data = await resp.json();
+
+            if (data.success) {
+                sessionStorage.setItem('region', data.region);
+                sessionStorage.setItem('siteView', data.siteView);
+                sessionStorage.setItem('user', u);
+                sessionStorage.setItem('logger', data.logger);
+                
+                document.getElementById('id-badge').innerText = `${u}-${data.logger}`;
+                document.body.classList.add('authorized');
+                init(); 
+            } else {
+                msg.innerText = "Invalid Login. Access Denied.";
             }
-            document.body.classList.add('authorized');
-            init(); 
-        } else { msg.innerText = "Invalid Login."; }
-    } catch (e) { msg.innerText = "Connection Failed."; }
-}
-
-function getFullUrl(params) {
-    const r = sessionStorage.getItem('region'), s = sessionStorage.getItem('siteView'), u = sessionStorage.getItem('user');
-    return `${API}?${params}&userRegion=${encodeURIComponent(r)}&siteView=${encodeURIComponent(s)}&user=${encodeURIComponent(u)}&v=${Date.now()}`;
-}
-
-async function init() {
-    const now = new Date(); 
-    document.getElementById('monthFilter').value = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
-    try {
-        const mRes = await fetch(getFullUrl("get=model_list"));
-        const mList = await mRes.json();
-        document.getElementById('modelSelect').innerHTML = '<option value="">All Models</option>' + mList.map(m => `<option value="${m}">${m}</option>`).join('');
-        refresh(); // Initial data pull
-        if (window.refreshInterval) clearInterval(window.refreshInterval);
-        window.refreshInterval = setInterval(() => { refresh(); }, 60000); 
-    } catch (e) { console.error(e); }
-}
-
-async function refresh() {
-    const rig = document.getElementById('rigSelect').value;
-    const month = document.getElementById('monthFilter').value; 
-    const mode = document.getElementById('dataSource').value; 
-    const cleanRig = (rig === "Loading..." || !rig) ? "" : rig;
-    try {
-        const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(cleanRig)}&month=${month}&mode=${mode}`));
-        const data = await res.json();
-        globalData = data;
-        updateUI(data);
-    } catch (err) { console.error(err); }
-}
-
-// --- 2. THE UI & FILTER LOGIC (THE FIX) ---
-
-function updateUI(data) {
-    if (data.summary && data.summary.length > 0) {
-        document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
-            <tr data-region="${(r.region || '').trim()}" data-model="${(r.model || '').trim()}">
-                <td><b>${r.id}</b></td>
-                <td>${r.audits}</td>
-                <td>${r.avgLoad}%</td>
-                <td>${r.avgTemp}</td>
-                <td>${r.avgOil}</td>
-                <td>${r.avgFuel}</td>
-                <td>${r.avgAir}</td>
-                <td>${r.avgBit}</td>
-                <td>${r.avgImpact}</td>
-            </tr>`).join('');
-    }
-
-    // Process Machine Vitals and Alerts
-    if (data.vitals) {
-        document.getElementById('v-boost').innerText = data.vitals.boost || "0";
-        document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
-        document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
-        document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
-    }
-
-    // Trigger the cascade logic immediately
-    handleRegionChange(); 
-    drawChart();
-    document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
-}
-
-/**
- * MASTER CASCADING FILTER
- * Triggered by: Region Dropdown
- */
-function handleRegionChange() {
-    const selectedRegion = document.getElementById('cityFocus').value;
-    const rows = document.querySelectorAll('#fleet-summary-body tr');
-    const modelDropdown = document.getElementById('modelSelect');
-    
-    // 1. Collect unique models only in this region
-    let availableModels = new Set();
-    rows.forEach(row => {
-        const rowRegion = row.getAttribute('data-region');
-        const rowModel = row.getAttribute('data-model');
-        if (selectedRegion === "All" || rowRegion === selectedRegion) {
-            if (rowModel) availableModels.add(rowModel);
+        } catch (e) {
+            console.error("Login Error:", e);
+            msg.innerText = "Connection Failed. Check Web App URL.";
         }
-    });
+    }
 
-    // 2. Update Model Dropdown
-    let modelHTML = '<option value="">All Models</option>';
-    [...availableModels].sort().forEach(m => {
-        modelHTML += `<option value="${m}">${m}</option>`;
-    });
-    modelDropdown.innerHTML = modelHTML;
+    function getFullUrl(params) {
+        const r = sessionStorage.getItem('region'), s = sessionStorage.getItem('siteView'), u = sessionStorage.getItem('user');
+        return `${API}?${params}&userRegion=${encodeURIComponent(r)}&siteView=${encodeURIComponent(s)}&user=${encodeURIComponent(u)}&v=${Date.now()}`;
+    }
 
-    // 3. Finalize table and rig list
-    applyGlobalFilters();
-}
+    async function init() {
+        const now = new Date(); 
+        document.getElementById('monthFilter').value = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
+        
+        try {
+            const mRes = await fetch(getFullUrl("get=model_list"));
+            const mList = await mRes.json();
+            document.getElementById('modelSelect').innerHTML = '<option value="">All Models</option>' + mList.map(m => `<option value="${m}">${m}</option>`).join('');
+            
+            await updateRigDropdown(); 
 
-/**
- * FINAL TABLE & RIG LIST SYNC
- */
-function applyGlobalFilters() {
-    const selRegion = document.getElementById('cityFocus').value;
-    const selModel = document.getElementById('modelSelect').value;
-    const rows = document.querySelectorAll('#fleet-summary-body tr');
-    const rigDropdown = document.getElementById('rigSelect');
-    
-    let rigs = [];
+            if (window.refreshInterval) clearInterval(window.refreshInterval);
+            window.refreshInterval = setInterval(() => { refresh(); }, 60000); 
+        } catch (e) { console.error("Init failed", e); }
+    }
 
-    // 1. Filter the table rows
-    rows.forEach(row => {
-        const rowReg = (row.getAttribute('data-region') || "").trim();
-        const rowMod = (row.getAttribute('data-model') || "").trim();
-        const rigID = row.cells[0].innerText.trim();
+    async function updateRigDropdown() {
+        const model = document.getElementById('modelSelect').value;
+        const res = await fetch(getFullUrl(`get=list&model=${encodeURIComponent(model)}`));
+        const rigs = await res.json();
+        document.getElementById('rigSelect').innerHTML = rigs.map(id => `<option value="${id}">${id}</option>`).join('');
+        refresh();
+    }
 
-        const matchReg = (selRegion === "All" || rowReg === selRegion);
-        const matchMod = (selModel === "" || rowMod === selModel);
+   async function refresh() {
+        const rig = document.getElementById('rigSelect').value;
+        const month = document.getElementById('monthFilter').value; 
+        const mode = document.getElementById('dataSource').value; 
+        
+        const cleanRig = (rig === "Loading..." || !rig) ? "" : rig;
 
-        if (matchReg && matchMod) {
-            row.style.display = "";
-            rigs.push(rigID);
+        try {
+            const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(cleanRig)}&month=${month}&mode=${mode}`));
+            const data = await res.json();
+            
+            if (data.error) {
+                alert("Error: " + data.error);
+                return;
+            }
+
+            globalData = data;
+            updateUI(data);
+        } catch (err) { 
+            console.error("Fetch failed:", err); 
+        }
+    }
+
+    function updateUI(data) {
+        // 1. POPULATE SUMMARY TABLE
+        if (data.summary && data.summary.length > 0) {
+            document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
+                <tr>
+                    <td><b>${r.id}</b></td>
+                    <td>${r.audits}</td>
+                    <td>${r.avgLoad}%</td>
+                    <td>${r.avgTemp}</td>
+                    <td>${r.avgOil}</td>
+                    <td>${r.avgFuel}</td>
+                    <td>${r.avgAir}</td>
+                    <td>${r.avgBit}</td>
+                    <td>${r.avgImpact}</td>
+                </tr>`).join('');
+            
+            // Calculate Fleet Averages safely
+            const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad || 0), 0);
+            document.getElementById('v-fleet-load').innerText = (totalLd / data.summary.length).toFixed(1) + "%";
+            document.getElementById('v-active-rigs').innerText = data.summary.length;
+        } else if (data.monthlyData && data.monthlyData.length > 0) {
+            // Fallback: If summary is missing but monthlyData exists, show single rig stats
+            const rigId = document.getElementById('rigSelect').value;
+            const calcAvg = (arr) => (arr.reduce((a, b) => a + parseFloat(b || 0), 0) / arr.length).toFixed(1);
+            
+            document.getElementById('v-fleet-load').innerText = calcAvg(data.monthlyData.map(d => d.load)) + "%";
+            document.getElementById('v-active-rigs').innerText = "1";
+        }
+
+        // 2. TRIGGER ALERTS
+        const alertList = document.getElementById('alert-list');
+        if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
+            alertList.innerHTML = data.vitals.alerts.map(a => `
+                <div class="alert-card" style="border-left:5px solid var(--red); background:rgba(255,77,77,0.1); padding:10px; margin-bottom:8px;">
+                    <b style="color:var(--ey); font-size:0.75rem;">UNIT: ${a.rig}</b><br>
+                    <b style="color:var(--red); font-size:0.85rem;">⚠️ ${a.parameter}</b><br>
+                    <span style="font-size:0.8rem;">Value: ${a.value} | Limit: ${a.limit}</span>
+                </div>`).join('');
         } else {
-            row.style.display = "none";
+            alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green);">✅ ALL RIGS NORMAL</div>`;
         }
-    });
 
-    // 2. Rebuild the Rig Dropdown
-    if (rigs.length > 0) {
-        rigs.sort();
-        rigDropdown.innerHTML = rigs.map(id => `<option value="${id}">${id}</option>`).join('');
-    } else {
-        // Fallback: If no filtered rigs, but globalData exists, show all for that model
-        if (globalData && globalData.summary) {
-             rigDropdown.innerHTML = globalData.summary.map(r => `<option value="${r.id}">${r.id}</option>`).join('');
-        } else {
-             rigDropdown.innerHTML = '<option value="">No Rigs Found</option>';
-        }
-    }
-}
+       // 3. MACHINE VITALS & AUDIT WARNING
+        if (data.vitals) {
+            document.getElementById('v-date').innerText = data.vitals.date || "--"; 
+            document.getElementById('v-boost').innerText = data.vitals.boost || "0";
+            document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
+            document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
+            document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
 
-function resetCityFilter() {
-    document.getElementById('cityFocus').value = "All";
-    handleRegionChange(); // Triggers cascade back to default
-}
+            // --- 15-SECOND AUDIT ALERT (REMOVED DUPLICATE CONSTS) ---
+            const warning = document.getElementById('auditWarning');
+            const selectedRigId = document.getElementById('rigSelect').value;
+            
+            const rigStats = data.summary ? data.summary.find(r => r.id === selectedRigId) : null;
+            const currentAudits = rigStats ? parseInt(rigStats.audits) : 0;
 
-function drawChart() {
+            if (selectedRigId && currentAudits > 0 && currentAudits < 15) {
+                // 1. Show the warning
+                warning.style.display = 'block';
+                warning.style.opacity = '1';
+                warning.innerText = `⚠️ RIG HAS ONLY COVERED ${currentAudits} AUDITS THIS MONTH (Min: 15)`;
+
+                // 2. Clear any existing timer and start a new 15-second one
+                if (window.auditTimer) clearTimeout(window.auditTimer);
+                
+                window.auditTimer = setTimeout(() => {
+                    warning.style.transition = "opacity 1s";
+                    warning.style.opacity = '0'; 
+                    setTimeout(() => { warning.style.display = 'none'; }, 1000);
+                }, 15000); 
+
+            } else {
+                warning.style.display = 'none';
+            }
+        } // This correctly closes 'if (data.vitals)'
+
+        drawChart(); 
+        document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+    } // This correctly closes 'function updateUI(data)'
+  function drawChart() {
+    // 1. Safety Check
     if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
-        if (chart) chart.destroy(); return;
+        console.warn("No data available for the selected month/rig.");
+        if (chart) chart.destroy(); 
+        return;
     }
-    const ctx = document.getElementById('mainChart').getContext('2d');
+
+    const canvas = document.getElementById('mainChart');
+    const ctx = canvas.getContext('2d');
     if (chart) chart.destroy();
+    
     const mode = document.getElementById('chartMode').value;
     const d = globalData.monthlyData;
     const labels = d.map(x => x.date);
-    let datasets = [], options = { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#fff' } } }, scales: { x: { grid: { color: '#333' }, ticks: { color: '#888' } }, y: { grid: { color: '#333' }, ticks: { color: '#888' } } } };
+    
+    let datasets = [];
+    let options = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#fff' } } },
+        scales: {
+            x: { grid: { color: '#333' }, ticks: { color: '#888' } }
+        }
+    };
 
+    // 2. Conditional Logic
     if (mode === 'tempVsOil') {
         datasets = [
-            { label: 'Oil (bar)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yOil', tension: 0.3 },
-            { label: 'Temp (°C)', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'yTemp', tension: 0.3 },
-            { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRPM', borderDash: [5, 5], tension: 0.3 }
+            { label: 'Oil (bar)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yOil', tension: 0.3, pointRadius: 3 },
+            { label: 'Temp (°C)', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'yTemp', tension: 0.3, pointRadius: 3 },
+            { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRPM', borderDash: [5, 5], tension: 0.3, pointRadius: 4 }
         ];
-        options.scales.yOil = { position: 'left', min: 0, max: 8 };
-        options.scales.yTemp = { position: 'right', min: 60, max: 130 };
-        options.scales.yRPM = { position: 'right', min: 600, max: 2200, grid: { drawOnChartArea: false } };
-    } else if (mode === 'hydro_impact') {
-        datasets = [
-            { label: 'Impact', data: d.map(x => x.impact), borderColor: '#f1c40f' },
-            { label: 'Feed', data: d.map(x => x.feed), borderColor: '#e67e22' },
-            { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db' }
-        ];
-    } else if (mode === 'loadVsComp') {
-        datasets = [
-            { label: 'Load %', data: d.map(x => x.load), borderColor: '#f1c40f' },
-            { label: 'Compressor %', data: d.map(x => x.comp), borderColor: '#3498db' }
-        ];
-    } else if (mode === 'setBit') {
-        datasets = [
-            { label: 'Bit Pr', data: d.map(x => x.bit), borderColor: '#3498db' },
-            { label: 'Air Set', data: d.map(x => x.air), borderColor: '#2ecc71' }
-        ];
-    }
-    chart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: options });
-}
 
-function exportToExcel() {
-    let table = document.getElementById("summary-tbl");
-    let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
-    let link = document.createElement('a'); link.download = "Fleet_Report.xls"; link.href = url; link.click();
-}
+        options.scales.yOil = { 
+            position: 'left', min: 0, max: 8, 
+            ticks: { stepSize: 0.1, color: '#2ecc71' },
+            title: { display: true, text: 'Oil (bar)', color: '#2ecc71' }
+        };
+        options.scales.yTemp = { 
+            position: 'right', min: 60, max: 130, 
+            ticks: { stepSize: 2, color: '#e74c3c' },
+            title: { display: true, text: 'Temp °C', color: '#e74c3c' },
+            grid: { drawOnChartArea: false }
+        };
+        options.scales.yRPM = { 
+            position: 'right', min: 600, max: 2200, 
+            ticks: { stepSize: 200, color: '#3498db' },
+            title: { display: true, text: 'RPM', color: '#3498db' },
+            grid: { drawOnChartArea: false }
+        };
+
+    } else {
+        // RESET TO SINGLE AXIS
+        options.scales.y = { position: 'left', min: 0, grid: { color: '#333' }, ticks: { color: '#888' } };
+
+        if (mode === 'loadVsComp') {
+            datasets = [
+                { label: 'Engine Load %', data: d.map(x => x.load), borderColor: '#f1c40f', tension: 0.3 },
+                { label: 'Compressor %', data: d.map(x => x.comp), borderColor: '#3498db', tension: 0.3 }
+            ];
+            options.scales.y.max = 100;
+        } 
+        else if (mode === 'hydro_impact') {
+            datasets = [
+                { label: 'Impact (bar)', data: d.map(x => x.impact), borderColor: '#f1c40f', tension: 0.3 },
+                { label: 'Feed (bar)', data: d.map(x => x.feed), borderColor: '#e67e22', tension: 0.3 },
+                { label: 'Damper (bar)', data: d.map(x => x.damper), borderColor: '#3498db', tension: 0.3 }
+            ];
+        } 
+        else if (mode === 'setBit') {
+            datasets = [
+                { label: 'Bit Pressure', data: d.map(x => x.bit), borderColor: '#3498db', tension: 0.3 },
+                { label: 'Air Set (bar)', data: d.map(x => x.air), borderColor: '#2ecc71', tension: 0.3 }
+            ];
+        }
+    }
+
+    // 3. FINAL INITIALIZATION (The Missing Part)
+    chart = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets },
+        options: options
+    });
+} // Closes drawChart
+    function exportToExcel() {
+        let table = document.getElementById("summary-tbl");
+        let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
+        let link = document.createElement('a'); 
+        link.download = "Fleet_Report.xls"; 
+        link.href = url; 
+        link.click();
+    }
 </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
