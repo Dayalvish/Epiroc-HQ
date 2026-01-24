@@ -7,36 +7,52 @@
     <style>
         :root { --ey: #f1c40f; --bg: #0d0d0d; --card: #1a1a1a; --red: #ff4d4d; --green: #2ecc71; --blue: #3498db; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 20px; overflow: hidden; }
+        
+        /* AUTH OVERLAY */
         #login-overlay { position: fixed; inset: 0; background: var(--bg); display: flex; justify-content: center; align-items: center; z-index: 9999; }
         .login-box { background: var(--card); padding: 40px; border-radius: 12px; border-top: 5px solid var(--ey); width: 350px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
         .login-box input { width: 100%; padding: 12px; margin: 10px 0; background: #222; border: 1px solid #444; color: #fff; border-radius: 4px; box-sizing: border-box; }
         .login-box button { width: 100%; padding: 12px; background: var(--ey); color: #000; border: none; font-weight: bold; border-radius: 4px; cursor: pointer; margin-top: 10px; }
+
+        /* DASHBOARD LAYOUT */
         #dashboard-content { opacity: 0; transition: 0.8s; pointer-events: none; }
         .authorized #dashboard-content { opacity: 1; pointer-events: auto; }
         .authorized #login-overlay { display: none; }
+
         .header { display: grid; grid-template-columns: 280px 1fr 280px; align-items: center; border-bottom: 3px solid var(--ey); padding-bottom: 15px; margin-bottom: 20px; }
         .header-left { display: flex; flex-direction: column; align-items: flex-start; }
         .header-center { text-align: center; }
         .header-center h1 { margin: 0; font-size: 1.8rem; letter-spacing: 2px; }
+
         .user-badge { background: var(--ey); color: #000; padding: 4px 12px; border-radius: 15px; font-weight: bold; font-size: 0.8rem; margin-top: 5px; display: inline-block; }
         .live-dot { height: 10px; width: 10px; background: var(--green); border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; margin-right: 5px; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); } 100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); } }
+
+        /* GRID SYSTEM */
         .main-layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 20px; }
         .sidebar, .chart-area, .warning-sidebar { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); height: 85vh; overflow-y: auto; }
+        
+        /* SIDEBAR VITALS */
         .vital-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #111; border: 1px solid #333; }
         .vital-table td { padding: 10px; border-bottom: 1px solid #333; font-size: 0.8rem; }
         .v-label { color: #888; text-transform: uppercase; font-size: 0.65rem; }
         .v-value { text-align: right; color: var(--ey); font-weight: bold; font-size: 0.95rem; }
+
+        /* SUMMARY TABLE */
         .summary-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #111; font-size: 0.75rem; }
         .summary-table th, .summary-table td { padding: 8px; border: 1px solid #333; text-align: center; }
         .summary-table th { background: #222; color: var(--ey); text-transform: uppercase; }
+
+        /* BUTTONS & SELECTS */
         select, input { width: 100%; padding: 10px; margin-top: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; }
         .mini-stats { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .mini-card { background: #222; padding: 10px; border-radius: 4px; text-align: center; border: 1px solid #333; }
         .mini-card small { color: #888; display: block; font-size: 0.65rem; }
         .mini-card span { font-size: 1rem; font-weight: bold; color: var(--ey); }
+        
         .btn-red { background: var(--red); color: white; border:none; padding:12px; border-radius:4px; font-weight:bold; width:100%; margin-top:15px; cursor:pointer;}
         .btn-green { background: #27ae60; color: white; border:none; padding:12px; border-radius:4px; font-weight:bold; width:100%; margin-top:10px; cursor:pointer;}
+
         #auditWarning { display: none; position: fixed; top: 15%; left: 50%; transform: translateX(-50%); background: var(--red); color: white; padding: 15px 30px; border-radius: 8px; font-weight: bold; z-index: 10000; animation: blinker 1s linear infinite; }
         @keyframes blinker { 50% { opacity: 0; } }
     </style>
@@ -55,7 +71,7 @@
 </div>
 
 <div id="dashboard-content">
-    <div id="auditWarning">⚠️ RIG AUDIT COMPLIANCE ALERT</div>
+    <div id="auditWarning">⚠️ RIG HAS NOT COVERED MANDATORY MINIMUM AUDITS (< 15)</div>
     
     <div class="header">
         <div class="header-left">
@@ -71,35 +87,20 @@
 
     <div class="main-layout">
         <div class="sidebar">
-            <div id="mgmt-city-box" style="display:none; margin-bottom: 15px;">
-                <label style="color: var(--ey); font-size: 0.85rem;">REGION SECTOR</label>
-                <select id="cityFocus" onchange="handleRegionChange()">
-                    <option value="All">All India (National)</option>
-                    <option value="Ranchi">Ranchi</option>
-                    <option value="Hyderabad">Hyderabad</option>
-                    <option value="Delhi">Delhi</option>
-                    <option value="Nagpur">Nagpur</option>
-                    <option value="Udaipur">Udaipur</option>
-                    <option value="Kolkata">Kolkata</option>
-                </select>
-                <button onclick="resetCityFilter()" style="margin-top:5px; font-size:0.7rem; padding:5px;">RESET REGION</button>
-            </div>
-
             <label>Model Classification</label>
-            <select id="modelSelect" onchange="handleRegionChange()">
-                <option value="">All Models</option>
-            </select>
-
-            <label style="margin-top:15px; display:block;">Data View:</label>
-            <select id="dataSource" onchange="refresh()">
-                <option value="active" selected>Live (Present)</option>
-                <option value="history">Archive (Pre-Nov 2025)</option>
-            </select>
-
+            <div class="filter-group">
+    <label for="dataSource">Data View:</label>
+    <select id="dataSource" onchange="triggerDataRefresh()">
+        <option value="active" selected>Live (Present)</option>
+        <option value="history">Archive (Pre-Nov 2025)</option>
+    </select>
+</div>
+            <select id="modelSelect" onchange="updateRigDropdown()"><option value="">All Models</option></select>
+            
             <label style="display:block; margin-top:15px;">Target Rig ID</label>
             <select id="rigSelect" onchange="refresh()"><option>Loading...</option></select>
             
-            <label style="display:block; margin-top:15px;">Target Month</label>
+            <label style="display:block; margin-top:15px;">Target Month (Month Filter)</label>
             <input type="month" id="monthFilter" onchange="refresh()">
 
             <h4 style="color:var(--ey); margin: 25px 0 5px 0; font-size: 0.85rem; border-bottom: 1px solid #333; padding-bottom: 5px;">
@@ -112,7 +113,7 @@
                 <tr><td class="v-label">Hyd-Oil Temp</td><td id="v-hyd-temp" class="v-value">--</td></tr>
             </table>
 
-            <label style="display:block; margin-top:15px;">Analysis Mode</label>
+            <label style="display:block; margin-top:15px;">Analysis Mode (Analytical Dropdown)</label>
             <select id="chartMode" onchange="drawChart()">
                 <option value="tempVsOil">Trend: Temp / Oil / RPM</option>
                 <option value="loadVsComp">Load vs Compressor %</option>
@@ -126,37 +127,63 @@
             </div>
 
             <button onclick="window.print()" class="btn-red">📄 GENERATE PDF</button>
-            <button onclick="exportToExcel()" class="btn-green">📊 EXCEL EXPORT</button>
+            <button onclick="exportToExcel()" class="btn-green">📊 EXCEL EXPORT (Excel Dropdown)</button>
         </div>
-        <script>
-    const API = ">https://script.google.com/macros/s/AKfycby0gNPIJYLW0R4bdjUNPrNlQ4IEUOWxgqymboYh-KZSxc6tMGebcKPQ4LEk9jKYTr4L/exec"; 
+
+        <div class="chart-area">
+            <div style="height:350px;"><canvas id="mainChart"></canvas></div>
+            <h3 style="color:var(--ey); margin:30px 0 10px 0;">FLEET PERFORMANCE SUMMARY</h3>
+            <table class="summary-table" id="summary-tbl">
+                <thead>
+                    <tr><th rowspan="2">Rig ID</th><th rowspan="2">Audits</th><th colspan="4">Engine Health</th><th colspan="3">Productivity</th></tr>
+                    <tr><th>Load %</th><th>Temp °C</th><th>Oil bar</th><th>Fuel bar</th><th>Air Set</th><th>Bit Pr</th><th>Impact</th></tr>
+                </thead>
+                <tbody id="fleet-summary-body"></tbody>
+            </table>
+        </div>
+
+        <div class="warning-sidebar">
+            <h3 style="color:var(--red); margin:0 0 15px 0; border-bottom: 1px solid #333; padding-bottom: 10px;">⚠️ TRIGGER ALERTS</h3>
+            <div id="alert-list">Scanning...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API = "https://script.google.com/macros/s/AKfycby0gNPIJYLW0R4bdjUNPrNlQ4IEUOWxgqymboYh-KZSxc6tMGebcKPQ4LEk9jKYTr4L/exec"; 
     let chart = null, globalData = null;
 
     async function handleLogin() {
         const u = document.getElementById('userIn').value;
         const p = document.getElementById('passIn').value;
         const msg = document.getElementById('login-msg');
-        if (!u || !p) { msg.innerText = "Please enter credentials."; return; }
+        
+        if (!u || !p) {
+            msg.innerText = "Please enter credentials.";
+            return;
+        }
         msg.innerText = "Authenticating...";
+        
         try {
             const resp = await fetch(`${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`);
             const data = await resp.json();
+
             if (data.success) {
                 sessionStorage.setItem('region', data.region);
                 sessionStorage.setItem('siteView', data.siteView);
                 sessionStorage.setItem('user', u);
                 sessionStorage.setItem('logger', data.logger);
+                
                 document.getElementById('id-badge').innerText = `${u}-${data.logger}`;
-                
-                // Show Region filter for HQ/Mgmt
-                if (data.role === 'mgmt' || data.region === 'All') {
-                    document.getElementById('mgmt-city-box').style.display = 'block';
-                }
-                
                 document.body.classList.add('authorized');
                 init(); 
-            } else { msg.innerText = "Invalid Login."; }
-        } catch (e) { msg.innerText = "Connection Failed."; }
+            } else {
+                msg.innerText = "Invalid Login. Access Denied.";
+            }
+        } catch (e) {
+            console.error("Login Error:", e);
+            msg.innerText = "Connection Failed. Check Web App URL.";
+        }
     }
 
     function getFullUrl(params) {
@@ -167,32 +194,55 @@
     async function init() {
         const now = new Date(); 
         document.getElementById('monthFilter').value = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
+        
         try {
             const mRes = await fetch(getFullUrl("get=model_list"));
             const mList = await mRes.json();
             document.getElementById('modelSelect').innerHTML = '<option value="">All Models</option>' + mList.map(m => `<option value="${m}">${m}</option>`).join('');
-            refresh();
+            
+            await updateRigDropdown(); 
+
             if (window.refreshInterval) clearInterval(window.refreshInterval);
             window.refreshInterval = setInterval(() => { refresh(); }, 60000); 
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("Init failed", e); }
     }
 
-    async function refresh() {
+    async function updateRigDropdown() {
+        const model = document.getElementById('modelSelect').value;
+        const res = await fetch(getFullUrl(`get=list&model=${encodeURIComponent(model)}`));
+        const rigs = await res.json();
+        document.getElementById('rigSelect').innerHTML = rigs.map(id => `<option value="${id}">${id}</option>`).join('');
+        refresh();
+    }
+
+   async function refresh() {
         const rig = document.getElementById('rigSelect').value;
         const month = document.getElementById('monthFilter').value; 
         const mode = document.getElementById('dataSource').value; 
+        
         const cleanRig = (rig === "Loading..." || !rig) ? "" : rig;
+
         try {
             const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(cleanRig)}&month=${month}&mode=${mode}`));
             const data = await res.json();
+            
+            if (data.error) {
+                alert("Error: " + data.error);
+                return;
+            }
+
             globalData = data;
             updateUI(data);
-        } catch (err) { console.error(err); }
+        } catch (err) { 
+            console.error("Fetch failed:", err); 
+        }
     }
-            function updateUI(data) {
+
+    function updateUI(data) {
+        // 1. POPULATE SUMMARY TABLE
         if (data.summary && data.summary.length > 0) {
             document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
-                <tr data-region="${(r.region || '').trim()}" data-model="${(r.model || '').trim()}">
+                <tr>
                     <td><b>${r.id}</b></td>
                     <td>${r.audits}</td>
                     <td>${r.avgLoad}%</td>
@@ -203,91 +253,163 @@
                     <td>${r.avgBit}</td>
                     <td>${r.avgImpact}</td>
                 </tr>`).join('');
+            
+            // Calculate Fleet Averages safely
+            const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad || 0), 0);
+            document.getElementById('v-fleet-load').innerText = (totalLd / data.summary.length).toFixed(1) + "%";
+            document.getElementById('v-active-rigs').innerText = data.summary.length;
+        } else if (data.monthlyData && data.monthlyData.length > 0) {
+            // Fallback: If summary is missing but monthlyData exists, show single rig stats
+            const rigId = document.getElementById('rigSelect').value;
+            const calcAvg = (arr) => (arr.reduce((a, b) => a + parseFloat(b || 0), 0) / arr.length).toFixed(1);
+            
+            document.getElementById('v-fleet-load').innerText = calcAvg(data.monthlyData.map(d => d.load)) + "%";
+            document.getElementById('v-active-rigs').innerText = "1";
         }
 
+        // 2. TRIGGER ALERTS
+        const alertList = document.getElementById('alert-list');
+        if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
+            alertList.innerHTML = data.vitals.alerts.map(a => `
+                <div class="alert-card" style="border-left:5px solid var(--red); background:rgba(255,77,77,0.1); padding:10px; margin-bottom:8px;">
+                    <b style="color:var(--ey); font-size:0.75rem;">UNIT: ${a.rig}</b><br>
+                    <b style="color:var(--red); font-size:0.85rem;">⚠️ ${a.parameter}</b><br>
+                    <span style="font-size:0.8rem;">Value: ${a.value} | Limit: ${a.limit}</span>
+                </div>`).join('');
+        } else {
+            alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green);">✅ ALL RIGS NORMAL</div>`;
+        }
+
+       // 3. MACHINE VITALS & AUDIT WARNING
         if (data.vitals) {
             document.getElementById('v-date').innerText = data.vitals.date || "--"; 
             document.getElementById('v-boost').innerText = data.vitals.boost || "0";
             document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
             document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
             document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
-            
-            // Audit Alert
+
+            // --- 15-SECOND AUDIT ALERT (REMOVED DUPLICATE CONSTS) ---
             const warning = document.getElementById('auditWarning');
-            const selRig = document.getElementById('rigSelect').value;
-            const stats = data.summary ? data.summary.find(r => r.id === selRig) : null;
-            if (selRig && stats && parseInt(stats.audits) < 15) {
+            const selectedRigId = document.getElementById('rigSelect').value;
+            
+            const rigStats = data.summary ? data.summary.find(r => r.id === selectedRigId) : null;
+            const currentAudits = rigStats ? parseInt(rigStats.audits) : 0;
+
+            if (selectedRigId && currentAudits > 0 && currentAudits < 15) {
+                // 1. Show the warning
                 warning.style.display = 'block';
-                warning.innerText = `⚠️ RIG ${selRig} ONLY HAS ${stats.audits} AUDITS (Min: 15)`;
-            } else { warning.style.display = 'none'; }
-        }
-        
-        // --- RESTORE THE LINK ---
-        handleRegionChange(); 
-        drawChart();
+                warning.style.opacity = '1';
+                warning.innerText = `⚠️ RIG HAS ONLY COVERED ${currentAudits} AUDITS THIS MONTH (Min: 15)`;
+
+                // 2. Clear any existing timer and start a new 15-second one
+                if (window.auditTimer) clearTimeout(window.auditTimer);
+                
+                window.auditTimer = setTimeout(() => {
+                    warning.style.transition = "opacity 1s";
+                    warning.style.opacity = '0'; 
+                    setTimeout(() => { warning.style.display = 'none'; }, 1000);
+                }, 15000); 
+
+            } else {
+                warning.style.display = 'none';
+            }
+        } // This correctly closes 'if (data.vitals)'
+
+        drawChart(); 
         document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+    } // This correctly closes 'function updateUI(data)'
+  function drawChart() {
+    // 1. Safety Check
+    if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
+        console.warn("No data available for the selected month/rig.");
+        if (chart) chart.destroy(); 
+        return;
     }
 
-    function handleRegionChange() {
-        const selReg = document.getElementById('cityFocus').value;
-        const selMod = document.getElementById('modelSelect').value;
-        const rows = document.querySelectorAll('#fleet-summary-body tr');
-        const rigDropdown = document.getElementById('rigSelect');
-        
-        let rigs = [];
-        rows.forEach(row => {
-            const rReg = row.getAttribute('data-region');
-            const rMod = row.getAttribute('data-model');
-            const rID = row.cells[0].innerText.trim();
-            const matchReg = (selReg === "All" || rReg === selReg);
-            const matchMod = (selMod === "" || rMod === selMod);
-
-            if (matchReg && matchMod) {
-                row.style.display = "";
-                rigs.push(rID);
-            } else { row.style.display = "none"; }
-        });
-
-        if (rigs.length > 0) {
-            rigDropdown.innerHTML = rigs.sort().map(id => `<option value="${id}">${id}</option>`).join('');
-        } else {
-            rigDropdown.innerHTML = '<option value="">No Rigs Found</option>';
+    const canvas = document.getElementById('mainChart');
+    const ctx = canvas.getContext('2d');
+    if (chart) chart.destroy();
+    
+    const mode = document.getElementById('chartMode').value;
+    const d = globalData.monthlyData;
+    const labels = d.map(x => x.date);
+    
+    let datasets = [];
+    let options = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#fff' } } },
+        scales: {
+            x: { grid: { color: '#333' }, ticks: { color: '#888' } }
         }
-        
-        document.getElementById('v-active-rigs').innerText = rigs.length;
-    }
+    };
 
-    function resetCityFilter() {
-        document.getElementById('cityFocus').value = "All";
-        document.getElementById('modelSelect').value = "";
-        handleRegionChange();
-    }
+    // 2. Conditional Logic
+    if (mode === 'tempVsOil') {
+        datasets = [
+            { label: 'Oil (bar)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yOil', tension: 0.3, pointRadius: 3 },
+            { label: 'Temp (°C)', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'yTemp', tension: 0.3, pointRadius: 3 },
+            { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRPM', borderDash: [5, 5], tension: 0.3, pointRadius: 4 }
+        ];
 
-    function drawChart() {
-        if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
-            if (chart) chart.destroy(); return;
-        }
-        const ctx = document.getElementById('mainChart').getContext('2d');
-        if (chart) chart.destroy();
-        const mode = document.getElementById('chartMode').value;
-        const d = globalData.monthlyData;
-        const labels = d.map(x => x.date);
-        let datasets = [];
-        if (mode === 'tempVsOil') {
+        options.scales.yOil = { 
+            position: 'left', min: 0, max: 8, 
+            ticks: { stepSize: 0.1, color: '#2ecc71' },
+            title: { display: true, text: 'Oil (bar)', color: '#2ecc71' }
+        };
+        options.scales.yTemp = { 
+            position: 'right', min: 60, max: 130, 
+            ticks: { stepSize: 2, color: '#e74c3c' },
+            title: { display: true, text: 'Temp °C', color: '#e74c3c' },
+            grid: { drawOnChartArea: false }
+        };
+        options.scales.yRPM = { 
+            position: 'right', min: 600, max: 2200, 
+            ticks: { stepSize: 200, color: '#3498db' },
+            title: { display: true, text: 'RPM', color: '#3498db' },
+            grid: { drawOnChartArea: false }
+        };
+
+    } else {
+        // RESET TO SINGLE AXIS
+        options.scales.y = { position: 'left', min: 0, grid: { color: '#333' }, ticks: { color: '#888' } };
+
+        if (mode === 'loadVsComp') {
             datasets = [
-                { label: 'Oil', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'y' },
-                { label: 'Temp', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'y' }
+                { label: 'Engine Load %', data: d.map(x => x.load), borderColor: '#f1c40f', tension: 0.3 },
+                { label: 'Compressor %', data: d.map(x => x.comp), borderColor: '#3498db', tension: 0.3 }
             ];
-        } else {
-            datasets = [{ label: mode, data: d.map(x => x[mode] || x.load), borderColor: var(--ey) }];
+            options.scales.y.max = 100;
+        } 
+        else if (mode === 'hydro_impact') {
+            datasets = [
+                { label: 'Impact (bar)', data: d.map(x => x.impact), borderColor: '#f1c40f', tension: 0.3 },
+                { label: 'Feed (bar)', data: d.map(x => x.feed), borderColor: '#e67e22', tension: 0.3 },
+                { label: 'Damper (bar)', data: d.map(x => x.damper), borderColor: '#3498db', tension: 0.3 }
+            ];
+        } 
+        else if (mode === 'setBit') {
+            datasets = [
+                { label: 'Bit Pressure', data: d.map(x => x.bit), borderColor: '#3498db', tension: 0.3 },
+                { label: 'Air Set (bar)', data: d.map(x => x.air), borderColor: '#2ecc71', tension: 0.3 }
+            ];
         }
-        chart = new Chart(ctx, { type: 'line', data: { labels, datasets } });
     }
 
+    // 3. FINAL INITIALIZATION (The Missing Part)
+    chart = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets },
+        options: options
+    });
+} // Closes drawChart
     function exportToExcel() {
         let table = document.getElementById("summary-tbl");
         let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
-        let link = document.createElement('a'); link.download = "Fleet_Report.xls"; link.href = url; link.click();
+        let link = document.createElement('a'); 
+        link.download = "Fleet_Report.xls"; 
+        link.href = url; 
+        link.click();
     }
 </script>
 </body>
