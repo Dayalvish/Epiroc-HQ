@@ -54,14 +54,7 @@
         .btn-green { background: #27ae60; color: white; border:none; padding:12px; border-radius:4px; font-weight:bold; width:100%; margin-top:10px; cursor:pointer;}
 
         #auditWarning { display: none; position: fixed; top: 15%; left: 50%; transform: translateX(-50%); background: var(--red); color: white; padding: 15px 30px; border-radius: 8px; font-weight: bold; z-index: 10000; animation: blinker 1s linear infinite; }
-       @keyframes blinker { 
-    0% { opacity: 1; }
-    50% { 
-        opacity: 0.7; 
-        box-shadow: 0 0 20px rgba(255, 77, 77, 0.6); 
-    }
-    100% { opacity: 1; }
-}
+        @keyframes blinker { 50% { opacity: 0; } }
     </style>
 </head>
 <body>
@@ -78,7 +71,7 @@
 </div>
 
 <div id="dashboard-content">
-    <div id="auditWarning" onclick="this.style.display='none'" style="cursor:pointer;">⚠️ RIG HAS NOT COVERED MANDATORY MINIMUM AUDITS</div>
+    <div id="auditWarning">⚠️ RIG HAS NOT COVERED MANDATORY MINIMUM AUDITS (< 15)</div>
     
     <div class="header">
         <div class="header-left">
@@ -93,29 +86,16 @@
     </div>
 
     <div class="main-layout">
-       <div class="sidebar">
-    <div class="filter-group" id="mgmt-city-box" style="display:none; margin-bottom: 15px; border-top: 1px solid #444; padding-top: 10px;">
-        <label style="color: var(--gold); font-size: 0.85rem;"><i class="fas fa-map-marker-alt"></i> TERRITORY SELECTION</label>
-        <select id="cityFocus" onchange="applyCityTableFilter()" style="width: 100%; background: #222; color: white; border: 1px solid #444; padding: 8px; margin-top: 5px;">
-            <option value="All">All India (National View)</option>
-            <option value="Ranchi">Ranchi Fleet</option>
-            <option value="Hyderabad">Hyderabad Fleet</option>
-            <option value="Delhi">Delhi Fleet</option>
-            <option value="Nagpur">Nagpur Fleet</option>
-            <option value="Udaipur">Udaipur Fleet</option>
-            <option value="Kolkata">Kolkata Fleet</option>
-        </select>
-    </div>
-    
-    <label>Model Classification</label>
-    <div class="filter-group">
-        <label for="dataSource">Data View:</label>
-        <select id="dataSource" onchange="triggerDataRefresh()">
-            <option value="active" selected>Live (Present)</option>
-            <option value="history">Archive (Pre-Nov 2025)</option>
-        </select>
-    </div>
+        <div class="sidebar">
+            <label>Model Classification</label>
+            <div class="filter-group">
+    <label for="dataSource">Data View:</label>
+    <select id="dataSource" onchange="triggerDataRefresh()">
+        <option value="active" selected>Live (Present)</option>
+        <option value="history">Archive (Pre-Nov 2025)</option>
+    </select>
 </div>
+            <select id="modelSelect" onchange="updateRigDropdown()"><option value="">All Models</option></select>
             
             <label style="display:block; margin-top:15px;">Target Rig ID</label>
             <select id="rigSelect" onchange="refresh()"><option>Loading...</option></select>
@@ -300,44 +280,35 @@
             alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green);">✅ ALL RIGS NORMAL</div>`;
         }
 
-       // 3. MACHINE VITALS & AUDIT WARNING
-        if (data.vitals) {
-            document.getElementById('v-date').innerText = data.vitals.date || "--"; 
-            document.getElementById('v-boost').innerText = data.vitals.boost || "0";
-            document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
-            document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
-            document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
+        // 3. MACHINE VITALS & AUDIT WARNING
+    if (data.vitals) {
+        document.getElementById('v-date').innerText = data.vitals.date || "--"; 
+        document.getElementById('v-boost').innerText = data.vitals.boost || "0";
+        document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
+        document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
+        document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
 
-            // --- 15-SECOND AUDIT ALERT (REMOVED DUPLICATE CONSTS) ---
-            const warning = document.getElementById('auditWarning');
-            const selectedRigId = document.getElementById('rigSelect').value;
-            
-            const rigStats = data.summary ? data.summary.find(r => r.id === selectedRigId) : null;
-            const currentAudits = rigStats ? parseInt(rigStats.audits) : 0;
+        // --- NEW AUDIT ALERT LOGIC ---
+        const warning = document.getElementById('auditWarning');
+        const selectedRigId = document.getElementById('rigSelect').value;
+        
+        // Find this rig in the summary table data to check its audit count
+        const rigStats = data.summary ? data.summary.find(r => r.id === selectedRigId) : null;
+        const currentAudits = rigStats ? parseInt(rigStats.audits) : 0;
 
-            if (selectedRigId && currentAudits > 0 && currentAudits < 15) {
-                // 1. Show the warning
-                warning.style.display = 'block';
-                warning.style.opacity = '1';
-                warning.innerText = `⚠️ RIG HAS ONLY COVERED ${currentAudits} AUDITS THIS MONTH (Min: 15)`;
-
-                // 2. Clear any existing timer and start a new 15-second one
-                if (window.auditTimer) clearTimeout(window.auditTimer);
-                
-                window.auditTimer = setTimeout(() => {
-                    warning.style.transition = "opacity 1s";
-                    warning.style.opacity = '0'; 
-                    setTimeout(() => { warning.style.display = 'none'; }, 1000);
-                }, 15000); 
-
-            } else {
-                warning.style.display = 'none';
-            }
-        } // This correctly closes 'if (data.vitals)'
+        // Display warning if rig is selected and has less than 15 audits
+        if (selectedRigId && currentAudits > 0 && currentAudits < 15) {
+            warning.style.display = 'block';
+            warning.innerText = `⚠️ RIG HAS ONLY COVERED ${currentAudits} AUDITS THIS MONTH (Min: 15)`;
+        } else {
+            warning.style.display = 'none';
+        }
+    }
 
         drawChart(); 
         document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
-    } // This correctly closes 'function updateUI(data)'
+    }
+
   function drawChart() {
     // 1. Safety Check
     if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
@@ -434,25 +405,6 @@
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
