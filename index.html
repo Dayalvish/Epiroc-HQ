@@ -334,12 +334,6 @@
     document.getElementById('v-active-rigs').innerText = visibleCount;
     document.getElementById('v-fleet-load').innerText = visibleCount > 0 ? (totalLoad / visibleCount).toFixed(1) + "%" : "0%";
 }
-    // Update the Sidebar Counters
-    document.getElementById('v-active-rigs').innerText = visibleCount;
-    document.getElementById('v-fleet-load').innerText = visibleCount > 0 
-        ? (totalLoad / visibleCount).toFixed(1) + "%" 
-        : "0%";
-}
     function resetCityFilter() {
         document.getElementById('cityFocus').value = "All India (National)";
         document.getElementById('modelSelect').value = "";
@@ -400,6 +394,7 @@
 </script>
 </body>
 </html>
+
 
 
 
