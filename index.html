@@ -107,18 +107,7 @@
     </div>
 </div> ```
 
-### 3. Cleaning up Redundant Functions
-You currently have both `applyCityTableFilter` and `applyGlobalFilters`. Since `applyGlobalFilters` is the superior, database-driven version, delete the old `applyCityTableFilter` to keep your file clean and avoid conflicts.
 
-
-
-### Final Check of the "Reset" Button
-Update your `resetCityFilter` function to point to the new filter:
-```javascript
-function resetCityFilter() {
-    document.getElementById('cityFocus').value = "All";
-    document.getElementById('modelSelect').value = ""; // Also reset model
-    applyGlobalFilters(); // Use the new universal filter
 }
             <div class="filter-group" style="margin-top:15px;">
                 <label for="dataSource">Data View:</label>
@@ -402,5 +391,6 @@ function resetCityFilter() {
 </script>
 </body>
 </html>
+
 
 
