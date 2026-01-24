@@ -230,7 +230,8 @@
         } catch (err) { console.error(err); }
     }
 
-    function updateUI(data) {
+   function updateUI(data) {
+    // 1. Build Summary Table with Database Tags (Region & Model)
     if (data.summary && data.summary.length > 0) {
         document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
             <tr data-region="${r.region}" data-model="${r.model}">
@@ -245,43 +246,50 @@
                 <td>${r.avgImpact}</td>
             </tr>`).join('');
     }
-    // ... rest of vitals and alerts logic ...
-    
-    applyGlobalFilters(); // Trigger the sync immediately
-    drawChart();
-}
-        
-        const alertList = document.getElementById('alert-list');
-        if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
-            alertList.innerHTML = data.vitals.alerts.map(a => `
-                <div class="alert-card" style="border-left:5px solid var(--red); background:rgba(255,77,77,0.1); padding:10px; margin-bottom:8px;">
-                    <b style="color:var(--ey); font-size:0.75rem;">UNIT: ${a.rig}</b><br>
-                    <b style="color:var(--red); font-size:0.85rem;">⚠️ ${a.parameter}</b>
-                </div>`).join('');
-        } else { alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green);">✅ ALL NORMAL</div>`; }
 
-        if (data.vitals) {
-            document.getElementById('v-date').innerText = data.vitals.date || "--"; 
-            document.getElementById('v-boost').innerText = data.vitals.boost || "0";
-            document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
-            document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
-            document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
-
-            const warning = document.getElementById('auditWarning');
-            const selectedRigId = document.getElementById('rigSelect').value;
-            const rigStats = data.summary ? data.summary.find(r => r.id === selectedRigId) : null;
-            const currentAudits = rigStats ? parseInt(rigStats.audits) : 0;
-            if (selectedRigId && currentAudits > 0 && currentAudits < 15) {
-                warning.style.display = 'block';
-                warning.innerText = `⚠️ RIG HAS ONLY COVERED ${currentAudits} AUDITS THIS MONTH (Min: 15)`;
-                if (window.auditTimer) clearTimeout(window.auditTimer);
-                window.auditTimer = setTimeout(() => { warning.style.display = 'none'; }, 15000); 
-            } else { warning.style.display = 'none'; }
-        }
-        applyGlobalFilters();
-        drawChart(); 
-        document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+    // 2. Handle Trigger Alerts
+    const alertList = document.getElementById('alert-list');
+    if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
+        alertList.innerHTML = data.vitals.alerts.map(a => `
+            <div class="alert-card" style="border-left:5px solid var(--red); background:rgba(255,77,77,0.1); padding:10px; margin-bottom:8px;">
+                <b style="color:var(--ey); font-size:0.75rem;">UNIT: ${a.rig}</b><br>
+                <b style="color:var(--red); font-size:0.85rem;">⚠️ ${a.parameter}</b>
+            </div>`).join('');
+    } else if (alertList) { 
+        alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green);">✅ ALL NORMAL</div>`; 
     }
+
+    // 3. Update Machine Vitals & Audit Warning
+    if (data.vitals) {
+        document.getElementById('v-boost').innerText = data.vitals.boost || "0";
+        document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
+        document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
+        document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
+        
+        const vDate = document.getElementById('v-date');
+        if (vDate) vDate.innerText = data.vitals.date || "--";
+
+        // Audit Warning Timer (15 Seconds)
+        const warning = document.getElementById('auditWarning');
+        const selectedRigId = document.getElementById('rigSelect').value;
+        const rigStats = data.summary ? data.summary.find(r => r.id === selectedRigId) : null;
+        const currentAudits = rigStats ? parseInt(rigStats.audits) : 0;
+
+        if (selectedRigId && currentAudits > 0 && currentAudits < 15) {
+            warning.style.display = 'block';
+            warning.innerText = `⚠️ RIG HAS ONLY COVERED ${currentAudits} AUDITS THIS MONTH (Min: 15)`;
+            if (window.auditTimer) clearTimeout(window.auditTimer);
+            window.auditTimer = setTimeout(() => { warning.style.display = 'none'; }, 15000); 
+        } else {
+            warning.style.display = 'none';
+        }
+    }
+
+    // 4. Final Sync
+    applyGlobalFilters(); 
+    drawChart();
+    document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+}
 
     function drawChart() {
         if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
