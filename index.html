@@ -250,6 +250,8 @@
         if (data.summary && data.summary.length > 0) {
             document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
                 <tr data-region="${r.region}" data-model="${r.model}">
+    <td><b>${r.id}</b></td>
+    </tr>
                     <td><b>${r.id}</b></td>
                     <td>${r.audits}</td>
                     <td>${r.avgLoad}%</td>
@@ -304,46 +306,34 @@
 
     // --- 5. THE PATCH: CASCADING FILTERS ---
     function applyGlobalFilters() {
-        const selectedRegion = document.getElementById('cityFocus').value;
-        const selectedModel = document.getElementById('modelSelect').value;
-        const rows = document.querySelectorAll('#fleet-summary-body tr');
-        
-        let visibleCount = 0;
-        let totalLoad = 0;
+    const selectedRegion = document.getElementById('cityFocus').value;
+    const selectedModel = document.getElementById('modelSelect').value;
+    const rows = document.querySelectorAll('#fleet-summary-body tr');
+    
+    let visibleCount = 0;
+    let totalLoad = 0;
 
-        rows.forEach(row => {
-            // These attributes must be stamped on your <tr> in updateUI()
-            const rowRegion = row.getAttribute('data-region') || "";
-            const rowModel = row.getAttribute('data-model') || "";
+    rows.forEach(row => {
+        // Match logic: 'All' acts as a wildcard
+        const regionMatch = (selectedRegion === "All India (National)" || row.dataset.region === selectedRegion);
+        const modelMatch = (selectedModel === "" || row.dataset.model === selectedModel);
 
-            // Unified matching logic for MGMT Dropdowns
-            const regionMatch = (selectedRegion === "All India (National)" || selectedRegion === "All" || rowRegion === selectedRegion);
-            const modelMatch = (selectedModel === "" || rowModel === selectedModel);
-
-            if (regionMatch && modelMatch) {
-                row.style.display = ""; // Show matching row
-                visibleCount++;
-                
-                // Extract Load % from the 3rd column (index 2)
-                const loadVal = parseFloat(row.cells[2].innerText.replace('%', '')) || 0;
-                totalLoad += loadVal;
-            } else {
-                row.style.display = "none"; // Hide non-matching row
-            }
-        });
-
-        // Update Sidebar Stats Dynamically
-        const activeRigDisp = document.getElementById('v-active-rigs');
-        const fleetLoadDisp = document.getElementById('v-fleet-load');
-
-        if (activeRigDisp) activeRigDisp.innerText = visibleCount;
-        if (fleetLoadDisp) {
-            fleetLoadDisp.innerText = visibleCount > 0 
-                ? (totalLoad / visibleCount).toFixed(1) + "%" 
-                : "0%";
+        if (regionMatch && modelMatch) {
+            row.style.display = ""; // Show matching row
+            visibleCount++;
+            // Update stats from the visible rows
+            totalLoad += parseFloat(row.cells[2].innerText) || 0;
+        } else {
+            row.style.display = "none"; // Hide
         }
-    }
+    });
 
+    // Update the Sidebar Counters
+    document.getElementById('v-active-rigs').innerText = visibleCount;
+    document.getElementById('v-fleet-load').innerText = visibleCount > 0 
+        ? (totalLoad / visibleCount).toFixed(1) + "%" 
+        : "0%";
+}
     function resetCityFilter() {
         document.getElementById('cityFocus').value = "All India (National)";
         document.getElementById('modelSelect').value = "";
@@ -404,6 +394,7 @@
 </script>
 </body>
 </html>
+
 
 
 
