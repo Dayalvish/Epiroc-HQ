@@ -54,7 +54,14 @@
         .btn-green { background: #27ae60; color: white; border:none; padding:12px; border-radius:4px; font-weight:bold; width:100%; margin-top:10px; cursor:pointer;}
 
         #auditWarning { display: none; position: fixed; top: 15%; left: 50%; transform: translateX(-50%); background: var(--red); color: white; padding: 15px 30px; border-radius: 8px; font-weight: bold; z-index: 10000; animation: blinker 1s linear infinite; }
-        @keyframes blinker { 50% { opacity: 0; } }
+       @keyframes blinker { 
+    0% { opacity: 1; }
+    50% { 
+        opacity: 0.7; 
+        box-shadow: 0 0 20px rgba(255, 77, 77, 0.6); 
+    }
+    100% { opacity: 1; }
+}
     </style>
 </head>
 <body>
@@ -71,7 +78,7 @@
 </div>
 
 <div id="dashboard-content">
-    <div id="auditWarning">⚠️ RIG HAS NOT COVERED MANDATORY MINIMUM AUDITS (< 15)</div>
+    <div id="auditWarning" onclick="this.style.display='none'" style="cursor:pointer;">⚠️ RIG HAS NOT COVERED MANDATORY MINIMUM AUDITS</div>
     
     <div class="header">
         <div class="header-left">
@@ -414,6 +421,7 @@
 </script>
 </body>
 </html>
+
 
 
 
