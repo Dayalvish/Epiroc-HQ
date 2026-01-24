@@ -169,7 +169,7 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbw7md2m_7zkOYB0Q20VmEEc_f-bJno2VdnEOpQ83752-TUOppl48CdeUgZFZyucHYzi/exec"; 
+    const API = "https://script.google.com/macros/s/AKfycbyCb2UZPn8dImKIQuWWRx1DAfwcZcfXFITXzIw_wMT_wj5EUZGdKIcnEPr-a3hJElAI/exec"; 
     let chart = null, globalData = null;
 
     // --- 1. LOGIN & AUTH ---
@@ -314,20 +314,26 @@
     let totalLoad = 0;
 
     rows.forEach(row => {
-        // Match logic: 'All' acts as a wildcard
-        const regionMatch = (selectedRegion === "All India (National)" || row.dataset.region === selectedRegion);
-        const modelMatch = (selectedModel === "" || row.dataset.model === selectedModel);
+        const rowRegion = row.getAttribute('data-region') || "";
+        const rowModel = row.getAttribute('data-model') || "";
+
+        // Fix: Ensure "All India (National)" shows everything
+        const regionMatch = (selectedRegion === "All India (National)" || selectedRegion === "All" || rowRegion === selectedRegion);
+        const modelMatch = (selectedModel === "" || rowModel === selectedModel);
 
         if (regionMatch && modelMatch) {
-            row.style.display = ""; // Show matching row
+            row.style.display = "";
             visibleCount++;
-            // Update stats from the visible rows
-            totalLoad += parseFloat(row.cells[2].innerText) || 0;
+            const loadVal = parseFloat(row.cells[2].innerText.replace('%', '')) || 0;
+            totalLoad += loadVal;
         } else {
-            row.style.display = "none"; // Hide
+            row.style.display = "none";
         }
     });
 
+    document.getElementById('v-active-rigs').innerText = visibleCount;
+    document.getElementById('v-fleet-load').innerText = visibleCount > 0 ? (totalLoad / visibleCount).toFixed(1) + "%" : "0%";
+}
     // Update the Sidebar Counters
     document.getElementById('v-active-rigs').innerText = visibleCount;
     document.getElementById('v-fleet-load').innerText = visibleCount > 0 
@@ -394,6 +400,7 @@
 </script>
 </body>
 </html>
+
 
 
 
