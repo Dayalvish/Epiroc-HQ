@@ -293,10 +293,9 @@ function applyGlobalFilters() {
     const rows = document.querySelectorAll('#fleet-summary-body tr');
     const rigDropdown = document.getElementById('rigSelect');
     
-    let count = 0;
-    let totalLoad = 0;
     let rigs = [];
 
+    // 1. Filter the table rows
     rows.forEach(row => {
         const rowReg = (row.getAttribute('data-region') || "").trim();
         const rowMod = (row.getAttribute('data-model') || "").trim();
@@ -307,26 +306,24 @@ function applyGlobalFilters() {
 
         if (matchReg && matchMod) {
             row.style.display = "";
-            count++;
             rigs.push(rigID);
-            const loadVal = parseFloat(row.cells[2].innerText.replace('%','')) || 0;
-            totalLoad += loadVal;
         } else {
             row.style.display = "none";
         }
     });
 
-    // Rebuild the Target Rig Select
+    // 2. Rebuild the Rig Dropdown
     if (rigs.length > 0) {
         rigs.sort();
         rigDropdown.innerHTML = rigs.map(id => `<option value="${id}">${id}</option>`).join('');
     } else {
-        rigDropdown.innerHTML = '<option value="">No Rigs Found</option>';
+        // Fallback: If no filtered rigs, but globalData exists, show all for that model
+        if (globalData && globalData.summary) {
+             rigDropdown.innerHTML = globalData.summary.map(r => `<option value="${r.id}">${r.id}</option>`).join('');
+        } else {
+             rigDropdown.innerHTML = '<option value="">No Rigs Found</option>';
+        }
     }
-
-    // Update Stats
-    document.getElementById('v-active-rigs').innerText = count;
-    document.getElementById('v-fleet-load').innerText = count > 0 ? (totalLoad / count).toFixed(1) + "%" : "0%";
 }
 
 function resetCityFilter() {
@@ -382,6 +379,7 @@ function exportToExcel() {
 </script>
 </body>
 </html>
+
 
 
 
