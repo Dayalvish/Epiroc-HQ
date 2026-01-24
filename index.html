@@ -184,6 +184,7 @@ function resetCityFilter() {
     const API = "https://script.google.com/macros/s/AKfycbw7md2m_7zkOYB0Q20VmEEc_f-bJno2VdnEOpQ83752-TUOppl48CdeUgZFZyucHYzi/exec"; 
     let chart = null, globalData = null;
 
+    // --- 1. AUTHENTICATION ---
     async function handleLogin() {
         const u = document.getElementById('userIn').value;
         const p = document.getElementById('passIn').value;
@@ -216,6 +217,7 @@ function resetCityFilter() {
         return `${API}?${params}&userRegion=${encodeURIComponent(r)}&siteView=${encodeURIComponent(s)}&user=${encodeURIComponent(u)}&v=${Date.now()}`;
     }
 
+    // --- 2. INITIALIZATION ---
     async function init() {
         const now = new Date(); 
         document.getElementById('monthFilter').value = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
@@ -223,10 +225,12 @@ function resetCityFilter() {
             const mRes = await fetch(getFullUrl("get=model_list"));
             const mList = await mRes.json();
             document.getElementById('modelSelect').innerHTML = '<option value="">All Models</option>' + mList.map(m => `<option value="${m}">${m}</option>`).join('');
+            
             await updateRigDropdown(); 
+            
             if (window.refreshInterval) clearInterval(window.refreshInterval);
             window.refreshInterval = setInterval(() => { refresh(); }, 60000); 
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("Init Error:", e); }
     }
 
     async function updateRigDropdown() {
@@ -237,6 +241,7 @@ function resetCityFilter() {
         refresh();
     }
 
+    // --- 3. DATA REFRESH ---
     async function refresh() {
         const rig = document.getElementById('rigSelect').value;
         const month = document.getElementById('monthFilter').value; 
@@ -247,233 +252,159 @@ function resetCityFilter() {
             const data = await res.json();
             globalData = data;
             updateUI(data);
-        } catch (err) { console.error(err); }
+        } catch (err) { console.error("Refresh Error:", err); }
     }
 
+    // --- 4. UI POPULATION ---
     function updateUI(data) {
-    // 1. BUILD SUMMARY TABLE
-    if (data.summary && data.summary.length > 0) {
-        document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
-            <tr data-region="${r.region}" data-model="${r.model}">
-                <td><b>${r.id}</b></td>
-                <td>${r.audits}</td>
-                <td>${r.avgLoad}%</td>
-                <td>${r.avgTemp}</td>
-                <td>${r.avgOil}</td>
-                <td>${r.avgFuel}</td>
-                <td>${r.avgAir}</td>
-                <td>${r.avgBit}</td>
-                <td>${r.avgImpact}</td>
-            </tr>`).join('');
-    }
-
-    // 2. TRIGGER ALERTS
-    const alertList = document.getElementById('alert-list');
-    if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
-        alertList.innerHTML = data.vitals.alerts.map(a => `
-            <div class="alert-card" style="border-left:5px solid var(--red); background:rgba(255,77,77,0.1); padding:10px; margin-bottom:8px;">
-                <b style="color:var(--ey); font-size:0.75rem;">UNIT: ${a.rig}</b><br>
-                <b style="color:var(--red); font-size:0.85rem;">⚠️ ${a.parameter}</b>
-            </div>`).join('');
-    } else { 
-        alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green);">✅ ALL NORMAL</div>`; 
-    }
-
-    // 3. MACHINE VITALS
-    if (data.vitals) {
-        document.getElementById('v-date').innerText = data.vitals.date || "--"; 
-        document.getElementById('v-boost').innerText = data.vitals.boost || "0";
-        document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
-        document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
-        document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
-
-        // Audit Warning Logic
-        const warning = document.getElementById('auditWarning');
-        const selectedRigId = document.getElementById('rigSelect').value;
-        const rigStats = data.summary ? data.summary.find(r => r.id === selectedRigId) : null;
-        const currentAudits = rigStats ? parseInt(rigStats.audits) : 0;
-
-        if (selectedRigId && currentAudits > 0 && currentAudits < 15) {
-            warning.style.display = 'block';
-            warning.innerText = `⚠️ RIG HAS ONLY COVERED ${currentAudits} AUDITS THIS MONTH (Min: 15)`;
-            if (window.auditTimer) clearTimeout(window.auditTimer);
-            window.auditTimer = setTimeout(() => { warning.style.display = 'none'; }, 15000); 
-        } else { 
-            warning.style.display = 'none'; 
+        // Build Summary Table with Data Tags
+        if (data.summary && data.summary.length > 0) {
+            document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
+                <tr data-region="${r.region}" data-model="${r.model}">
+                    <td><b>${r.id}</b></td>
+                    <td>${r.audits}</td>
+                    <td>${r.avgLoad}%</td>
+                    <td>${r.avgTemp}</td>
+                    <td>${r.avgOil}</td>
+                    <td>${r.avgFuel}</td>
+                    <td>${r.avgAir}</td>
+                    <td>${r.avgBit}</td>
+                    <td>${r.avgImpact}</td>
+                </tr>`).join('');
         }
-    }
 
-    // 4. SYNC DASHBOARD
-    applyGlobalFilters(); // Respect current dropdowns
-    drawChart(); 
-    document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
-} // Function finally closed here
+        // Trigger Alerts
+        const alertList = document.getElementById('alert-list');
+        if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
+            alertList.innerHTML = data.vitals.alerts.map(a => `
+                <div class="alert-card" style="border-left:5px solid var(--red); background:rgba(255,77,77,0.1); padding:10px; margin-bottom:8px;">
+                    <b style="color:var(--ey); font-size:0.75rem;">UNIT: ${a.rig}</b><br>
+                    <b style="color:var(--red); font-size:0.85rem;">⚠️ ${a.parameter}</b>
+                </div>`).join('');
+        } else { 
+            alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green);">✅ ALL NORMAL</div>`; 
+        }
+
+        // Machine Vitals
+        if (data.vitals) {
+            document.getElementById('v-date').innerText = data.vitals.date || "--"; 
+            document.getElementById('v-boost').innerText = data.vitals.boost || "0";
+            document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
+            document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
+            document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
+
+            // Audit Compliance Logic
+            const warning = document.getElementById('auditWarning');
+            const selectedRigId = document.getElementById('rigSelect').value;
+            const rigStats = data.summary ? data.summary.find(r => r.id === selectedRigId) : null;
+            const currentAudits = rigStats ? parseInt(rigStats.audits) : 0;
+
+            if (selectedRigId && currentAudits > 0 && currentAudits < 15) {
+                warning.style.display = 'block';
+                warning.innerText = `⚠️ RIG HAS ONLY COVERED ${currentAudits} AUDITS THIS MONTH (Min: 15)`;
+                if (window.auditTimer) clearTimeout(window.auditTimer);
+                window.auditTimer = setTimeout(() => { warning.style.display = 'none'; }, 15000); 
+            } else { 
+                warning.style.display = 'none'; 
+            }
+        }
+
+        applyGlobalFilters(); // Sync filters immediately
         drawChart(); 
         document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
     }
 
+    // --- 5. ANALYTICS & CHARTS ---
     function drawChart() {
-    // 1. Safety Check: If no data, destroy existing chart and exit
-    if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
-        if (chart) chart.destroy(); 
-        return;
-    }
+        if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
+            if (chart) chart.destroy(); 
+            return;
+        }
 
-    const canvas = document.getElementById('mainChart');
-    const ctx = canvas.getContext('2d');
-    if (chart) chart.destroy();
-    
-    const mode = document.getElementById('chartMode').value;
-    const d = globalData.monthlyData;
-    const labels = d.map(x => x.date);
-    
-    let datasets = [];
-    let options = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { 
-            legend: { labels: { color: '#fff', font: { size: 11 } } } 
-        },
-        scales: {
-            x: { 
-                grid: { color: '#333' }, 
-                ticks: { color: '#888', font: { size: 10 } } 
+        const canvas = document.getElementById('mainChart');
+        const ctx = canvas.getContext('2d');
+        if (chart) chart.destroy();
+        
+        const mode = document.getElementById('chartMode').value;
+        const d = globalData.monthlyData;
+        const labels = d.map(x => x.date);
+        
+        let datasets = [];
+        let options = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#fff', font: { size: 11 } } } },
+            scales: { x: { grid: { color: '#333' }, ticks: { color: '#888', font: { size: 10 } } } }
+        };
+
+        if (mode === 'tempVsOil') {
+            datasets = [
+                { label: 'Oil (bar)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yOil', tension: 0.3, pointRadius: 3 },
+                { label: 'Temp (°C)', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'yTemp', tension: 0.3, pointRadius: 3 },
+                { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRPM', borderDash: [5, 5], tension: 0.3, pointRadius: 4 }
+            ];
+            options.scales.yOil = { position: 'left', min: 0, max: 8, ticks: { color: '#2ecc71' } };
+            options.scales.yTemp = { position: 'right', min: 60, max: 130, ticks: { color: '#e74c3c' } };
+            options.scales.yRPM = { position: 'right', min: 600, max: 2200, ticks: { color: '#3498db' } };
+        } else {
+            options.scales.y = { position: 'left', min: 0, grid: { color: '#333' }, ticks: { color: '#888' } };
+            if (mode === 'loadVsComp') {
+                datasets = [{ label: 'Engine Load %', data: d.map(x => x.load), borderColor: '#f1c40f', tension: 0.3 }, { label: 'Compressor %', data: d.map(x => x.comp), borderColor: '#3498db', tension: 0.3 }];
+                options.scales.y.max = 100;
+            } else if (mode === 'setBit') {
+                datasets = [{ label: 'Bit Pressure', data: d.map(x => x.bit), borderColor: '#3498db', tension: 0.3 }, { label: 'Air Set', data: d.map(x => x.air), borderColor: '#2ecc71', tension: 0.3 }];
+            } else if (mode === 'hydro_impact') {
+                datasets = [{ label: 'Impact', data: d.map(x => x.impact), borderColor: '#f1c40f', tension: 0.3 }, { label: 'Feed', data: d.map(x => x.feed), borderColor: '#e67e22', tension: 0.3 }, { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db', tension: 0.3 }];
             }
         }
-    };
 
-    // 2. Logic for Analytical Modes
-    if (mode === 'tempVsOil') {
-        // --- TRIPLE Y-AXIS MODE ---
-        datasets = [
-            { label: 'Oil (bar)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yOil', tension: 0.3, pointRadius: 3 },
-            { label: 'Temp (°C)', data: d.map(x => x.temp), borderColor: '#e74c3c', yAxisID: 'yTemp', tension: 0.3, pointRadius: 3 },
-            { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRPM', borderDash: [5, 5], tension: 0.3, pointRadius: 4 }
-        ];
-
-        options.scales.yOil = { 
-            position: 'left', min: 0, max: 8, 
-            ticks: { color: '#2ecc71' },
-            title: { display: true, text: 'Oil (bar)', color: '#2ecc71' }
-        };
-        options.scales.yTemp = { 
-            position: 'right', min: 60, max: 130, 
-            ticks: { color: '#e74c3c' },
-            title: { display: true, text: 'Temp °C', color: '#e74c3c' },
-            grid: { drawOnChartArea: false }
-        };
-        options.scales.yRPM = { 
-            position: 'right', min: 600, max: 2200, 
-            ticks: { color: '#3498db' },
-            title: { display: true, text: 'RPM', color: '#3498db' },
-            grid: { drawOnChartArea: false }
-        };
-
-    } else {
-        // --- SINGLE Y-AXIS MODES (Load, Set/Bit, Hydraulics) ---
-        options.scales.y = { 
-            position: 'left', min: 0, 
-            grid: { color: '#333' }, 
-            ticks: { color: '#888' },
-            title: { display: true, text: 'Value', color: '#fff' }
-        };
-
-        if (mode === 'loadVsComp') {
-            datasets = [
-                { label: 'Engine Load %', data: d.map(x => x.load), borderColor: '#f1c40f', tension: 0.3 },
-                { label: 'Compressor %', data: d.map(x => x.comp), borderColor: '#3498db', tension: 0.3 }
-            ];
-            options.scales.y.max = 100;
-            options.scales.y.title.text = 'Percentage (%)';
-
-        } else if (mode === 'setBit') {
-            datasets = [
-                { label: 'Bit Pressure (bar)', data: d.map(x => x.bit), borderColor: '#3498db', tension: 0.3 },
-                { label: 'Air Set (bar)', data: d.map(x => x.air), borderColor: '#2ecc71', tension: 0.3 }
-            ];
-            options.scales.y.title.text = 'Pressure (bar)';
-
-        } else if (mode === 'hydro_impact') {
-            // --- THREE LINE HYDRAULIC ANALYSIS ---
-            datasets = [
-                { label: 'Impact (bar)', data: d.map(x => x.impact), borderColor: '#f1c40f', tension: 0.3 },
-                { label: 'Feed (bar)', data: d.map(x => x.feed), borderColor: '#e67e22', tension: 0.3 },
-                { label: 'Damper (bar)', data: d.map(x => x.damper), borderColor: '#3498db', tension: 0.3 }
-            ];
-            options.scales.y.title.text = 'Hydraulic Pressure (bar)';
-        }
+        chart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options });
     }
 
-    // 3. Final Chart Rendering
-    chart = new Chart(ctx, {
-        type: 'line',
-        data: { labels, datasets },
-        options: options
-    });
-}
-    function applyCityTableFilter() {
-        const val = document.getElementById('cityFocus').value;
+    // --- 6. CASCADING FILTERS & EXPORTS ---
+    function applyGlobalFilters() {
+        const selectedRegion = document.getElementById('cityFocus').value;
+        const selectedModel = document.getElementById('modelSelect').value;
         const rows = document.querySelectorAll('#fleet-summary-body tr');
-        let count = 0;
+        let visibleCount = 0;
+        let totalLoad = 0;
+
         rows.forEach(row => {
-            const city = row.cells[0].innerText;
-            if (val === "All" || city.includes(val)) { row.style.display = ""; count++; }
-            else { row.style.display = "none"; }
+            const rowRegion = row.getAttribute('data-region') || "";
+            const rowModel = row.getAttribute('data-model') || "";
+            const regionMatch = (selectedRegion === "All" || rowRegion === selectedRegion);
+            const modelMatch = (selectedModel === "" || rowModel === selectedModel);
+
+            if (regionMatch && modelMatch) {
+                row.style.display = "";
+                visibleCount++;
+                const loadText = row.cells[2].innerText.replace('%', '');
+                totalLoad += parseFloat(loadText) || 0;
+            } else {
+                row.style.display = "none";
+            }
         });
-        document.getElementById('v-active-rigs').innerText = count;
+
+        if (document.getElementById('v-active-rigs')) document.getElementById('v-active-rigs').innerText = visibleCount;
+        if (document.getElementById('v-fleet-load')) {
+            document.getElementById('v-fleet-load').innerText = visibleCount > 0 ? (totalLoad / visibleCount).toFixed(1) + "%" : "0%";
+        }
     }
 
     function resetCityFilter() {
         document.getElementById('cityFocus').value = "All";
-        applyCityTableFilter();
+        applyGlobalFilters();
     }
 
     function exportToExcel() {
         let table = document.getElementById("summary-tbl");
         let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
-        let link = document.createElement('a'); link.download = "Fleet_Report.xls"; link.href = url; link.click();
+        let link = document.createElement('a'); 
+        link.download = "Fleet_Report.xls"; 
+        link.href = url; 
+        link.click();
     }
-    // INSERT THIS AT THE BOTTOM OF YOUR SCRIPT SECTION
-function applyGlobalFilters() {
-    const selectedRegion = document.getElementById('cityFocus').value;
-    const selectedModel = document.getElementById('modelSelect').value;
-    const rows = document.querySelectorAll('#fleet-summary-body tr');
-    
-    let visibleCount = 0;
-    let totalLoad = 0;
-
-    rows.forEach(row => {
-        // Read the "Tags" we added to the row in updateUI
-        const rowRegion = row.getAttribute('data-region') || "";
-        const rowModel = row.getAttribute('data-model') || "";
-
-        // Logic: Does this row match BOTH dropdowns?
-        const regionMatch = (selectedRegion === "All" || rowRegion === selectedRegion);
-        const modelMatch = (selectedModel === "" || rowModel === selectedModel);
-
-        if (regionMatch && modelMatch) {
-            row.style.display = ""; // Show
-            visibleCount++;
-            
-            // Get the Load % from the 3rd column (index 2)
-            const loadText = row.cells[2].innerText.replace('%', '');
-            totalLoad += parseFloat(loadText) || 0;
-        } else {
-            row.style.display = "none"; // Hide
-        }
-    });
-
-    // Update the Dashboard Display with the new filtered numbers
-    const activeDisplay = document.getElementById('v-active-rigs');
-    if (activeDisplay) activeDisplay.innerText = visibleCount;
-
-    const avgLoadDisplay = document.getElementById('v-fleet-load');
-    if (avgLoadDisplay) {
-        avgLoadDisplay.innerText = visibleCount > 0 
-            ? (totalLoad / visibleCount).toFixed(1) + "%" 
-            : "0%";
-    }
-}
 </script>
 </body>
 </html>
+
