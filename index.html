@@ -93,16 +93,29 @@
     </div>
 
     <div class="main-layout">
-        <div class="sidebar">
-            <label>Model Classification</label>
-            <div class="filter-group">
-    <label for="dataSource">Data View:</label>
-    <select id="dataSource" onchange="triggerDataRefresh()">
-        <option value="active" selected>Live (Present)</option>
-        <option value="history">Archive (Pre-Nov 2025)</option>
-    </select>
+       <div class="sidebar">
+    <div class="filter-group" id="mgmt-city-box" style="display:none; margin-bottom: 15px; border-top: 1px solid #444; padding-top: 10px;">
+        <label style="color: var(--gold); font-size: 0.85rem;"><i class="fas fa-map-marker-alt"></i> TERRITORY SELECTION</label>
+        <select id="cityFocus" onchange="applyCityTableFilter()" style="width: 100%; background: #222; color: white; border: 1px solid #444; padding: 8px; margin-top: 5px;">
+            <option value="All">All India (National View)</option>
+            <option value="Ranchi">Ranchi Fleet</option>
+            <option value="Hyderabad">Hyderabad Fleet</option>
+            <option value="Delhi">Delhi Fleet</option>
+            <option value="Nagpur">Nagpur Fleet</option>
+            <option value="Udaipur">Udaipur Fleet</option>
+            <option value="Kolkata">Kolkata Fleet</option>
+        </select>
+    </div>
+    
+    <label>Model Classification</label>
+    <div class="filter-group">
+        <label for="dataSource">Data View:</label>
+        <select id="dataSource" onchange="triggerDataRefresh()">
+            <option value="active" selected>Live (Present)</option>
+            <option value="history">Archive (Pre-Nov 2025)</option>
+        </select>
+    </div>
 </div>
-            <select id="modelSelect" onchange="updateRigDropdown()"><option value="">All Models</option></select>
             
             <label style="display:block; margin-top:15px;">Target Rig ID</label>
             <select id="rigSelect" onchange="refresh()"><option>Loading...</option></select>
@@ -421,6 +434,7 @@
 </script>
 </body>
 </html>
+
 
 
 
