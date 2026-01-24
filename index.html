@@ -231,10 +231,9 @@
     }
 
    function updateUI(data) {
-    // 1. Build Summary Table with Database Tags (Region & Model)
     if (data.summary && data.summary.length > 0) {
         document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
-            <tr data-region="${r.region}" data-model="${r.model}">
+            <tr data-region="${r.region || ''}" data-model="${r.model || ''}">
                 <td><b>${r.id}</b></td>
                 <td>${r.audits}</td>
                 <td>${r.avgLoad}%</td>
@@ -247,28 +246,20 @@
             </tr>`).join('');
     }
 
-    // 2. Handle Trigger Alerts
-    const alertList = document.getElementById('alert-list');
-    if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
-        alertList.innerHTML = data.vitals.alerts.map(a => `
-            <div class="alert-card" style="border-left:5px solid var(--red); background:rgba(255,77,77,0.1); padding:10px; margin-bottom:8px;">
-                <b style="color:var(--ey); font-size:0.75rem;">UNIT: ${a.rig}</b><br>
-                <b style="color:var(--red); font-size:0.85rem;">⚠️ ${a.parameter}</b>
-            </div>`).join('');
-    } else if (alertList) { 
-        alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green);">✅ ALL NORMAL</div>`; 
-    }
-
-    // 3. Update Machine Vitals & Audit Warning
+    // Process Machine Vitals
     if (data.vitals) {
         document.getElementById('v-boost').innerText = data.vitals.boost || "0";
         document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
         document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
         document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
-        
-        const vDate = document.getElementById('v-date');
-        if (vDate) vDate.innerText = data.vitals.date || "--";
+    }
 
+    // --- CRITICAL SYNC ---
+    // We force the filters to run AFTER the table is built
+    applyGlobalFilters(); 
+    drawChart();
+    document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+}
         // Audit Warning Timer (15 Seconds)
         const warning = document.getElementById('auditWarning');
         const selectedRigId = document.getElementById('rigSelect').value;
@@ -356,43 +347,45 @@ function handleRegionChange() {
     applyGlobalFilters();
 }
     function applyGlobalFilters() {
-    const region = document.getElementById('cityFocus').value;
-    const model = document.getElementById('modelSelect').value;
+    const selRegion = document.getElementById('cityFocus').value;
+    const selModel = document.getElementById('modelSelect').value;
     const rows = document.querySelectorAll('#fleet-summary-body tr');
-    const rigSelect = document.getElementById('rigSelect');
+    const rigDropdown = document.getElementById('rigSelect');
     
     let count = 0;
     let totalLoad = 0;
-    let availableRigs = [];
+    let rigs = [];
 
     rows.forEach(row => {
-        // Look up Region (Parameter DB Col A) and Model (Threshold Col B)
-        const rMatch = (region === "All" || row.getAttribute('data-region') === region);
-        const mMatch = (model === "" || row.getAttribute('data-model') === model);
+        const rowReg = row.getAttribute('data-region');
+        const rowMod = row.getAttribute('data-model');
         const rigID = row.cells[0].innerText.trim();
 
-        if (rMatch && mMatch) {
-            row.style.display = ""; 
+        // Check if row matches both selections
+        const matchReg = (selRegion === "All" || rowReg === selRegion);
+        const matchMod = (selModel === "" || rowMod === selModel);
+
+        if (matchReg && matchMod) {
+            row.style.display = "";
             count++;
-            availableRigs.push(rigID);
+            rigs.push(rigID);
             totalLoad += parseFloat(row.cells[2].innerText) || 0;
         } else {
             row.style.display = "none";
         }
     });
 
-    // Automatically sync the Target Rig ID dropdown with the filtered results
-    if (availableRigs.length > 0) {
-        rigSelect.innerHTML = availableRigs.map(id => `<option value="${id}">${id}</option>`).join('');
+    // REBUILD DROPDOWN: This ensures rigs appear in the selector for analysis
+    if (rigs.length > 0) {
+        rigDropdown.innerHTML = rigs.map(id => `<option value="${id}">${id}</option>`).join('');
     } else {
-        rigSelect.innerHTML = '<option>No Rigs Found</option>';
+        rigDropdown.innerHTML = '<option value="">No Rigs in Filter</option>';
     }
 
-    // Update Sidebar Vitals
+    // Update Fleet-wide Sidebar Stats
     document.getElementById('v-active-rigs').innerText = count;
     document.getElementById('v-fleet-load').innerText = count > 0 ? (totalLoad / count).toFixed(1) + "%" : "0%";
 }
-
 function resetCityFilter() {
     document.getElementById('cityFocus').value = "All";
     document.getElementById('modelSelect').value = "";
@@ -406,5 +399,6 @@ function resetCityFilter() {
 </script>
 </body>
 </html>
+
 
 
