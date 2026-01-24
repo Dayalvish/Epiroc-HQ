@@ -343,68 +343,81 @@ function handleRegionChange() {
     });
     modelDropdown.innerHTML = modelHTML;
 
-    // Step C: Run the final table/rig filter
-    applyGlobalFilters();
-}
-    const selRegion = document.getElementById('cityFocus').value;
-    const selModel = document.getElementById('modelSelect').value;
-    const rows = document.querySelectorAll('#fleet-summary-body tr');
-    const rigDropdown = document.getElementById('rigSelect');
-    
-    let count = 0;
-    let totalLoad = 0;
-    let rigs = [];
+    function applyGlobalFilters() {
+    try {
+        const selRegion = document.getElementById('cityFocus').value;
+        const selModel = document.getElementById('modelSelect').value;
+        const rows = document.querySelectorAll('#fleet-summary-body tr');
+        const rigDropdown = document.getElementById('rigSelect');
+        
+        if (!rigDropdown) return; // Safety check to prevent freezing if element is missing
 
-    rows.forEach(row => {
-        // CLEANING DATA: The .trim() ensures "Ranchi" matches "Ranchi "
-        const rowReg = (row.getAttribute('data-region') || "").trim();
-        const rowMod = (row.getAttribute('data-model') || "").trim();
-        const rigID = row.cells[0].innerText.trim();
+        let count = 0;
+        let totalLoad = 0;
+        let rigs = [];
 
-        // MATCHING LOGIC
-        const matchReg = (selRegion === "All" || rowReg === selRegion);
-        const matchMod = (selModel === "" || rowMod === selModel);
+        rows.forEach(row => {
+            // Use .getAttribute safely to prevent "null" errors
+            const rowReg = (row.getAttribute('data-region') || "").trim();
+            const rowMod = (row.getAttribute('data-model') || "").trim();
+            const rigID = row.cells[0].innerText.trim();
 
-        if (matchReg && matchMod) {
-            row.style.display = "";
-            count++;
-            rigs.push(rigID);
-            // Clean the percentage text before converting to a number
-            const loadVal = parseFloat(row.cells[2].innerText.replace('%','')) || 0;
-            totalLoad += loadVal;
+            const matchReg = (selRegion === "All" || rowReg === selRegion);
+            const matchMod = (selModel === "" || rowMod === selModel);
+
+            if (matchReg && matchMod) {
+                row.style.display = "";
+                count++;
+                rigs.push(rigID);
+                const loadText = row.cells[2] ? row.cells[2].innerText : "0";
+                const loadVal = parseFloat(loadText.replace('%','')) || 0;
+                totalLoad += loadVal;
+            } else {
+                row.style.display = "none";
+            }
+        });
+
+        // REBUILD RIG DROPDOWN
+        if (rigs.length > 0) {
+            rigs.sort();
+            rigDropdown.innerHTML = rigs.map(id => `<option value="${id}">${id}</option>`).join('');
         } else {
-            row.style.display = "none";
+            rigDropdown.innerHTML = '<option value="">No Rigs Found</option>';
         }
-    });
 
-    // REBUILD RIG DROPDOWN: Sorts them A-Z for Pune/MGMT view
-    if (rigs.length > 0) {
-        rigs.sort();
-        rigDropdown.innerHTML = rigs.map(id => `<option value="${id}">${id}</option>`).join('');
-    } else {
-        rigDropdown.innerHTML = '<option value="">No Rigs Found</option>';
+        // UPDATE SIDEBAR STATS
+        const activeDisplay = document.getElementById('v-active-rigs');
+        const loadDisplay = document.getElementById('v-fleet-load');
+        
+        if (activeDisplay) activeDisplay.innerText = count;
+        if (loadDisplay) loadDisplay.innerText = count > 0 ? (totalLoad / count).toFixed(1) + "%" : "0%";
+        
+    } catch (error) {
+        console.error("Filter Error: ", error);
     }
-
-    // UPDATE SIDEBAR STATS
-    const activeDisplay = document.getElementById('v-active-rigs');
-    const loadDisplay = document.getElementById('v-fleet-load');
-    
-    if (activeDisplay) activeDisplay.innerText = count;
-    if (loadDisplay) loadDisplay.innerText = count > 0 ? (totalLoad / count).toFixed(1) + "%" : "0%";
 }
+
 function resetCityFilter() {
-    document.getElementById('cityFocus').value = "All";
-    document.getElementById('modelSelect').value = "";
+    const cityFocus = document.getElementById('cityFocus');
+    const modelSelect = document.getElementById('modelSelect');
+    if (cityFocus) cityFocus.value = "All";
+    if (modelSelect) modelSelect.value = "";
     applyGlobalFilters();
 }
-    function exportToExcel() {
-        let table = document.getElementById("summary-tbl");
-        let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
-        let link = document.createElement('a'); link.download = "Fleet_Report.xls"; link.href = url; link.click();
-    }
+
+function exportToExcel() {
+    const table = document.getElementById("summary-tbl");
+    if (!table) return;
+    const url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
+    const link = document.createElement('a');
+    link.download = "Fleet_Report.xls";
+    link.href = url;
+    link.click();
+}
 </script>
 </body>
 </html>
+
 
 
 
