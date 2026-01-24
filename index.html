@@ -230,7 +230,8 @@
         } catch (err) { console.error(err); }
     }
 
-   function updateUI(data) {
+  function updateUI(data) {
+    // 1. Build Summary Table
     if (data.summary && data.summary.length > 0) {
         document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
             <tr data-region="${r.region || ''}" data-model="${r.model || ''}">
@@ -246,21 +247,14 @@
             </tr>`).join('');
     }
 
-    // Process Machine Vitals
+    // 2. Process Machine Vitals
     if (data.vitals) {
         document.getElementById('v-boost').innerText = data.vitals.boost || "0";
         document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
         document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
         document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
-    }
-
-    // --- CRITICAL SYNC ---
-    // We force the filters to run AFTER the table is built
-    applyGlobalFilters(); 
-    drawChart();
-    document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
-}
-        // Audit Warning Timer (15 Seconds)
+        
+        // --- 3. Audit Warning Logic (Now Safely Inside) ---
         const warning = document.getElementById('auditWarning');
         const selectedRigId = document.getElementById('rigSelect').value;
         const rigStats = data.summary ? data.summary.find(r => r.id === selectedRigId) : null;
@@ -276,12 +270,17 @@
         }
     }
 
-    // 4. Final Sync
-    applyGlobalFilters(); 
+    // 4. Critical Sync and Finalization
+    // We call handleRegionChange to ensure the Region filter is respected immediately
+    if (typeof handleRegionChange === "function") {
+        handleRegionChange(); 
+    } else {
+        applyGlobalFilters();
+    }
+    
     drawChart();
     document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
 }
-
     function drawChart() {
         if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
             if (chart) chart.destroy(); return;
@@ -445,6 +444,7 @@ function exportToExcel() {
 </script>
 </body>
 </html>
+
 
 
 
