@@ -89,7 +89,7 @@
                     <label style="color: var(--ey); font-size: 0.85rem;"><i class="fas fa-globe-asia"></i> REGION SECTOR</label>
                     <button onclick="resetCityFilter()" style="background: none; border: 1px solid var(--ey); color: var(--ey); font-size: 0.65rem; padding: 2px 6px; cursor: pointer; border-radius: 3px;">RESET</button>
                 </div>
-                <select id="cityFocus" onchange="applyGlobalFilters()" style="width: 100%; background: #222; color: white; border: 1px solid #444; padding: 8px; border-radius: 4px;">
+                <select id="cityFocus" onchange="handleRegionChange()" style="width: 100%; background: #222; color: white; border: 1px solid #444; padding: 8px; border-radius: 4px;">
                     <option value="All">All India (National)</option>
                     <option value="Ranchi">Ranchi</option>
                     <option value="Hyderabad">Hyderabad</option>
@@ -330,7 +330,31 @@
         }
         chart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: options });
     }
+function handleRegionChange() {
+    const selectedRegion = document.getElementById('cityFocus').value;
+    const rows = document.querySelectorAll('#fleet-summary-body tr');
+    const modelDropdown = document.getElementById('modelSelect');
+    
+    // Step A: Find unique models present in this region
+    let availableModels = new Set();
+    rows.forEach(row => {
+        const rowRegion = row.getAttribute('data-region');
+        const rowModel = row.getAttribute('data-model');
+        if (selectedRegion === "All" || rowRegion === selectedRegion) {
+            if (rowModel) availableModels.add(rowModel);
+        }
+    });
 
+    // Step B: Update the Model dropdown list dynamically
+    let modelHTML = '<option value="">All Models</option>';
+    availableModels.forEach(m => {
+        modelHTML += `<option value="${m}">${m}</option>`;
+    });
+    modelDropdown.innerHTML = modelHTML;
+
+    // Step C: Run the final table/rig filter
+    applyGlobalFilters();
+}
     function applyGlobalFilters() {
     const region = document.getElementById('cityFocus').value;
     const model = document.getElementById('modelSelect').value;
@@ -382,4 +406,5 @@ function resetCityFilter() {
 </script>
 </body>
 </html>
+
 
