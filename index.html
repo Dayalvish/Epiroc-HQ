@@ -280,14 +280,30 @@
             alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green);">✅ ALL RIGS NORMAL</div>`;
         }
 
-        // 3. MACHINE VITALS
-        if (data.vitals) {
-            document.getElementById('v-date').innerText = data.vitals.date || "--"; 
-            document.getElementById('v-boost').innerText = data.vitals.boost || "0";
-            document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
-            document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
-            document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
+        // 3. MACHINE VITALS & AUDIT WARNING
+    if (data.vitals) {
+        document.getElementById('v-date').innerText = data.vitals.date || "--"; 
+        document.getElementById('v-boost').innerText = data.vitals.boost || "0";
+        document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
+        document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
+        document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
+
+        // --- NEW AUDIT ALERT LOGIC ---
+        const warning = document.getElementById('auditWarning');
+        const selectedRigId = document.getElementById('rigSelect').value;
+        
+        // Find this rig in the summary table data to check its audit count
+        const rigStats = data.summary ? data.summary.find(r => r.id === selectedRigId) : null;
+        const currentAudits = rigStats ? parseInt(rigStats.audits) : 0;
+
+        // Display warning if rig is selected and has less than 15 audits
+        if (selectedRigId && currentAudits > 0 && currentAudits < 15) {
+            warning.style.display = 'block';
+            warning.innerText = `⚠️ RIG HAS ONLY COVERED ${currentAudits} AUDITS THIS MONTH (Min: 15)`;
+        } else {
+            warning.style.display = 'none';
         }
+    }
 
         drawChart(); 
         document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
@@ -389,6 +405,7 @@
 </script>
 </body>
 </html>
+
 
 
 
