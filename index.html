@@ -346,7 +346,6 @@ function handleRegionChange() {
     // Step C: Run the final table/rig filter
     applyGlobalFilters();
 }
-    function applyGlobalFilters() {
     const selRegion = document.getElementById('cityFocus').value;
     const selModel = document.getElementById('modelSelect').value;
     const rows = document.querySelectorAll('#fleet-summary-body tr');
@@ -357,11 +356,12 @@ function handleRegionChange() {
     let rigs = [];
 
     rows.forEach(row => {
-        const rowReg = row.getAttribute('data-region');
-        const rowMod = row.getAttribute('data-model');
+        // CLEANING DATA: The .trim() ensures "Ranchi" matches "Ranchi "
+        const rowReg = (row.getAttribute('data-region') || "").trim();
+        const rowMod = (row.getAttribute('data-model') || "").trim();
         const rigID = row.cells[0].innerText.trim();
 
-        // Check if row matches both selections
+        // MATCHING LOGIC
         const matchReg = (selRegion === "All" || rowReg === selRegion);
         const matchMod = (selModel === "" || rowMod === selModel);
 
@@ -369,22 +369,28 @@ function handleRegionChange() {
             row.style.display = "";
             count++;
             rigs.push(rigID);
-            totalLoad += parseFloat(row.cells[2].innerText) || 0;
+            // Clean the percentage text before converting to a number
+            const loadVal = parseFloat(row.cells[2].innerText.replace('%','')) || 0;
+            totalLoad += loadVal;
         } else {
             row.style.display = "none";
         }
     });
 
-    // REBUILD DROPDOWN: This ensures rigs appear in the selector for analysis
+    // REBUILD RIG DROPDOWN: Sorts them A-Z for Pune/MGMT view
     if (rigs.length > 0) {
+        rigs.sort();
         rigDropdown.innerHTML = rigs.map(id => `<option value="${id}">${id}</option>`).join('');
     } else {
-        rigDropdown.innerHTML = '<option value="">No Rigs in Filter</option>';
+        rigDropdown.innerHTML = '<option value="">No Rigs Found</option>';
     }
 
-    // Update Fleet-wide Sidebar Stats
-    document.getElementById('v-active-rigs').innerText = count;
-    document.getElementById('v-fleet-load').innerText = count > 0 ? (totalLoad / count).toFixed(1) + "%" : "0%";
+    // UPDATE SIDEBAR STATS
+    const activeDisplay = document.getElementById('v-active-rigs');
+    const loadDisplay = document.getElementById('v-fleet-load');
+    
+    if (activeDisplay) activeDisplay.innerText = count;
+    if (loadDisplay) loadDisplay.innerText = count > 0 ? (totalLoad / count).toFixed(1) + "%" : "0%";
 }
 function resetCityFilter() {
     document.getElementById('cityFocus').value = "All";
@@ -399,6 +405,7 @@ function resetCityFilter() {
 </script>
 </body>
 </html>
+
 
 
 
