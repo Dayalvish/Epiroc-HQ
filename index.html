@@ -94,26 +94,28 @@
 
     <div class="main-layout">
         <div class="sidebar">
-            <div class="filter-group" id="mgmt-city-box" style="display:none; margin-bottom: 15px; border-top: 1px solid #444; padding-top: 10px;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <label style="color: var(--ey); font-size: 0.85rem;"><i class="fas fa-map-marker-alt"></i> TERRITORY SELECTION</label>
-                    <button onclick="resetCityFilter()" style="background: none; border: 1px solid var(--ey); color: var(--ey); font-size: 0.7rem; padding: 2px 5px; cursor: pointer; border-radius: 3px;">
-                        <i class="fas fa-undo"></i> Reset
-                    </button>
-                </div>
-                <select id="cityFocus" onchange="applyCityTableFilter()" style="width: 100%; background: #222; color: white; border: 1px solid #444; padding: 8px; margin-top: 5px; border-radius: 4px;">
-                    <option value="All">All India (National View)</option>
-                    <option value="Ranchi">Ranchi Fleet</option>
-                    <option value="Hyderabad">Hyderabad Fleet</option>
-                    <option value="Delhi">Delhi Fleet</option>
-                    <option value="Nagpur">Nagpur Fleet</option>
-                    <option value="Udaipur">Udaipur Fleet</option>
-                    <option value="Kolkata">Kolkata Fleet</option>
-                </select>
-            </div>
+    <div class="filter-group" id="mgmt-city-box" style="display:none; margin-bottom: 15px; border-top: 1px solid #444; padding-top: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+            <label style="color: var(--ey); font-size: 0.85rem;"><i class="fas fa-globe-asia"></i> REGION SECTOR</label>
+            <button onclick="resetCityFilter()" style="background: none; border: 1px solid var(--ey); color: var(--ey); font-size: 0.65rem; padding: 2px 6px; cursor: pointer; border-radius: 3px;">RESET</button>
+        </div>
+        <select id="cityFocus" onchange="applyGlobalFilters()" style="width: 100%; background: #222; color: white; border: 1px solid #444; padding: 8px; border-radius: 4px;">
+            <option value="All">All India (National)</option>
+            <option value="Ranchi">Ranchi</option>
+            <option value="Hyderabad">Hyderabad</option>
+            <option value="Delhi">Delhi</option>
+            <option value="Nagpur">Nagpur</option>
+            <option value="Udaipur">Udaipur</option>
+            <option value="Kolkata">Kolkata</option>
+        </select>
+    </div>
 
-            <label>Model Classification</label>
-            <select id="modelSelect" onchange="updateRigDropdown()"><option value="">All Models</option></select>
+    <label>Model Classification</label>
+    <select id="modelSelect" onchange="applyGlobalFilters()" style="width: 100%; background: #222; color: white; border: 1px solid #444; padding: 8px; border-radius: 4px;">
+        <option value="">All Models</option>
+        </select>
+    
+    </div>
 
             <div class="filter-group" style="margin-top:15px;">
                 <label for="dataSource">Data View:</label>
@@ -246,23 +248,23 @@
     }
 
     function updateUI(data) {
-        if (data.summary && data.summary.length > 0) {
-            document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
-                <tr>
-                    <td><b>${r.id}</b></td>
-                    <td>${r.audits}</td>
-                    <td>${r.avgLoad}%</td>
-                    <td>${r.avgTemp}</td>
-                    <td>${r.avgOil}</td>
-                    <td>${r.avgFuel}</td>
-                    <td>${r.avgAir}</td>
-                    <td>${r.avgBit}</td>
-                    <td>${r.avgImpact}</td>
-                </tr>`).join('');
-            const totalLd = data.summary.reduce((s, r) => s + parseFloat(r.avgLoad || 0), 0);
-            document.getElementById('v-fleet-load').innerText = (totalLd / data.summary.length).toFixed(1) + "%";
-            document.getElementById('v-active-rigs').innerText = data.summary.length;
-        }
+    if (data.summary && data.summary.length > 0) {
+        document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
+            <tr data-region="${r.region}" data-model="${r.model}">
+                <td><b>${r.id}</b></td>
+                <td>${r.audits}</td>
+                <td>${r.avgLoad}%</td>
+                <td>${r.avgTemp}</td>
+                <td>${r.avgOil}</td>
+                <td>${r.avgFuel}</td>
+                <td>${r.avgAir}</td>
+                <td>${r.avgBit}</td>
+                <td>${r.avgImpact}</td>
+            </tr>`).join('');
+    }
+    // Call the filter immediately after building the table to respect current dropdown settings
+    applyGlobalFilters();
+}
 
         const alertList = document.getElementById('alert-list');
         if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
@@ -417,9 +419,51 @@
         let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
         let link = document.createElement('a'); link.download = "Fleet_Report.xls"; link.href = url; link.click();
     }
+    // INSERT THIS AT THE BOTTOM OF YOUR SCRIPT SECTION
+function applyGlobalFilters() {
+    const selectedRegion = document.getElementById('cityFocus').value;
+    const selectedModel = document.getElementById('modelSelect').value;
+    const rows = document.querySelectorAll('#fleet-summary-body tr');
+    
+    let visibleCount = 0;
+    let totalLoad = 0;
+
+    rows.forEach(row => {
+        // Read the "Tags" we added to the row in updateUI
+        const rowRegion = row.getAttribute('data-region') || "";
+        const rowModel = row.getAttribute('data-model') || "";
+
+        // Logic: Does this row match BOTH dropdowns?
+        const regionMatch = (selectedRegion === "All" || rowRegion === selectedRegion);
+        const modelMatch = (selectedModel === "" || rowModel === selectedModel);
+
+        if (regionMatch && modelMatch) {
+            row.style.display = ""; // Show
+            visibleCount++;
+            
+            // Get the Load % from the 3rd column (index 2)
+            const loadText = row.cells[2].innerText.replace('%', '');
+            totalLoad += parseFloat(loadText) || 0;
+        } else {
+            row.style.display = "none"; // Hide
+        }
+    });
+
+    // Update the Dashboard Display with the new filtered numbers
+    const activeDisplay = document.getElementById('v-active-rigs');
+    if (activeDisplay) activeDisplay.innerText = visibleCount;
+
+    const avgLoadDisplay = document.getElementById('v-fleet-load');
+    if (avgLoadDisplay) {
+        avgLoadDisplay.innerText = visibleCount > 0 
+            ? (totalLoad / visibleCount).toFixed(1) + "%" 
+            : "0%";
+    }
+}
 </script>
 </body>
 </html>
+
 
 
 
