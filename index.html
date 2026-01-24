@@ -341,23 +341,49 @@ function handleRegionChange() {
     availableModels.forEach(m => {
         modelHTML += `<option value="${m}">${m}</option>`;
     });
+    function handleRegionChange() {
+    const selectedRegion = document.getElementById('cityFocus').value;
+    const rows = document.querySelectorAll('#fleet-summary-body tr');
+    const modelDropdown = document.getElementById('modelSelect');
+    
+    let availableModels = new Set();
+    rows.forEach(row => {
+        const rowRegion = (row.getAttribute('data-region') || "").trim();
+        const rowModel = (row.getAttribute('data-model') || "").trim();
+        if (selectedRegion === "All" || rowRegion === selectedRegion) {
+            if (rowModel) availableModels.add(rowModel);
+        }
+    });
+
+    let modelHTML = '<option value="">All Models</option>';
+    [...availableModels].sort().forEach(m => {
+        modelHTML += `<option value="${m}">${m}</option>`;
+    });
+
+    // This line is now safely inside the function
     modelDropdown.innerHTML = modelHTML;
 
-    function applyGlobalFilters() {
+    // Trigger the secondary filter
+    applyGlobalFilters();
+}
+
+/**
+ * YOUR PROVIDED applyGlobalFilters (With syntax fixes)
+ */
+function applyGlobalFilters() {
     try {
         const selRegion = document.getElementById('cityFocus').value;
         const selModel = document.getElementById('modelSelect').value;
         const rows = document.querySelectorAll('#fleet-summary-body tr');
         const rigDropdown = document.getElementById('rigSelect');
         
-        if (!rigDropdown) return; // Safety check to prevent freezing if element is missing
+        if (!rigDropdown) return; 
 
         let count = 0;
         let totalLoad = 0;
         let rigs = [];
 
         rows.forEach(row => {
-            // Use .getAttribute safely to prevent "null" errors
             const rowReg = (row.getAttribute('data-region') || "").trim();
             const rowMod = (row.getAttribute('data-model') || "").trim();
             const rigID = row.cells[0].innerText.trim();
@@ -377,7 +403,6 @@ function handleRegionChange() {
             }
         });
 
-        // REBUILD RIG DROPDOWN
         if (rigs.length > 0) {
             rigs.sort();
             rigDropdown.innerHTML = rigs.map(id => `<option value="${id}">${id}</option>`).join('');
@@ -385,7 +410,6 @@ function handleRegionChange() {
             rigDropdown.innerHTML = '<option value="">No Rigs Found</option>';
         }
 
-        // UPDATE SIDEBAR STATS
         const activeDisplay = document.getElementById('v-active-rigs');
         const loadDisplay = document.getElementById('v-fleet-load');
         
@@ -397,12 +421,16 @@ function handleRegionChange() {
     }
 }
 
+/**
+ * YOUR PROVIDED reset & export
+ */
 function resetCityFilter() {
     const cityFocus = document.getElementById('cityFocus');
     const modelSelect = document.getElementById('modelSelect');
     if (cityFocus) cityFocus.value = "All";
     if (modelSelect) modelSelect.value = "";
-    applyGlobalFilters();
+    // Important: call the cascade handler to refresh the model list
+    handleRegionChange(); 
 }
 
 function exportToExcel() {
@@ -417,6 +445,7 @@ function exportToExcel() {
 </script>
 </body>
 </html>
+
 
 
 
