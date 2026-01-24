@@ -95,17 +95,22 @@
     <div class="main-layout">
        <div class="sidebar">
     <div class="filter-group" id="mgmt-city-box" style="display:none; margin-bottom: 15px; border-top: 1px solid #444; padding-top: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
         <label style="color: var(--gold); font-size: 0.85rem;"><i class="fas fa-map-marker-alt"></i> TERRITORY SELECTION</label>
-        <select id="cityFocus" onchange="applyCityTableFilter()" style="width: 100%; background: #222; color: white; border: 1px solid #444; padding: 8px; margin-top: 5px;">
-            <option value="All">All India (National View)</option>
-            <option value="Ranchi">Ranchi Fleet</option>
-            <option value="Hyderabad">Hyderabad Fleet</option>
-            <option value="Delhi">Delhi Fleet</option>
-            <option value="Nagpur">Nagpur Fleet</option>
-            <option value="Udaipur">Udaipur Fleet</option>
-            <option value="Kolkata">Kolkata Fleet</option>
-        </select>
+        <button onclick="resetCityFilter()" style="background: none; border: 1px solid var(--gold); color: var(--gold); font-size: 0.7rem; padding: 2px 5px; cursor: pointer; border-radius: 3px;">
+            <i class="fas fa-undo"></i> Reset
+        </button>
     </div>
+    <select id="cityFocus" onchange="applyCityTableFilter()" style="width: 100%; background: #222; color: white; border: 1px solid #444; padding: 8px; margin-top: 5px; border-radius: 4px;">
+        <option value="All">All India (National View)</option>
+        <option value="Ranchi">Ranchi Fleet</option>
+        <option value="Hyderabad">Hyderabad Fleet</option>
+        <option value="Delhi">Delhi Fleet</option>
+        <option value="Nagpur">Nagpur Fleet</option>
+        <option value="Udaipur">Udaipur Fleet</option>
+        <option value="Kolkata">Kolkata Fleet</option>
+    </select>
+</div>
     
     <label>Model Classification</label>
     <div class="filter-group">
@@ -432,8 +437,43 @@
         link.click();
     }
 </script>
+    // --- EXISTING FUNCTIONS ---
+    function handleLogin(response) { ... }
+    function updateUI(data) { ... }
+
+    // --- INSERT THE FILTER FUNCTION HERE ---
+    function applyCityTableFilter() {
+        const selectedCity = document.getElementById('cityFocus').value;
+        const rows = document.querySelectorAll('#summary-body tr');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            // Reads city name from the first column (index 0)
+            const rowCity = row.cells[0].innerText.trim();
+
+            if (selectedCity === "All" || rowCity === selectedCity) {
+                row.style.display = ""; // Show
+                visibleCount++;
+            } else {
+                row.style.display = "none"; // Hide
+            }
+        });
+// --- ADD THIS AT LINE 461 ---
+function resetCityFilter() {
+    const dropdown = document.getElementById('cityFocus');
+    if (dropdown) {
+        dropdown.value = "All"; // Set back to National View
+        applyCityTableFilter(); // Re-run the filter to show all rows
+    }
+}
+        // Updates the "Active Assets" counter in your sidebar
+        const assetCounter = document.getElementById('active-assets');
+        if (assetCounter) assetCounter.innerText = visibleCount;
+    }
+</script>
 </body>
 </html>
+
 
 
 
