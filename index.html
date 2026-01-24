@@ -292,18 +292,32 @@
         const warning = document.getElementById('auditWarning');
         const selectedRigId = document.getElementById('rigSelect').value;
         
-        // Find this rig in the summary table data to check its audit count
-        const rigStats = data.summary ? data.summary.find(r => r.id === selectedRigId) : null;
-        const currentAudits = rigStats ? parseInt(rigStats.audits) : 0;
+       // --- 15-SECOND AUDIT ALERT ---
+            const warning = document.getElementById('auditWarning');
+            const selectedRigId = document.getElementById('rigSelect').value;
+            
+            const rigStats = data.summary ? data.summary.find(r => r.id === selectedRigId) : null;
+            const currentAudits = rigStats ? parseInt(rigStats.audits) : 0;
 
-        // Display warning if rig is selected and has less than 15 audits
-        if (selectedRigId && currentAudits > 0 && currentAudits < 15) {
-            warning.style.display = 'block';
-            warning.innerText = `⚠️ RIG HAS ONLY COVERED ${currentAudits} AUDITS THIS MONTH (Min: 15)`;
-        } else {
-            warning.style.display = 'none';
+            if (selectedRigId && currentAudits > 0 && currentAudits < 15) {
+                // 1. Show the warning
+                warning.style.display = 'block';
+                warning.style.opacity = '1';
+                warning.innerText = `⚠️ RIG HAS ONLY COVERED ${currentAudits} AUDITS THIS MONTH (Min: 15)`;
+
+                // 2. Clear any existing timer and start a new 15-second one
+                if (window.auditTimer) clearTimeout(window.auditTimer);
+                
+                window.auditTimer = setTimeout(() => {
+                    warning.style.transition = "opacity 1s";
+                    warning.style.opacity = '0'; // Smooth fade out
+                    setTimeout(() => { warning.style.display = 'none'; }, 1000);
+                }, 15000); 
+
+            } else {
+                warning.style.display = 'none';
+            }
         }
-    }
 
         drawChart(); 
         document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
@@ -405,6 +419,7 @@
 </script>
 </body>
 </html>
+
 
 
 
