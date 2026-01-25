@@ -244,65 +244,54 @@
         } catch (err) { console.error("Refresh Error:", err); }
     }
 
-    // --- 4. UI UPDATE (THE PATCHED SECTION) ---
     function updateUI(data) {
-        // Build Table with data attributes for filtering
-        if (data.summary && data.summary.length > 0) {
-            document.getElementById('fleet-summary-body').innerHTML = data.summary.map(r => `
-                <tr data-region="${r.region}" data-model="${r.model}">
-    <td><b>${r.id}</b></td>
-    </tr>
-                    <td><b>${r.id}</b></td>
-                    <td>${r.audits}</td>
-                    <td>${r.avgLoad}%</td>
-                    <td>${r.avgTemp}</td>
-                    <td>${r.avgOil}</td>
-                    <td>${r.avgFuel}</td>
-                    <td>${r.avgAir}</td>
-                    <td>${r.avgBit}</td>
-                    <td>${r.avgImpact}</td>
-                </tr>`).join('');
-        }
-
-        // Machine Vitals Display
-        if (data.vitals) {
-            document.getElementById('v-date').innerText = data.vitals.date || "--"; 
-            document.getElementById('v-boost').innerText = data.vitals.boost || "0";
-            document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
-            document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
-            document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
-
-            // Audit Alerts
-            const warning = document.getElementById('auditWarning');
-            const selectedRigId = document.getElementById('rigSelect').value;
-            const rigStats = data.summary ? data.summary.find(r => r.id === selectedRigId) : null;
-            const currentAudits = rigStats ? parseInt(rigStats.audits) : 0;
-
-            if (selectedRigId && currentAudits > 0 && currentAudits < 15) {
-                warning.style.display = 'block';
-                warning.innerText = `⚠️ RIG HAS ONLY COVERED ${currentAudits} AUDITS THIS MONTH (Min: 15)`;
-                if (window.auditTimer) clearTimeout(window.auditTimer);
-                window.auditTimer = setTimeout(() => { warning.style.display = 'none'; }, 15000); 
-            } else { warning.style.display = 'none'; }
-        }
-
-        // Trigger Alerts Sidebar
-        const alertList = document.getElementById('alert-list');
-        if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
-            alertList.innerHTML = data.vitals.alerts.map(a => `
-                <div class="alert-card" style="border-left:5px solid var(--red); background:rgba(255,77,77,0.1); padding:10px; margin-bottom:8px;">
-                    <b style="color:var(--ey); font-size:0.75rem;">UNIT: ${a.rig}</b><br>
-                    <b style="color:var(--red); font-size:0.85rem;">⚠️ ${a.parameter}</b>
-                </div>`).join('');
-        } else { 
-            alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green);">✅ ALL NORMAL</div>`; 
-        }
-
-        // Run Global Filter and Chart
-        applyGlobalFilters(); 
-        drawChart(); 
-        document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+    const summaryBody = document.getElementById('fleet-summary-body');
+    
+    // 1. DYNAMIC SUMMARY TABLE (FIXES DUPLICATES)
+    if (data.summary && data.summary.length > 0) {
+        // We clear the table first and build it ONLY from the consolidated summary
+        summaryBody.innerHTML = data.summary.map(r => `
+            <tr data-region="${r.region}" data-model="${r.model}">
+                <td><b>${r.id}</b></td>
+                <td>${r.audits}</td>
+                <td style="color:var(--ey)">${r.avgLoad}%</td>
+                <td>${r.avgTemp}</td>
+                <td>${r.avgOil}</td>
+                <td>${r.avgFuel}</td>
+                <td>${r.avgAir}</td>
+                <td>${r.avgBit}</td>
+                <td>${r.avgImpact}</td>
+            </tr>`).join('');
+    } else {
+        summaryBody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px;">No Data Found for this Selection</td></tr>';
     }
+
+    // 2. MACHINE VITALS (SIDEBAR)
+    if (data.vitals) {
+        document.getElementById('v-date').innerText = data.vitals.date || "--"; 
+        document.getElementById('v-boost').innerText = data.vitals.boost || "0";
+        document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
+        document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
+        document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
+    }
+
+    // 3. TRIGGER ALERTS SIDEBAR
+    const alertList = document.getElementById('alert-list');
+    if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
+        alertList.innerHTML = data.vitals.alerts.map(a => `
+            <div class="alert-card" style="border-left:5px solid var(--red); background:rgba(255,77,77,0.1); padding:10px; margin-bottom:8px;">
+                <b style="color:var(--ey); font-size:0.75rem;">UNIT: ${a.rig}</b><br>
+                <b style="color:var(--red); font-size:0.85rem;">⚠️ ${a.parameter}</b>
+            </div>`).join('');
+    } else { 
+        alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green);">✅ ALL NORMAL</div>`; 
+    }
+
+    // 4. RUN CASCADING FILTERS & REFRESH CHART
+    applyGlobalFilters(); 
+    drawChart(); 
+    document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+}
 
     // --- 5. THE PATCH: CASCADING FILTERS ---
     function applyGlobalFilters() {
@@ -394,6 +383,7 @@
 </script>
 </body>
 </html>
+
 
 
 
