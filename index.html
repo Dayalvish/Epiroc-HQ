@@ -223,13 +223,35 @@
     }
 
     // --- 3. DROPDOWN & DATA REFRESH ---
-    async function updateRigDropdown() {
-        const model = document.getElementById('modelSelect').value;
+   async function updateRigDropdown() {
+    const model = document.getElementById('modelSelect').value;
+    const rigSelect = document.getElementById('rigSelect');
+    
+    // 1. Clear current options and show a loading state
+    rigSelect.innerHTML = '<option value="">Loading Rigs...</option>';
+    
+    try {
+        // 2. Fetch the filtered list from your GS Part 4 (list handler)
         const res = await fetch(getFullUrl(`get=list&model=${encodeURIComponent(model)}`));
         const rigs = await res.json();
-        document.getElementById('rigSelect').innerHTML = rigs.map(id => `<option value="${id}">${id}</option>`).join('');
+        
+        // 3. Populate the dropdown. 
+        // Use the first rig in the list as the default to avoid a blank start.
+        if (rigs && rigs.length > 0) {
+            rigSelect.innerHTML = rigs.map((id, index) => 
+                `<option value="${id}" ${index === 0 ? 'selected' : ''}>${id}</option>`
+            ).join('');
+        } else {
+            rigSelect.innerHTML = '<option value="">No Rigs Found</option>';
+        }
+        
+        // 4. Immediately trigger a refresh to update Vitals and Charts for the new first rig
         refresh();
+    } catch (e) {
+        console.error("Rig list sync failed:", e);
+        rigSelect.innerHTML = '<option value="">Error Loading</option>';
     }
+}
 
     async function refresh() {
         const rig = document.getElementById('rigSelect').value;
@@ -395,6 +417,7 @@
 </script>
 </body>
 </html>
+
 
 
 
