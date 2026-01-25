@@ -293,35 +293,47 @@
     document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
 }
 
-    // --- 5. THE PATCH: CASCADING FILTERS ---
-    function applyGlobalFilters() {
-    const selectedRegion = document.getElementById('cityFocus').value;
-    const selectedModel = document.getElementById('modelSelect').value;
+   function applyGlobalFilters() {
+    const selRegion = document.getElementById('cityFocus').value;
+    const selModel = document.getElementById('modelSelect').value;
     const rows = document.querySelectorAll('#fleet-summary-body tr');
     
     let visibleCount = 0;
     let totalLoad = 0;
 
     rows.forEach(row => {
-        const rowRegion = row.getAttribute('data-region') || "";
-        const rowModel = row.getAttribute('data-model') || "";
+        // We pull the data-attributes we "stamped" in the updateUI function
+        const rReg = row.getAttribute('data-region') || "";
+        const rMod = row.getAttribute('data-model') || "";
 
-        // Fix: Ensure "All India (National)" shows everything
-        const regionMatch = (selectedRegion === "All India (National)" || selectedRegion === "All" || rowRegion === selectedRegion);
-        const modelMatch = (selectedModel === "" || rowModel === selectedModel);
+        // FIX FOR PUNE/MGMT: 
+        // If Region is "All India", match everything for region.
+        // Then apply the Model filter on top of that.
+        const regionMatch = (selRegion === "All India (National)" || selRegion === "All" || rReg === selRegion);
+        const modelMatch = (selModel === "" || rMod === selModel);
 
         if (regionMatch && modelMatch) {
-            row.style.display = "";
+            row.style.display = ""; // Show matching row
             visibleCount++;
+            
+            // Extract Load % for the Sidebar Stats
             const loadVal = parseFloat(row.cells[2].innerText.replace('%', '')) || 0;
             totalLoad += loadVal;
         } else {
-            row.style.display = "none";
+            row.style.display = "none"; // Hide row
         }
     });
 
-    document.getElementById('v-active-rigs').innerText = visibleCount;
-    document.getElementById('v-fleet-load').innerText = visibleCount > 0 ? (totalLoad / visibleCount).toFixed(1) + "%" : "0%";
+    // Update Sidebar Stats for Management View
+    const rigsDisp = document.getElementById('v-active-rigs');
+    const loadDisp = document.getElementById('v-fleet-load');
+
+    if (rigsDisp) rigsDisp.innerText = visibleCount;
+    if (loadDisp) {
+        loadDisp.innerText = visibleCount > 0 
+            ? (totalLoad / visibleCount).toFixed(1) + "%" 
+            : "0%";
+    }
 }
     function resetCityFilter() {
         document.getElementById('cityFocus').value = "All India (National)";
@@ -383,6 +395,7 @@
 </script>
 </body>
 </html>
+
 
 
 
