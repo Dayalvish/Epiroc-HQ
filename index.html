@@ -414,9 +414,51 @@
         link.href = url; 
         link.click();
     }
+    // Function 1: Updates Models based on selected Region
+async function updateModelDropdown() {
+    const region = document.getElementById('cityFocus').value;
+    const modelSelect = document.getElementById('modelSelect');
+    
+    // Fetch only models active in this region
+    const res = await fetch(getFullUrl(`get=model_list&userRegion=${encodeURIComponent(region)}`));
+    const models = await res.json();
+    
+    // Repopulate Model Dropdown
+    modelSelect.innerHTML = '<option value="">All Models</option>' + 
+        models.map(m => `<option value="${m}">${m}</option>`).join('');
+        
+    // Cascade to update the Rig list immediately
+    updateRigDropdown();
+}
+
+// Function 2: Updates Rigs based on both Region and Model
+async function updateRigDropdown() {
+    const region = document.getElementById('cityFocus').value;
+    const model = document.getElementById('modelSelect').value;
+    const rigSelect = document.getElementById('rigSelect');
+    
+    // Show loading to avoid "Blank" state
+    rigSelect.innerHTML = '<option value="">Loading...</option>';
+    
+    const res = await fetch(getFullUrl(`get=list&userRegion=${encodeURIComponent(region)}&model=${encodeURIComponent(model)}`));
+    const rigs = await res.json();
+    
+    // Repopulate Rig Dropdown and select the first index
+    if (rigs && rigs.length > 0) {
+        rigSelect.innerHTML = rigs.map((id, index) => 
+            `<option value="${id}" ${index === 0 ? 'selected' : ''}>${id}</option>`
+        ).join('');
+    } else {
+        rigSelect.innerHTML = '<option value="">No Rigs Found</option>';
+    }
+    
+    // Trigger refresh to update the table and charts for the new selection
+    refresh();
+}
 </script>
 </body>
 </html>
+
 
 
 
