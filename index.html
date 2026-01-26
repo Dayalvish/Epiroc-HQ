@@ -92,7 +92,7 @@
                     <label style="color: var(--ey); font-size: 0.85rem;">REGION SECTOR</label>
                     <button onclick="resetCityFilter()" style="background: none; border: 1px solid var(--ey); color: var(--ey); font-size: 0.65rem; padding: 2px 6px; cursor: pointer; border-radius: 3px;">RESET</button>
                 </div>
-                <select id="cityFocus" onchange="applyGlobalFilters()">
+                <select id="cityFocus" onchange="updateModelDropdown()">
                     <option value="All">All India (National)</option>
                     <option value="Ranchi">Ranchi</option>
                     <option value="Hyderabad">Hyderabad</option>
@@ -243,29 +243,33 @@
     }
 
    async function refreshData() {
-    // 1. Get the current User from session
-    const u = sessionStorage.getItem('user');
-    
-    // 2. Get the selection from the REGION SECTOR dropdown
-    // We target the select inside the mgmt-city-box
-    const cityDrop = document.querySelector('#mgmt-city-box select');
-    const selectedLocation = cityDrop ? cityDrop.value : "All";
-
-    // 3. Build the URL with the new location focus
-    const url = `${API}?get=summary&user=${u}&userRegion=${encodeURIComponent(selectedLocation)}`;
-
-    try {
-        const resp = await fetch(url);
-        const data = await resp.json();
+        // 1. Get the current User from session
+        const u = sessionStorage.getItem('user');
         
-        // ... rest of your code to update the table and vitals ...
-        renderSummaryTable(data.summary); 
-        updateVitals(data.vitals);
-        
-    } catch (err) {
-        console.error("Refresh failed:", err);
+        // 2. Get the selection from the REGION SECTOR dropdown
+        const cityDrop = document.querySelector('#mgmt-city-box select');
+        const selectedLocation = cityDrop ? cityDrop.value : "All";
+
+        // 3. Build the URL with the new location focus
+        const url = `${API}?get=summary&user=${u}&userRegion=${encodeURIComponent(selectedLocation)}`;
+
+        try {
+            const resp = await fetch(url);
+            const data = await resp.json();
+            
+            // This calls your UI update function to refresh table/vitals
+            updateUI(data);
+            
+        } catch (err) {
+            console.error("Refresh failed:", err);
+        }
     }
-}
+
+    // This replaces the broken fragment that was causing the freeze
+    async function applyGlobalFiltersAndRefresh() {
+        await updateModelDropdown(); 
+        refresh();
+    }
         
         // 4. Immediately trigger a refresh to update Vitals and Charts for the new first rig
         refresh();
@@ -379,11 +383,16 @@
             : "0%";
     }
 }
-    function resetCityFilter() {
-        document.getElementById('cityFocus').value = "All India (National)";
-        document.getElementById('modelSelect').value = "";
-        applyGlobalFilters(); // Reset the fleet view immediately without server call
-    }
+   function resetCityFilter() {
+    // 1. Reset the dropdown to National View
+    document.getElementById('cityFocus').value = "All"; 
+    
+    // 2. Reset the Model dropdown to All
+    document.getElementById('modelSelect').value = ""; 
+    
+    // 3. Trigger the chain reaction to get National data back
+    updateModelDropdown(); 
+}
 
     // --- 6. ANALYTICAL CHARTING & EXPORT ---
     function drawChart() {
@@ -523,6 +532,7 @@ async function updateRigDropdown() {
 </script>
 </body>
 </html>
+
 
 
 
