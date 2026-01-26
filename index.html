@@ -274,20 +274,19 @@
     }
 }
 
-    function updateUI(data) {
+   function updateUI(data) {
     const summaryBody = document.getElementById('fleet-summary-body');
     const warningBox = document.getElementById('auditWarning');
     const rigSelectElem = document.getElementById('rigSelect');
     
-    // 1. DYNAMIC SUMMARY TABLE & AUDIT WARNING
     if (data.summary && data.summary.length > 0) {
-        // Safe ID matching (Trimmed and Case Insensitive)
+        // MATCHING ENGINE: Robust check for the selected Rig
         const selectedRigId = rigSelectElem ? rigSelectElem.value.trim().toUpperCase() : "";
-        const selectedRigData = data.summary.find(r => r.id.trim().toUpperCase() === selectedRigId);
+        const selectedRigData = data.summary.find(r => String(r.id).trim().toUpperCase() === selectedRigId);
         
-        // Timer Logic for 15s Auto-Close
         if (window.warningTimer) clearTimeout(window.warningTimer);
 
+        // TRIGGER WARNING: If audits are exactly 0
         if (selectedRigData && parseInt(selectedRigData.audits) === 0) {
             warningBox.style.display = 'block';
             window.warningTimer = setTimeout(() => {
@@ -297,7 +296,6 @@
             warningBox.style.display = 'none';
         }
 
-        // Render Table Rows with attributes used by applyGlobalFilters
         summaryBody.innerHTML = data.summary.map(r => `
             <tr data-region="${r.region}" data-model="${r.model}">
                 <td><b>${r.id}</b></td>
@@ -310,10 +308,21 @@
                 <td>${r.avgBit}</td>
                 <td>${r.avgImpact}</td>
             </tr>`).join('');
-    } else {
-        summaryBody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px;">No Data Found</td></tr>';
-        if (warningBox) warningBox.style.display = 'none';
     }
+
+    // Update Vitals and Alerts
+    if (data.vitals) {
+        document.getElementById('v-date').innerText = data.vitals.date || "--"; 
+        document.getElementById('v-boost').innerText = data.vitals.boost || "0";
+        document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
+        document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
+        document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
+    }
+
+    applyGlobalFilters(); 
+    drawChart(); 
+    document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+}
 
     // 2. MACHINE VITALS (SIDEBAR)
     if (data.vitals) {
@@ -395,23 +404,37 @@ function applyGlobalFilters() {
         plugins: { legend: { labels: { color: '#fff' } } },
         scales: {
             x: { grid: { color: '#333' }, ticks: { color: '#888' } },
-            y: { beginAtZero: true, grid: { color: '#333' }, ticks: { color: '#fff' } }
+            y: { grid: { color: '#333' }, ticks: { color: '#fff' } }
         }
     };
 
     if (mode === 'tempVsOil') {
         datasets = [
-            { label: 'Oil (bar)', data: d.map(x => x.oil), borderColor: '#2ecc71', tension: 0.3 },
-            { label: 'Temp (°C)', data: d.map(x => x.temp), borderColor: '#ff4d4d', tension: 0.3 }
+            { label: 'Oil Pr (bar)', data: d.map(x => x.oil), borderColor: '#2ecc71', tension: 0.3 },
+            { label: 'Temp (°C)', data: d.map(x => x.temp), borderColor: '#ff4d4d', tension: 0.3 },
+            { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#3498db', borderDash: [5, 5], tension: 0.3 }
         ];
-    } else if (mode === 'loadVsComp') {
+    } 
+    else if (mode === 'setBit') {
+        datasets = [
+            { label: 'Air Set (bar)', data: d.map(x => x.air), borderColor: '#2ecc71', tension: 0.3 },
+            { label: 'Bit Pr (bar)', data: d.map(x => x.bit), borderColor: '#3498db', tension: 0.3 }
+        ];
+    } 
+    else if (mode === 'loadVsComp') {
         datasets = [
             { label: 'Engine Load %', data: d.map(x => x.load), borderColor: '#f1c40f', tension: 0.3 },
             { label: 'Compressor %', data: d.map(x => x.comp), borderColor: '#3498db', tension: 0.3 }
         ];
+    } 
+    else if (mode === 'hydro_impact') {
+        datasets = [
+            { label: 'Impact (bar)', data: d.map(x => x.impact), borderColor: '#f1c40f', tension: 0.3 },
+            { label: 'Feed (bar)', data: d.map(x => x.feed), borderColor: '#e67e22', tension: 0.3 },
+            { label: 'Damper (bar)', data: d.map(x => x.damper), borderColor: '#3498db', tension: 0.3 }
+        ];
     }
 
-    // FINAL INITIALIZATION
     chart = new Chart(ctx, {
         type: 'line',
         data: { labels, datasets },
@@ -470,6 +493,7 @@ async function updateRigDropdown() {
 </script>
 </body>
 </html>
+
 
 
 
