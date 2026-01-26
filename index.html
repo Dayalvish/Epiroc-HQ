@@ -281,11 +281,9 @@
     
     // 1. DYNAMIC SUMMARY TABLE & AUDIT WARNING
     if (data.summary && data.summary.length > 0) {
-        // Safe ID matching for the Audit Warning
-        const selectedRigId = rigSelectElem ? rigSelectElem.value.trim() : "";
-        const selectedRigData = data.summary.find(r => 
-    r.id.trim().toUpperCase() === selectedRigId.toUpperCase()
-);
+        // Safe ID matching (Trimmed and Case Insensitive)
+        const selectedRigId = rigSelectElem ? rigSelectElem.value.trim().toUpperCase() : "";
+        const selectedRigData = data.summary.find(r => r.id.trim().toUpperCase() === selectedRigId);
         
         // Timer Logic for 15s Auto-Close
         if (window.warningTimer) clearTimeout(window.warningTimer);
@@ -299,7 +297,7 @@
             warningBox.style.display = 'none';
         }
 
-        // Render Table Rows
+        // Render Table Rows with attributes used by applyGlobalFilters
         summaryBody.innerHTML = data.summary.map(r => `
             <tr data-region="${r.region}" data-model="${r.model}">
                 <td><b>${r.id}</b></td>
@@ -338,10 +336,42 @@
         alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green);">✅ ALL NORMAL</div>`; 
     }
 
-    // 4. RUN CASCADING FILTERS & REFRESH CHART
+    // 4. THE CASCADING TRIGGERS (Restores Filter & Chart)
     applyGlobalFilters(); 
     drawChart(); 
     document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+}
+
+// 5. SAFE FILTERING FUNCTION
+function applyGlobalFilters() {
+    // Safety check: handle cases where cityFocus dropdown is hidden
+    const cityElem = document.getElementById('cityFocus');
+    const selRegion = cityElem ? cityElem.value : "All";
+    const selModel = document.getElementById('modelSelect').value;
+    const rows = document.querySelectorAll('#fleet-summary-body tr');
+    
+    let visibleCount = 0;
+    let totalLoad = 0;
+
+    rows.forEach(row => {
+        const rReg = row.getAttribute('data-region') || "";
+        const rMod = row.getAttribute('data-model') || "";
+
+        const regionMatch = (selRegion === "All India (National)" || selRegion === "All" || rReg === selRegion);
+        const modelMatch = (selModel === "" || rMod === selModel);
+
+        if (regionMatch && modelMatch) {
+            row.style.display = ""; 
+            visibleCount++;
+            const loadVal = parseFloat(row.cells[2].innerText.replace('%', '')) || 0;
+            totalLoad += loadVal;
+        } else {
+            row.style.display = "none"; 
+        }
+    });
+
+    document.getElementById('v-active-rigs').innerText = visibleCount;
+    document.getElementById('v-fleet-load').innerText = visibleCount > 0 ? (totalLoad / visibleCount).toFixed(1) + "%" : "0%";
 }
     // --- 6. ANALYTICAL CHARTING & EXPORT ---
    function drawChart() {
@@ -440,6 +470,7 @@ async function updateRigDropdown() {
 </script>
 </body>
 </html>
+
 
 
 
