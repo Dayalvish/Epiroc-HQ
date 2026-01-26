@@ -92,15 +92,9 @@
                     <label style="color: var(--ey); font-size: 0.85rem;">REGION SECTOR</label>
                     <button onclick="resetCityFilter()" style="background: none; border: 1px solid var(--ey); color: var(--ey); font-size: 0.65rem; padding: 2px 6px; cursor: pointer; border-radius: 3px;">RESET</button>
                 </div>
-                <select id="cityFocus" onchange="applyGlobalFilters()">
-                    <option value="All">All India (National)</option>
-                    <option value="Ranchi">Ranchi</option>
-                    <option value="Hyderabad">Hyderabad</option>
-                    <option value="Delhi">Delhi</option>
-                    <option value="Nagpur">Nagpur</option>
-                    <option value="Udaipur">Udaipur</option>
-                    <option value="Kolkata">Kolkata</option>
-                </select>
+                <select id="cityFocus" onchange="applyGlobalFilters()" class="dynamic-select">
+    <option value="">Identifying Region...</option>
+</select>
             </div>
 
             <label>Model Classification</label>
@@ -320,23 +314,48 @@
     const selModel = document.getElementById('modelSelect').value;
     const rows = document.querySelectorAll('#fleet-summary-body tr');
     
-    let visibleCount = 0;
-    let totalLoad = 0;
-
+    // 1. VISUAL FILTER (Keep the rows you already have)
     rows.forEach(row => {
-        // We pull the data-attributes we "stamped" in the updateUI function
         const rReg = row.getAttribute('data-region') || "";
         const rMod = row.getAttribute('data-model') || "";
 
-        // FIX FOR PUNE/MGMT: 
-        // If Region is "All India", match everything for region.
-        // Then apply the Model filter on top of that.
         const regionMatch = (selRegion === "All India (National)" || selRegion === "All" || rReg === selRegion);
-        const modelMatch = (selModel === "" || rMod === selModel);
+        const modelMatch = (selModel === "All Models" || selModel === "" || rMod === selModel);
 
         if (regionMatch && modelMatch) {
-            row.style.display = ""; // Show matching row
-            visibleCount++;
+            row.style.display = ""; 
+        } else {
+            row.style.display = "none";
+        }
+    });
+
+    // 2. SERVER UPDATE (Fetch the new Fleet Dropdown list)
+    // This is the part that fixes the "No Rigs Found" error
+    const scriptUrl = "YOUR_SCRIPT_URL_HERE"; // Ensure this matches your deployment
+    
+    google.script.run
+        .withSuccessHandler(function(rigs) {
+            const fleetDrop = document.getElementById("fleetSelect"); // Or your Rig ID dropdown ID
+            fleetDrop.innerHTML = ""; // Clear old rigs
+            
+            if (rigs && rigs.length > 0) {
+                rigs.forEach(rig => {
+                    let opt = document.createElement("option");
+                    opt.value = rig;
+                    opt.text = rig;
+                    fleetDrop.add(opt);
+                });
+            } else {
+                fleetDrop.add(new Option("No Rigs Available", ""));
+            }
+        })
+        .doGet({
+            get: "list",
+            userRegion: selRegion,
+            model: selModel,
+            user: currentLoggedUser // This ensures the script's security block works
+        });
+}
             
             // Extract Load % for the Sidebar Stats
             const loadVal = parseFloat(row.cells[2].innerText.replace('%', '')) || 0;
@@ -501,6 +520,7 @@ async function updateRigDropdown() {
 </script>
 </body>
 </html>
+
 
 
 
