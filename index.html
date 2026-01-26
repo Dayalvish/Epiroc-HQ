@@ -71,7 +71,9 @@
 </div>
 
 <div id="dashboard-content">
-    <div id="auditWarning" onclick="this.style.display='none'" style="cursor:pointer;">⚠️ RIG HAS NOT COVERED MANDATORY MINIMUM AUDITS</div>
+    <div id="auditWarning" onclick="this.style.display='none'" title="Click to dismiss">
+    ⚠️ RIG HAS NOT COVERED MANDATORY MINIMUM AUDITS
+</div>
     
     <div class="header">
         <div class="header-left">
@@ -279,13 +281,30 @@ if (data.summary && data.summary.length > 0) {
     // Find the current selected rig in the summary data array
     const selectedRigData = data.summary.find(r => r.id === selectedRigId);
     
-    // Check if audits are missing (0 audits)
-    if (selectedRigData && parseInt(selectedRigData.audits) === 0) {
-        if (warningBox) warningBox.style.display = 'block';
-    } else {
-        if (warningBox) warningBox.style.display = 'none';
+    // --- AUDIT WARNING LOGIC WITH 15s AUTO-CLOSE ---
+    const warningBox = document.getElementById('auditWarning');
+    const selectedRigId = document.getElementById('rigSelect').value.trim();
+
+    if (data.summary && data.summary.length > 0) {
+        // Find the specific rig data
+        const selectedRigData = data.summary.find(r => r.id.trim() === selectedRigId);
+        
+        // Clear any existing timers to prevent flickering
+        if (window.warningTimer) clearTimeout(window.warningTimer);
+
+        if (selectedRigData && parseInt(selectedRigData.audits) === 0) {
+            // 1. Show the warning
+            warningBox.style.display = 'block';
+            
+            // 2. Set timer to hide after 15 seconds (15000ms)
+            window.warningTimer = setTimeout(() => {
+                warningBox.style.display = 'none';
+            }, 15000);
+        } else {
+            // Hide immediately if audits are covered
+            warningBox.style.display = 'none';
+        }
     }
-    // -------------------------------
 
     // Original table rendering logic
     summaryBody.innerHTML = data.summary.map(r => `
@@ -520,6 +539,7 @@ async function updateRigDropdown() {
 </script>
 </body>
 </html>
+
 
 
 
