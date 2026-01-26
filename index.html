@@ -166,57 +166,74 @@
     const API = "https://script.google.com/macros/s/AKfycbzOIHZWm_YK0fZQ5Dy8Q5kuMg1IX4ZFSzTKPgmkDuTzAKcnmI262ZP4bWCrSnKBe7Mn/exec"; 
     let chart = null, globalData = null;
 
-   // --- 1. LOGIN & AUTH (BARRIER BREAKER VERSION) ---
-    async function handleLogin() {
-        const u = document.getElementById('userIn').value;
-        const p = document.getElementById('passIn').value;
-        const msg = document.getElementById('login-msg');
+   // --- 1. LOGIN & AUTH (SAFETY VERSION) ---
+async function handleLogin() {
+    const uEl = document.getElementById('userIn');
+    const pEl = document.getElementById('passIn');
+    const msg = document.getElementById('login-msg');
+    
+    if (!uEl || !pEl) { console.error("Missing Input IDs"); return; }
+    
+    const u = uEl.value;
+    const p = pEl.value;
+
+    if (!u || !p) { msg.innerText = "Please enter credentials."; return; }
+    msg.innerText = "Authenticating...";
+    
+    try {
+        // Construct URL - Ensure API variable is defined at top of script
+        const url = `${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`;
+        const resp = await fetch(url);
+        const data = await resp.json();
         
-        if (!u || !p) { msg.innerText = "Please enter credentials."; return; }
-        msg.innerText = "Authenticating...";
-        
-        try {
-            const resp = await fetch(`${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`);
-            const data = await resp.json();
+        if (data.success) {
+            // Store variables safely
+            sessionStorage.setItem('region', data.region || "All");
+            sessionStorage.setItem('siteView', data.siteView || "all");
+            sessionStorage.setItem('user', u);
+
+            // Update Badge safely
+            const badge = document.getElementById('id-badge');
+            if (badge) badge.innerText = `${u}-${data.region || 'User'}`;
             
-            if (data.success) {
-                // SAVE TO SESSION (Use data.region as the logger name)
-                sessionStorage.setItem('region', data.region);
-                sessionStorage.setItem('siteView', data.siteView);
-                sessionStorage.setItem('user', u);
-                sessionStorage.setItem('role', data.role);
-
-                // FIX: Update the Badge (Matches epiroc_hyderabad-Hyderabad)
-                document.getElementById('id-badge').innerText = `${u}-${data.region}`;
-                
-                // --- DYNAMIC CITY DROPDOWN SYNC ---
-                const cityFocus = document.getElementById('cityFocus');
-                if (data.role === 'mgmt') {
-                    document.getElementById('mgmt-city-box').style.display = 'block';
-                    cityFocus.value = "All"; // Default for Mgmt
-                } else {
-                    document.getElementById('mgmt-city-box').style.display = 'block'; 
-                    // Lock the dropdown to the user's region
+            // Setup City Dropdown safely
+            const cityFocus = document.getElementById('cityFocus');
+            if (cityFocus) {
+                if (data.role !== 'mgmt') {
                     cityFocus.innerHTML = `<option value="${data.region}">${data.region}</option>`;
-                    cityFocus.value = data.region;
-                    cityFocus.disabled = true; 
+                    cityFocus.disabled = true;
+                } else {
+                    cityFocus.disabled = false;
+                    cityFocus.value = "All";
                 }
+            }
 
-                // Hide login, show dashboard
-                document.getElementById('login-screen').style.display = 'none';
-                document.getElementById('dashboard-content').style.display = 'block';
-                
-                // Trigger the data load
+            // --- THE UNFREEZE STEP ---
+            const loginScreen = document.getElementById('login-screen');
+            const dashContent = document.getElementById('dashboard-content');
+            
+            if (loginScreen && dashContent) {
+                loginScreen.style.display = 'none';
+                dashContent.style.display = 'block';
+            } else {
+                alert("Critical UI Error: Login screen or Dashboard container not found in HTML.");
+            }
+            
+            // Final step: Load the data
+            if (typeof refreshData === "function") {
                 refreshData(); 
             } else {
-                msg.innerText = "Invalid credentials.";
+                console.warn("refreshData function not found. Fleet will not load.");
             }
-        } catch (err) {
-            console.error(err);
-            msg.innerText = "Connection error. Check Console (F12).";
-        }
-    }
 
+        } else {
+            msg.innerText = "Invalid credentials.";
+        }
+    } catch (err) {
+        console.error("Login Error:", err);
+        msg.innerText = "System Error: Check Console (F12)";
+    }
+}
     function getFullUrl(params) {
         const r = sessionStorage.getItem('region'), s = sessionStorage.getItem('siteView'), u = sessionStorage.getItem('user');
         return `${API}?${params}&userRegion=${encodeURIComponent(r)}&siteView=${encodeURIComponent(s)}&user=${encodeURIComponent(u)}&v=${Date.now()}`;
@@ -542,6 +559,7 @@ async function updateRigDropdown() {
 </script>
 </body>
 </html>
+
 
 
 
