@@ -270,61 +270,44 @@
 
     function updateUI(data) {
     const summaryBody = document.getElementById('fleet-summary-body');
-    
-    // 1. DYNAMIC SUMMARY TABLE (FIXES DUPLICATES)
-if (data.summary && data.summary.length > 0) {
-    const summaryBody = document.getElementById('fleet-summary-body');
     const warningBox = document.getElementById('auditWarning');
-    const selectedRigId = document.getElementById('rigSelect').value;
-
-    // --- NEW AUDIT WARNING LOGIC ---
-    // Find the current selected rig in the summary data array
-    const selectedRigData = data.summary.find(r => r.id === selectedRigId);
+    const rigSelectElem = document.getElementById('rigSelect');
     
-    // --- AUDIT WARNING LOGIC WITH 15s AUTO-CLOSE ---
-    const warningBox = document.getElementById('auditWarning');
-    const selectedRigId = document.getElementById('rigSelect').value.trim();
-
+    // 1. DYNAMIC SUMMARY TABLE & AUDIT WARNING
     if (data.summary && data.summary.length > 0) {
-        // Find the specific rig data
+        // Safe ID matching for the Audit Warning
+        const selectedRigId = rigSelectElem ? rigSelectElem.value.trim() : "";
         const selectedRigData = data.summary.find(r => r.id.trim() === selectedRigId);
         
-        // Clear any existing timers to prevent flickering
+        // Timer Logic for 15s Auto-Close
         if (window.warningTimer) clearTimeout(window.warningTimer);
 
         if (selectedRigData && parseInt(selectedRigData.audits) === 0) {
-            // 1. Show the warning
             warningBox.style.display = 'block';
-            
-            // 2. Set timer to hide after 15 seconds (15000ms)
             window.warningTimer = setTimeout(() => {
                 warningBox.style.display = 'none';
             }, 15000);
         } else {
-            // Hide immediately if audits are covered
             warningBox.style.display = 'none';
         }
-    }
 
-    // Original table rendering logic
-    summaryBody.innerHTML = data.summary.map(r => `
-        <tr data-region="${r.region}" data-model="${r.model}">
-            <td><b>${r.id}</b></td>
-            <td>${r.audits}</td>
-            <td style="color:var(--ey)">${r.avgLoad}%</td>
-            <td>${r.avgTemp}</td>
-            <td>${r.avgOil}</td>
-            <td>${r.avgFuel}</td>
-            <td>${r.avgAir}</td>
-            <td>${r.avgBit}</td>
-            <td>${r.avgImpact}</td>
-        </tr>`).join('');
-} else {
-    document.getElementById('fleet-summary-body').innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px;">No Data Found for this Selection</td></tr>';
-    // Hide warning if no data is found at all
-    const warningBox = document.getElementById('auditWarning');
-    if (warningBox) warningBox.style.display = 'none';
-}
+        // Render Table Rows
+        summaryBody.innerHTML = data.summary.map(r => `
+            <tr data-region="${r.region}" data-model="${r.model}">
+                <td><b>${r.id}</b></td>
+                <td>${r.audits}</td>
+                <td style="color:var(--ey)">${r.avgLoad}%</td>
+                <td>${r.avgTemp}</td>
+                <td>${r.avgOil}</td>
+                <td>${r.avgFuel}</td>
+                <td>${r.avgAir}</td>
+                <td>${r.avgBit}</td>
+                <td>${r.avgImpact}</td>
+            </tr>`).join('');
+    } else {
+        summaryBody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px;">No Data Found</td></tr>';
+        if (warningBox) warningBox.style.display = 'none';
+    }
 
     // 2. MACHINE VITALS (SIDEBAR)
     if (data.vitals) {
@@ -352,55 +335,6 @@ if (data.summary && data.summary.length > 0) {
     drawChart(); 
     document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
 }
-
-   function applyGlobalFilters() {
-    const selRegion = document.getElementById('cityFocus').value;
-    const selModel = document.getElementById('modelSelect').value;
-    const rows = document.querySelectorAll('#fleet-summary-body tr');
-    
-    let visibleCount = 0;
-    let totalLoad = 0;
-
-    rows.forEach(row => {
-        // We pull the data-attributes we "stamped" in the updateUI function
-        const rReg = row.getAttribute('data-region') || "";
-        const rMod = row.getAttribute('data-model') || "";
-
-        // FIX FOR PUNE/MGMT: 
-        // If Region is "All India", match everything for region.
-        // Then apply the Model filter on top of that.
-        const regionMatch = (selRegion === "All India (National)" || selRegion === "All" || rReg === selRegion);
-        const modelMatch = (selModel === "" || rMod === selModel);
-
-        if (regionMatch && modelMatch) {
-            row.style.display = ""; // Show matching row
-            visibleCount++;
-            
-            // Extract Load % for the Sidebar Stats
-            const loadVal = parseFloat(row.cells[2].innerText.replace('%', '')) || 0;
-            totalLoad += loadVal;
-        } else {
-            row.style.display = "none"; // Hide row
-        }
-    });
-
-    // Update Sidebar Stats for Management View
-    const rigsDisp = document.getElementById('v-active-rigs');
-    const loadDisp = document.getElementById('v-fleet-load');
-
-    if (rigsDisp) rigsDisp.innerText = visibleCount;
-    if (loadDisp) {
-        loadDisp.innerText = visibleCount > 0 
-            ? (totalLoad / visibleCount).toFixed(1) + "%" 
-            : "0%";
-    }
-}
-    function resetCityFilter() {
-        document.getElementById('cityFocus').value = "All India (National)";
-        document.getElementById('modelSelect').value = "";
-        applyGlobalFilters(); // Reset the fleet view immediately without server call
-    }
-
     // --- 6. ANALYTICAL CHARTING & EXPORT ---
     function drawChart() {
     // 1. Safety Check
@@ -539,6 +473,7 @@ async function updateRigDropdown() {
 </script>
 </body>
 </html>
+
 
 
 
