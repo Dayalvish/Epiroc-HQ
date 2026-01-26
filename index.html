@@ -184,6 +184,7 @@
         try {
             const resp = await fetch(`${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`);
             const data = await resp.json();
+            
             if (data.success) {
                 sessionStorage.setItem('region', data.region);
                 sessionStorage.setItem('siteView', data.siteView);
@@ -192,7 +193,26 @@
                 document.getElementById('id-badge').innerText = `${u}-${data.logger}`;
                 
                 if(data.role === 'mgmt') { 
-                    document.getElementById('mgmt-city-box').style.display = 'block'; 
+                    document.getElementById('mgmt-city-box').style.display = 'block';
+
+                    // --- ADD THIS BLOCK HERE ---
+                    // Fetch the live Site List to populate the Sector dropdown for Pune
+                    fetch(`${API}?get=site_list`)
+                        .then(res => res.json())
+                        .then(sites => {
+                            const drop = document.querySelector('#mgmt-city-box select');
+                            // Clear existing and add default National view
+                            drop.innerHTML = '<option value="All">All India (National)</option>';
+                            // Fill with site names from Map_Site
+                            sites.forEach(s => {
+                                let opt = document.createElement('option');
+                                opt.value = s;
+                                opt.innerHTML = s;
+                                drop.appendChild(opt);
+                            });
+                        })
+                        .catch(err => console.error("Site list failed:", err));
+                    // ---------------------------
                 }
                 
                 document.body.classList.add('authorized');
@@ -222,28 +242,30 @@
         } catch (e) { console.error("Init Error:", e); }
     }
 
-    // --- 3. DROPDOWN & DATA REFRESH ---
-   async function updateRigDropdown() {
-    const model = document.getElementById('modelSelect').value;
-    const rigSelect = document.getElementById('rigSelect');
+   async function refreshData() {
+    // 1. Get the current User from session
+    const u = sessionStorage.getItem('user');
     
-    // 1. Clear current options and show a loading state
-    rigSelect.innerHTML = '<option value="">Loading Rigs...</option>';
-    
+    // 2. Get the selection from the REGION SECTOR dropdown
+    // We target the select inside the mgmt-city-box
+    const cityDrop = document.querySelector('#mgmt-city-box select');
+    const selectedLocation = cityDrop ? cityDrop.value : "All";
+
+    // 3. Build the URL with the new location focus
+    const url = `${API}?get=summary&user=${u}&userRegion=${encodeURIComponent(selectedLocation)}`;
+
     try {
-        // 2. Fetch the filtered list from your GS Part 4 (list handler)
-        const res = await fetch(getFullUrl(`get=list&model=${encodeURIComponent(model)}`));
-        const rigs = await res.json();
+        const resp = await fetch(url);
+        const data = await resp.json();
         
-        // 3. Populate the dropdown. 
-        // Use the first rig in the list as the default to avoid a blank start.
-        if (rigs && rigs.length > 0) {
-            rigSelect.innerHTML = rigs.map((id, index) => 
-                `<option value="${id}" ${index === 0 ? 'selected' : ''}>${id}</option>`
-            ).join('');
-        } else {
-            rigSelect.innerHTML = '<option value="">No Rigs Found</option>';
-        }
+        // ... rest of your code to update the table and vitals ...
+        renderSummaryTable(data.summary); 
+        updateVitals(data.vitals);
+        
+    } catch (err) {
+        console.error("Refresh failed:", err);
+    }
+}
         
         // 4. Immediately trigger a refresh to update Vitals and Charts for the new first rig
         refresh();
@@ -501,6 +523,7 @@ async function updateRigDropdown() {
 </script>
 </body>
 </html>
+
 
 
 
