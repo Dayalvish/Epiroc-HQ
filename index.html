@@ -92,7 +92,7 @@
                     <label style="color: var(--ey); font-size: 0.85rem;">REGION SECTOR</label>
                     <button onclick="resetCityFilter()" style="background: none; border: 1px solid var(--ey); color: var(--ey); font-size: 0.65rem; padding: 2px 6px; cursor: pointer; border-radius: 3px;">RESET</button>
                 </div>
-                <select id="cityFocus" onchange="updateModelDropdown()">
+                <select id="cityFocus" onchange="applyGlobalFilters()">
                     <option value="All">All India (National)</option>
                     <option value="Ranchi">Ranchi</option>
                     <option value="Hyderabad">Hyderabad</option>
@@ -184,7 +184,6 @@
         try {
             const resp = await fetch(`${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`);
             const data = await resp.json();
-            
             if (data.success) {
                 sessionStorage.setItem('region', data.region);
                 sessionStorage.setItem('siteView', data.siteView);
@@ -193,26 +192,7 @@
                 document.getElementById('id-badge').innerText = `${u}-${data.logger}`;
                 
                 if(data.role === 'mgmt') { 
-                    document.getElementById('mgmt-city-box').style.display = 'block';
-
-                    // --- ADD THIS BLOCK HERE ---
-                    // Fetch the live Site List to populate the Sector dropdown for Pune
-                    fetch(`${API}?get=site_list`)
-                        .then(res => res.json())
-                        .then(sites => {
-                            const drop = document.querySelector('#mgmt-city-box select');
-                            // Clear existing and add default National view
-                            drop.innerHTML = '<option value="All">All India (National)</option>';
-                            // Fill with site names from Map_Site
-                            sites.forEach(s => {
-                                let opt = document.createElement('option');
-                                opt.value = s;
-                                opt.innerHTML = s;
-                                drop.appendChild(opt);
-                            });
-                        })
-                        .catch(err => console.error("Site list failed:", err));
-                    // ---------------------------
+                    document.getElementById('mgmt-city-box').style.display = 'block'; 
                 }
                 
                 document.body.classList.add('authorized');
@@ -242,40 +222,37 @@
         } catch (e) { console.error("Init Error:", e); }
     }
 
-   async function updateModelDropdown() {
-    const region = document.getElementById('cityFocus').value;
-    const modelSelect = document.getElementById('modelSelect');
-    
-    // Fetch models active at this specific site/region
-    const res = await fetch(getFullUrl(`get=model_list&userRegion=${encodeURIComponent(region)}`));
-    const models = await res.json();
-    
-    modelSelect.innerHTML = '<option value="">All Models</option>' + 
-        models.map(m => `<option value="${m}">${m}</option>`).join('');
-        
-    updateRigDropdown(); // Move to the next step
-}
-
-async function updateRigDropdown() {
-    const region = document.getElementById('cityFocus').value;
+    // --- 3. DROPDOWN & DATA REFRESH ---
+   async function updateRigDropdown() {
     const model = document.getElementById('modelSelect').value;
     const rigSelect = document.getElementById('rigSelect');
     
-    rigSelect.innerHTML = '<option value="">Loading...</option>';
+    // 1. Clear current options and show a loading state
+    rigSelect.innerHTML = '<option value="">Loading Rigs...</option>';
     
-    const res = await fetch(getFullUrl(`get=list&userRegion=${encodeURIComponent(region)}&model=${encodeURIComponent(model)}`));
-    const rigs = await res.json();
-    
-    if (rigs && rigs.length > 0) {
-        rigSelect.innerHTML = rigs.map((id, index) => 
-            `<option value="${id}" ${index === 0 ? 'selected' : ''}>${id}</option>`
-        ).join('');
-    } else {
-        rigSelect.innerHTML = '<option value="">No Rigs Found</option>';
+    try {
+        // 2. Fetch the filtered list from your GS Part 4 (list handler)
+        const res = await fetch(getFullUrl(`get=list&model=${encodeURIComponent(model)}`));
+        const rigs = await res.json();
+        
+        // 3. Populate the dropdown. 
+        // Use the first rig in the list as the default to avoid a blank start.
+        if (rigs && rigs.length > 0) {
+            rigSelect.innerHTML = rigs.map((id, index) => 
+                `<option value="${id}" ${index === 0 ? 'selected' : ''}>${id}</option>`
+            ).join('');
+        } else {
+            rigSelect.innerHTML = '<option value="">No Rigs Found</option>';
+        }
+        
+        // 4. Immediately trigger a refresh to update Vitals and Charts for the new first rig
+        refresh();
+    } catch (e) {
+        console.error("Rig list sync failed:", e);
+        rigSelect.innerHTML = '<option value="">Error Loading</option>';
     }
-    
-    refresh(); // Final step: Get data and draw charts
 }
+
     async function refresh() {
         const rig = document.getElementById('rigSelect').value;
         const month = document.getElementById('monthFilter').value; 
@@ -380,16 +357,11 @@ async function updateRigDropdown() {
             : "0%";
     }
 }
-   function resetCityFilter() {
-    // 1. Reset the dropdown to National View
-    document.getElementById('cityFocus').value = "All"; 
-    
-    // 2. Reset the Model dropdown to All
-    document.getElementById('modelSelect').value = ""; 
-    
-    // 3. Trigger the chain reaction to get National data back
-    updateModelDropdown(); 
-}
+    function resetCityFilter() {
+        document.getElementById('cityFocus').value = "All India (National)";
+        document.getElementById('modelSelect').value = "";
+        applyGlobalFilters(); // Reset the fleet view immediately without server call
+    }
 
     // --- 6. ANALYTICAL CHARTING & EXPORT ---
     function drawChart() {
@@ -529,15 +501,6 @@ async function updateRigDropdown() {
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
 
 
 
