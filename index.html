@@ -279,6 +279,7 @@
     const warningBox = document.getElementById('auditWarning');
     const rigSelectElem = document.getElementById('rigSelect');
     
+    // 1. DYNAMIC SUMMARY TABLE & AUDIT WARNING
     if (data.summary && data.summary.length > 0) {
         // MATCHING ENGINE: Robust check for the selected Rig
         const selectedRigId = rigSelectElem ? rigSelectElem.value.trim().toUpperCase() : "";
@@ -308,21 +309,10 @@
                 <td>${r.avgBit}</td>
                 <td>${r.avgImpact}</td>
             </tr>`).join('');
+    } else {
+        summaryBody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px;">No Data Found</td></tr>';
+        if (warningBox) warningBox.style.display = 'none';
     }
-
-    // Update Vitals and Alerts
-    if (data.vitals) {
-        document.getElementById('v-date').innerText = data.vitals.date || "--"; 
-        document.getElementById('v-boost').innerText = data.vitals.boost || "0";
-        document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
-        document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
-        document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
-    }
-
-    applyGlobalFilters(); 
-    drawChart(); 
-    document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
-}
 
     // 2. MACHINE VITALS (SIDEBAR)
     if (data.vitals) {
@@ -349,8 +339,7 @@
     applyGlobalFilters(); 
     drawChart(); 
     document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
-}
-
+} // Function officially closed here
 // 5. SAFE FILTERING FUNCTION
 function applyGlobalFilters() {
     // Safety check: handle cases where cityFocus dropdown is hidden
@@ -493,6 +482,7 @@ async function updateRigDropdown() {
 </script>
 </body>
 </html>
+
 
 
 
