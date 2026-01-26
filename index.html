@@ -92,9 +92,15 @@
                     <label style="color: var(--ey); font-size: 0.85rem;">REGION SECTOR</label>
                     <button onclick="resetCityFilter()" style="background: none; border: 1px solid var(--ey); color: var(--ey); font-size: 0.65rem; padding: 2px 6px; cursor: pointer; border-radius: 3px;">RESET</button>
                 </div>
-                <select id="cityFocus" onchange="applyGlobalFilters()" class="dynamic-select">
-    <option value="">Identifying Region...</option>
-</select>
+                <select id="cityFocus" onchange="applyGlobalFilters()">
+                    <option value="All">All India (National)</option>
+                    <option value="Ranchi">Ranchi</option>
+                    <option value="Hyderabad">Hyderabad</option>
+                    <option value="Delhi">Delhi</option>
+                    <option value="Nagpur">Nagpur</option>
+                    <option value="Udaipur">Udaipur</option>
+                    <option value="Kolkata">Kolkata</option>
+                </select>
             </div>
 
             <label>Model Classification</label>
@@ -166,74 +172,35 @@
     const API = "https://script.google.com/macros/s/AKfycbzOIHZWm_YK0fZQ5Dy8Q5kuMg1IX4ZFSzTKPgmkDuTzAKcnmI262ZP4bWCrSnKBe7Mn/exec"; 
     let chart = null, globalData = null;
 
-   // --- 1. LOGIN & AUTH (SAFETY VERSION) ---
-async function handleLogin() {
-    const uEl = document.getElementById('userIn');
-    const pEl = document.getElementById('passIn');
-    const msg = document.getElementById('login-msg');
-    
-    if (!uEl || !pEl) { console.error("Missing Input IDs"); return; }
-    
-    const u = uEl.value;
-    const p = pEl.value;
-
-    if (!u || !p) { msg.innerText = "Please enter credentials."; return; }
-    msg.innerText = "Authenticating...";
-    
-    try {
-        // Construct URL - Ensure API variable is defined at top of script
-        const url = `${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`;
-        const resp = await fetch(url);
-        const data = await resp.json();
+    // --- 1. LOGIN & AUTH ---
+    async function handleLogin() {
+        const u = document.getElementById('userIn').value;
+        const p = document.getElementById('passIn').value;
+        const msg = document.getElementById('login-msg');
         
-        if (data.success) {
-            // Store variables safely
-            sessionStorage.setItem('region', data.region || "All");
-            sessionStorage.setItem('siteView', data.siteView || "all");
-            sessionStorage.setItem('user', u);
-
-            // Update Badge safely
-            const badge = document.getElementById('id-badge');
-            if (badge) badge.innerText = `${u}-${data.region || 'User'}`;
-            
-            // Setup City Dropdown safely
-            const cityFocus = document.getElementById('cityFocus');
-            if (cityFocus) {
-                if (data.role !== 'mgmt') {
-                    cityFocus.innerHTML = `<option value="${data.region}">${data.region}</option>`;
-                    cityFocus.disabled = true;
-                } else {
-                    cityFocus.disabled = false;
-                    cityFocus.value = "All";
+        if (!u || !p) { msg.innerText = "Please enter credentials."; return; }
+        msg.innerText = "Authenticating...";
+        
+        try {
+            const resp = await fetch(`${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`);
+            const data = await resp.json();
+            if (data.success) {
+                sessionStorage.setItem('region', data.region);
+                sessionStorage.setItem('siteView', data.siteView);
+                sessionStorage.setItem('user', u);
+                sessionStorage.setItem('logger', data.logger);
+                document.getElementById('id-badge').innerText = `${u}-${data.logger}`;
+                
+                if(data.role === 'mgmt') { 
+                    document.getElementById('mgmt-city-box').style.display = 'block'; 
                 }
-            }
-
-            // --- THE UNFREEZE STEP ---
-            const loginScreen = document.getElementById('login-screen');
-            const dashContent = document.getElementById('dashboard-content');
-            
-            if (loginScreen && dashContent) {
-                loginScreen.style.display = 'none';
-                dashContent.style.display = 'block';
-            } else {
-                alert("Critical UI Error: Login screen or Dashboard container not found in HTML.");
-            }
-            
-            // Final step: Load the data
-            if (typeof refreshData === "function") {
-                refreshData(); 
-            } else {
-                console.warn("refreshData function not found. Fleet will not load.");
-            }
-
-        } else {
-            msg.innerText = "Invalid credentials.";
-        }
-    } catch (err) {
-        console.error("Login Error:", err);
-        msg.innerText = "System Error: Check Console (F12)";
+                
+                document.body.classList.add('authorized');
+                init(); 
+            } else { msg.innerText = "Invalid Login."; }
+        } catch (e) { msg.innerText = "Connection Failed."; }
     }
-}
+
     function getFullUrl(params) {
         const r = sessionStorage.getItem('region'), s = sessionStorage.getItem('siteView'), u = sessionStorage.getItem('user');
         return `${API}?${params}&userRegion=${encodeURIComponent(r)}&siteView=${encodeURIComponent(s)}&user=${encodeURIComponent(u)}&v=${Date.now()}`;
@@ -353,48 +320,23 @@ async function handleLogin() {
     const selModel = document.getElementById('modelSelect').value;
     const rows = document.querySelectorAll('#fleet-summary-body tr');
     
-    // 1. VISUAL FILTER (Keep the rows you already have)
+    let visibleCount = 0;
+    let totalLoad = 0;
+
     rows.forEach(row => {
+        // We pull the data-attributes we "stamped" in the updateUI function
         const rReg = row.getAttribute('data-region') || "";
         const rMod = row.getAttribute('data-model') || "";
 
+        // FIX FOR PUNE/MGMT: 
+        // If Region is "All India", match everything for region.
+        // Then apply the Model filter on top of that.
         const regionMatch = (selRegion === "All India (National)" || selRegion === "All" || rReg === selRegion);
-        const modelMatch = (selModel === "All Models" || selModel === "" || rMod === selModel);
+        const modelMatch = (selModel === "" || rMod === selModel);
 
         if (regionMatch && modelMatch) {
-            row.style.display = ""; 
-        } else {
-            row.style.display = "none";
-        }
-    });
-
-    // 2. SERVER UPDATE (Fetch the new Fleet Dropdown list)
-    // This is the part that fixes the "No Rigs Found" error
-    const scriptUrl = "YOUR_SCRIPT_URL_HERE"; // Ensure this matches your deployment
-    
-    google.script.run
-        .withSuccessHandler(function(rigs) {
-            const fleetDrop = document.getElementById("fleetSelect"); // Or your Rig ID dropdown ID
-            fleetDrop.innerHTML = ""; // Clear old rigs
-            
-            if (rigs && rigs.length > 0) {
-                rigs.forEach(rig => {
-                    let opt = document.createElement("option");
-                    opt.value = rig;
-                    opt.text = rig;
-                    fleetDrop.add(opt);
-                });
-            } else {
-                fleetDrop.add(new Option("No Rigs Available", ""));
-            }
-        })
-        .doGet({
-            get: "list",
-            userRegion: selRegion,
-            model: selModel,
-            user: currentLoggedUser // This ensures the script's security block works
-        });
-}
+            row.style.display = ""; // Show matching row
+            visibleCount++;
             
             // Extract Load % for the Sidebar Stats
             const loadVal = parseFloat(row.cells[2].innerText.replace('%', '')) || 0;
@@ -559,41 +501,3 @@ async function updateRigDropdown() {
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
