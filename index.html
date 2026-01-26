@@ -283,7 +283,9 @@
     if (data.summary && data.summary.length > 0) {
         // Safe ID matching for the Audit Warning
         const selectedRigId = rigSelectElem ? rigSelectElem.value.trim() : "";
-        const selectedRigData = data.summary.find(r => r.id.trim() === selectedRigId);
+        const selectedRigData = data.summary.find(r => 
+    r.id.trim().toUpperCase() === selectedRigId.toUpperCase()
+);
         
         // Timer Logic for 15s Auto-Close
         if (window.warningTimer) clearTimeout(window.warningTimer);
@@ -438,6 +440,7 @@ async function updateRigDropdown() {
 </script>
 </body>
 </html>
+
 
 
 
