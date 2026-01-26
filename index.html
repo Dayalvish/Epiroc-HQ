@@ -242,43 +242,40 @@
         } catch (e) { console.error("Init Error:", e); }
     }
 
-   async function refreshData() {
-        // 1. Get the current User from session
-        const u = sessionStorage.getItem('user');
+   async function updateModelDropdown() {
+    const region = document.getElementById('cityFocus').value;
+    const modelSelect = document.getElementById('modelSelect');
+    
+    // Fetch models active at this specific site/region
+    const res = await fetch(getFullUrl(`get=model_list&userRegion=${encodeURIComponent(region)}`));
+    const models = await res.json();
+    
+    modelSelect.innerHTML = '<option value="">All Models</option>' + 
+        models.map(m => `<option value="${m}">${m}</option>`).join('');
         
-        // 2. Get the selection from the REGION SECTOR dropdown
-        const cityDrop = document.querySelector('#mgmt-city-box select');
-        const selectedLocation = cityDrop ? cityDrop.value : "All";
-
-        // 3. Build the URL with the new location focus
-        const url = `${API}?get=summary&user=${u}&userRegion=${encodeURIComponent(selectedLocation)}`;
-
-        try {
-            const resp = await fetch(url);
-            const data = await resp.json();
-            
-            // This calls your UI update function to refresh table/vitals
-            updateUI(data);
-            
-        } catch (err) {
-            console.error("Refresh failed:", err);
-        }
-    }
-
-    // This replaces the broken fragment that was causing the freeze
-    async function applyGlobalFiltersAndRefresh() {
-        await updateModelDropdown(); 
-        refresh();
-    }
-        
-        // 4. Immediately trigger a refresh to update Vitals and Charts for the new first rig
-        refresh();
-    } catch (e) {
-        console.error("Rig list sync failed:", e);
-        rigSelect.innerHTML = '<option value="">Error Loading</option>';
-    }
+    updateRigDropdown(); // Move to the next step
 }
 
+async function updateRigDropdown() {
+    const region = document.getElementById('cityFocus').value;
+    const model = document.getElementById('modelSelect').value;
+    const rigSelect = document.getElementById('rigSelect');
+    
+    rigSelect.innerHTML = '<option value="">Loading...</option>';
+    
+    const res = await fetch(getFullUrl(`get=list&userRegion=${encodeURIComponent(region)}&model=${encodeURIComponent(model)}`));
+    const rigs = await res.json();
+    
+    if (rigs && rigs.length > 0) {
+        rigSelect.innerHTML = rigs.map((id, index) => 
+            `<option value="${id}" ${index === 0 ? 'selected' : ''}>${id}</option>`
+        ).join('');
+    } else {
+        rigSelect.innerHTML = '<option value="">No Rigs Found</option>';
+    }
+    
+    refresh(); // Final step: Get data and draw charts
+}
     async function refresh() {
         const rig = document.getElementById('rigSelect').value;
         const month = document.getElementById('monthFilter').value; 
@@ -532,6 +529,7 @@ async function updateRigDropdown() {
 </script>
 </body>
 </html>
+
 
 
 
