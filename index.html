@@ -166,7 +166,7 @@
     const API = "https://script.google.com/macros/s/AKfycbzOIHZWm_YK0fZQ5Dy8Q5kuMg1IX4ZFSzTKPgmkDuTzAKcnmI262ZP4bWCrSnKBe7Mn/exec"; 
     let chart = null, globalData = null;
 
-    // --- 1. LOGIN & AUTH ---
+   // --- 1. LOGIN & AUTH (BARRIER BREAKER VERSION) ---
     async function handleLogin() {
         const u = document.getElementById('userIn').value;
         const p = document.getElementById('passIn').value;
@@ -178,21 +178,43 @@
         try {
             const resp = await fetch(`${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`);
             const data = await resp.json();
+            
             if (data.success) {
+                // SAVE TO SESSION (Use data.region as the logger name)
                 sessionStorage.setItem('region', data.region);
                 sessionStorage.setItem('siteView', data.siteView);
                 sessionStorage.setItem('user', u);
-                sessionStorage.setItem('logger', data.logger);
-                document.getElementById('id-badge').innerText = `${u}-${data.logger}`;
+                sessionStorage.setItem('role', data.role);
+
+                // FIX: Update the Badge (Matches epiroc_hyderabad-Hyderabad)
+                document.getElementById('id-badge').innerText = `${u}-${data.region}`;
                 
-                if(data.role === 'mgmt') { 
+                // --- DYNAMIC CITY DROPDOWN SYNC ---
+                const cityFocus = document.getElementById('cityFocus');
+                if (data.role === 'mgmt') {
+                    document.getElementById('mgmt-city-box').style.display = 'block';
+                    cityFocus.value = "All"; // Default for Mgmt
+                } else {
                     document.getElementById('mgmt-city-box').style.display = 'block'; 
+                    // Lock the dropdown to the user's region
+                    cityFocus.innerHTML = `<option value="${data.region}">${data.region}</option>`;
+                    cityFocus.value = data.region;
+                    cityFocus.disabled = true; 
                 }
+
+                // Hide login, show dashboard
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('dashboard-content').style.display = 'block';
                 
-                document.body.classList.add('authorized');
-                init(); 
-            } else { msg.innerText = "Invalid Login."; }
-        } catch (e) { msg.innerText = "Connection Failed."; }
+                // Trigger the data load
+                refreshData(); 
+            } else {
+                msg.innerText = "Invalid credentials.";
+            }
+        } catch (err) {
+            console.error(err);
+            msg.innerText = "Connection error. Check Console (F12).";
+        }
     }
 
     function getFullUrl(params) {
@@ -520,6 +542,7 @@ async function updateRigDropdown() {
 </script>
 </body>
 </html>
+
 
 
 
