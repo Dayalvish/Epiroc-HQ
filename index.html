@@ -279,13 +279,13 @@
     const warningBox = document.getElementById('auditWarning');
     const rigSelectElem = document.getElementById('rigSelect');
     
+    // 1. DYNAMIC SUMMARY TABLE & AUDIT WARNING (< 15)
     if (data.summary && data.summary.length > 0) {
         const selectedRigId = rigSelectElem ? rigSelectElem.value.trim().toUpperCase() : "";
         const selectedRigData = data.summary.find(r => String(r.id).trim().toUpperCase() === selectedRigId);
         
         if (window.warningTimer) clearTimeout(window.warningTimer);
 
-        // --- UPDATED AUDIT THRESHOLD: LESS THAN 15 ---
         if (selectedRigData && parseInt(selectedRigData.audits) < 15) {
             warningBox.style.display = 'block';
             warningBox.innerHTML = `⚠️ RIG ${selectedRigId} HAS ONLY ${selectedRigData.audits} AUDITS (Target: 15)`;
@@ -311,7 +311,7 @@
             </tr>`).join('');
     }
 
-    // Machine Vitals
+    // 2. MACHINE VITALS
     if (data.vitals) {
         document.getElementById('v-date').innerText = data.vitals.date || "--"; 
         document.getElementById('v-boost').innerText = data.vitals.boost || "0";
@@ -319,11 +319,6 @@
         document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
         document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
     }
-
-    applyGlobalFilters(); 
-    drawChart(); 
-    document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
-}
 
     // 3. TRIGGER ALERTS SIDEBAR
     const alertList = document.getElementById('alert-list');
@@ -337,14 +332,14 @@
         alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green);">✅ ALL NORMAL</div>`; 
     }
 
-    // 4. THE CASCADING TRIGGERS (Restores Filter & Chart)
+    // 4. THE CASCADING TRIGGERS
     applyGlobalFilters(); 
     drawChart(); 
     document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
-} // Function officially closed here
+}
+
 // 5. SAFE FILTERING FUNCTION
 function applyGlobalFilters() {
-    // Safety check: handle cases where cityFocus dropdown is hidden
     const cityElem = document.getElementById('cityFocus');
     const selRegion = cityElem ? cityElem.value : "All";
     const selModel = document.getElementById('modelSelect').value;
@@ -485,6 +480,7 @@ async function updateRigDropdown() {
 </script>
 </body>
 </html>
+
 
 
 
