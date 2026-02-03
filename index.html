@@ -216,8 +216,26 @@
     text-align: right; 
     color: var(--ey); 
     font-weight: bold; 
-    font-size: 1.25rem; /* Large and bold for visibility */
-    padding-right: 10px; /* Pushed further to the right */
+    font-size: 1.4rem; /* Larger font */
+    padding-right: 15px; /* Pushed to the right */
+    letter-spacing: 1px;
+}
+
+.timestamp { 
+    font-size: 0.7rem; 
+    color: #888; 
+    text-align: left !important; /* Forces left alignment */
+    margin-top: 10px; 
+    display: block;
+}
+
+/* Reduced Export Buttons */
+.btn-red, .btn-green {
+    font-size: 0.7rem;
+    padding: 6px;
+    height: auto;
+    width: 48%; /* Allows them to sit side-by-side if you prefer, or 100% for stack */
+    display: inline-block;
 }
 
     /* =========================================
@@ -524,23 +542,24 @@
     }
 }
 
-  function updateUI(data) {
+function updateUI(data) {
+    // 1. SELECTOR & BOX ELEMENTS
     const summaryBody = document.getElementById('fleet-summary-body');
     const warningBox = document.getElementById('auditWarning');
     const rigSelectElem = document.getElementById('rigSelect');
     
     // Safety check: Find the currently selected rig's data
-    const selectedRigId = rigSelectElem.value;
+    const selectedRigId = rigSelectElem ? rigSelectElem.value : null;
     const rigData = data.find(r => r.rig_id === selectedRigId);
 
-    // 1. RUN AUDIT LOGIC (Only if a rig is selected)
+    // 2. RUN AUDIT LOGIC
     if (rigData) {
         checkAuditProgress(rigData);
-    } else {
-        if (warningBox) warningBox.style.display = 'none';
+    } else if (warningBox) {
+        warningBox.style.display = 'none';
     }
 
-    // 2. RE-POPULATE SUMMARY TABLE
+    // 3. RE-POPULATE SUMMARY TABLE
     if (summaryBody) {
         summaryBody.innerHTML = data.map(r => `
             <tr>
@@ -556,64 +575,61 @@
             </tr>
         `).join('');
     }
+
+    // 4. UPDATE MACHINE VITALS (Moved inside function)
+    // Assuming 'data' contains a vitals object or we use the selected rigData
+    const vitalsSource = rigData || data[0]; // Fallback to first rig if none selected
+    
+    if (vitalsSource) {
+        const dateEl = document.getElementById('vitals-date-stamp');
+        if (dateEl) dateEl.innerText = "Data as of: " + (vitalsSource.date || "--"); 
+
+        if (document.getElementById('v-boost')) document.getElementById('v-boost').innerText = vitalsSource.boost || "0";
+        if (document.getElementById('v-fuel')) document.getElementById('v-fuel').innerText = vitalsSource.fuel || "0";
+        if (document.getElementById('v-receiver')) document.getElementById('v-receiver').innerText = vitalsSource.rec || "0";
+        
+        const tempEl = document.getElementById('v-temp');
+        if (tempEl) tempEl.innerText = (vitalsSource.temp || "0") + "°C";
+    }
+
+    // 5. TRIGGER ALERTS SIDEBAR (Moved inside function)
+    const alertList = document.getElementById('alert-list');
+    if (alertList) {
+        if (vitalsSource && vitalsSource.alerts && vitalsSource.alerts.length > 0) {
+            alertList.innerHTML = vitalsSource.alerts.map(a => `
+                <div class="alert-card" style="border-left:4px solid var(--red); background:rgba(255,77,77,0.1); padding:8px; margin-bottom:8px; border-radius:4px;">
+                    <b style="color:var(--ey); font-size:0.7rem;">UNIT: ${a.rig}</b><br>
+                    <b style="color:var(--red); font-size:0.8rem;">⚠️ ${a.parameter}</b>
+                </div>`).join('');
+        } else { 
+            alertList.innerHTML = `
+                <div style="text-align:center; padding:15px; color:var(--green); font-weight:bold;">
+                    <span class="live-dot"></span> ALL PARAMETERS NORMAL
+                </div>`; 
+        }
+    }
+    
+    // 6. DRAW CHART
+    if (typeof drawChart === "function") {
+        drawChart();
+    }
 }
 
-// MOVE THIS OUTSIDE updateUI so it can be used anywhere
+// Keep this outside
 function checkAuditProgress(rigData) {
     const now = new Date();
     const currentDay = now.getDate(); 
     const auditsDone = parseInt(rigData.audits || 0);
-    const dynamicTarget = currentDay; 
-    
     const warningEl = document.getElementById('auditWarning');
-    if (!warningEl) return; // Prevent crash if element is missing
+    if (!warningEl) return;
 
-    if (auditsDone < dynamicTarget) {
+    if (auditsDone < currentDay) {
         warningEl.style.display = 'block';
-        warningEl.innerHTML = `⚠️ RIG ${rigData.rig_id} PROGRESS: ${auditsDone}/${dynamicTarget} AUDITS (Target: 1/Day)`;
-        
-        // Color Logic: Red if more than 2 days behind, Orange if slightly behind
-        warningEl.style.background = (dynamicTarget - auditsDone > 2) ? 'var(--red)' : '#e67e22';
+        warningEl.innerHTML = `⚠️ RIG ${rigData.rig_id} PROGRESS: ${auditsDone}/${currentDay} AUDITS (Required: 1 Per Day)`;
+        warningEl.style.background = (currentDay - auditsDone > 2) ? 'var(--red)' : '#e67e22';
     } else {
         warningEl.style.display = 'none';
     }
-}
-    // 2. MACHINE VITALS (Updated to match new Right Sidebar IDs)
-if (data.vitals) {
-    // Target the new Left-Aligned Date Stamp
-    const dateEl = document.getElementById('vitals-date-stamp');
-    if (dateEl) dateEl.innerText = "Data as of: " + (data.vitals.date || "--"); 
-
-    // Target the new Vital IDs
-    if (document.getElementById('v-boost')) document.getElementById('v-boost').innerText = data.vitals.boost || "0";
-    if (document.getElementById('v-fuel')) document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
-    if (document.getElementById('v-receiver')) document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
-    
-    // Target the new Temp ID
-    const tempEl = document.getElementById('v-temp');
-    if (tempEl) tempEl.innerText = (data.vitals.hyd || "0") + "°C";
-}
-
-// 3. TRIGGER ALERTS SIDEBAR (Updated to match new HTML)
-const alertList = document.getElementById('alert-list');
-if (alertList) {
-    if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
-        alertList.innerHTML = data.vitals.alerts.map(a => `
-            <div class="alert-card" style="border-left:4px solid var(--red); background:rgba(255,77,77,0.1); padding:8px; margin-bottom:8px; border-radius:4px;">
-                <b style="color:var(--ey); font-size:0.7rem;">UNIT: ${a.rig}</b><br>
-                <b style="color:var(--red); font-size:0.8rem;">⚠️ ${a.parameter}</b>
-            </div>`).join('');
-    } else { 
-        alertList.innerHTML = `
-            <div style="text-align:center; padding:15px; color:var(--green); font-weight:bold;">
-                <span class="live-dot"></span> ALL PARAMETERS NORMAL
-            </div>`; 
-    }
-}
-    // 4. THE CASCADING TRIGGERS
-    applyGlobalFilters(); 
-    drawChart(); 
-    document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
 }
 
 // 5. SAFE FILTERING FUNCTION
@@ -758,5 +774,6 @@ async function updateRigDropdown() {
 </script>
 </body>
 </html>
+
 
 
