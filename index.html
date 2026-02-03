@@ -400,7 +400,7 @@
         const u = document.getElementById('userIn').value;
         const p = document.getElementById('passIn').value;
         const msg = document.getElementById('login-msg');
-        if (!u || !p) { msg.innerText = "Please enter credentials."; return; }
+        if (!u || !p) { msg.innerText = "Credentials required."; return; }
         msg.innerText = "Authenticating...";
         try {
             const resp = await fetch(`${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`);
@@ -414,7 +414,7 @@
                 if(data.role === 'mgmt') document.getElementById('mgmt-city-box').style.display = 'block'; 
                 document.body.classList.add('authorized');
                 init(); 
-            } else { msg.innerText = "Invalid Login."; }
+            } else { msg.innerText = "Invalid Access."; }
         } catch (e) { msg.innerText = "Connection Failed."; }
     }
 
@@ -431,128 +431,147 @@
             const mList = await mRes.json();
             document.getElementById('modelSelect').innerHTML = '<option value="">All Models</option>' + mList.map(m => `<option value="${m}">${m}</option>`).join('');
             await updateRigDropdown(); 
-            if (window.refreshInterval) clearInterval(window.refreshInterval);
-            window.refreshInterval = setInterval(() => { refresh(); }, 60000); 
-        } catch (e) { console.error("Init Error:", e); }
+        } catch (e) { console.error("Init Error"); }
+    }
+
+    async function updateRigDropdown() {
+        const model = document.getElementById('modelSelect').value;
+        const rigSelect = document.getElementById('rigSelect');
+        rigSelect.innerHTML = '<option>Loading...</option>';
+        try {
+            const res = await fetch(getFullUrl(`get=list&model=${encodeURIComponent(model)}`));
+            const rigs = await res.json();
+            rigSelect.innerHTML = rigs.map((id, i) => `<option value="${id}" ${i===0?'selected':''}>${id}</option>`).join('');
+            refresh();
+        } catch (e) { rigSelect.innerHTML = '<option>Error</option>'; }
+    }
+
+    async function refresh() {
+        const rig = document.getElementById('rigSelect').value;
+        const month = document.getElementById('monthFilter').value; 
+        const mode = document.getElementById('dataSource').value; 
+        const alertList = document.getElementById('alert-list');
+        if (alertList) alertList.innerHTML = "Scanning..."; // Reset status
+        try {
+            const res = await fetch(getFullUrl(`get=data&rig=${encodeURIComponent(rig)}&month=${month}&mode=${mode}`));
+            const data = await res.json();
+            globalData = data; 
+            updateUI(data);
+        } catch (err) { 
+            console.error("Refresh Error"); 
+            if (alertList) alertList.innerHTML = "<span style='color:red'>Data Sync Failed</span>";
+        }
     }
 
     function updateUI(data) {
-    const summaryBody = document.getElementById('fleet-summary-body');
-    const warningBox = document.getElementById('auditWarning');
-    const rigSelectElem = document.getElementById('rigSelect');
-    
-    if (data.summary && data.summary.length > 0) {
-        const currentDay = new Date().getDate(); // Feb 4th = 4
-        const selectedId = rigSelectElem ? rigSelectElem.value.trim().toUpperCase() : "";
-        const selectedRigData = data.summary.find(r => String(r.id).trim().toUpperCase() === selectedId);
+        try {
+            const summaryBody = document.getElementById('fleet-summary-body');
+            const warningBox = document.getElementById('auditWarning');
+            const rigSelectElem = document.getElementById('rigSelect');
+            const currentDay = new Date().getDate(); 
+            const selectedId = rigSelectElem ? rigSelectElem.value.toUpperCase() : "";
 
-        // 1. TOP BLINKING WARNING (15 Second Timer)
-        if (selectedRigData && parseInt(selectedRigData.audits) < currentDay) {
-            warningBox.style.display = 'block';
-            warningBox.innerHTML = `⚠️ AUDIT ALERT: RIG ${selectedId} IS BEHIND (${selectedRigData.audits}/${currentDay}). CLICK TO CLOSE.`;
-            
-            if (window.auditTimer) clearTimeout(window.auditTimer);
-            window.auditTimer = setTimeout(() => {
-                warningBox.style.display = 'none';
-            }, 15000);
-        } else {
-            warningBox.style.display = 'none';
+            if (data.summary) {
+                const rigInfo = data.summary.find(r => String(r.id).toUpperCase() === selectedId);
+
+                // --- 1. Audit Warning Logic (Top Bar) ---
+                if (rigInfo && parseInt(rigInfo.audits) < currentDay) {
+                    warningBox.style.display = 'block';
+                    warningBox.innerHTML = `⚠️ CRITICAL: RIG ${selectedId} IS BEHIND (${rigInfo.audits}/${currentDay} AUDITS). CLICK TO CLOSE.`;
+                    if (window.auditTimer) clearTimeout(window.auditTimer);
+                    window.auditTimer = setTimeout(() => { warningBox.style.display = 'none'; }, 15000);
+                } else {
+                    warningBox.style.display = 'none';
+                }
+
+                // --- 2. Table Population ---
+                summaryBody.innerHTML = data.summary.map(r => `
+                    <tr style="${String(r.id).toUpperCase() === selectedId ? 'background:rgba(241,196,15,0.1); outline:1px solid var(--ey);' : ''}">
+                        <td><b>${r.id}</b></td>
+                        <td style="color:${parseInt(r.audits) < currentDay ? 'var(--red)' : 'var(--green)'}">${r.audits}</td>
+                        <td style="color:var(--ey)">${r.avgLoad}%</td>
+                        <td>${r.avgTemp}°C</td><td>${r.avgOil}</td><td>${r.avgFuel}</td>
+                        <td>${r.avgAir}</td><td>${r.avgBit}</td><td>${r.avgImpact}</td>
+                    </tr>`).join('');
+            }
+
+            // --- 3. Machine Vitals ---
+            if (data.vitals) {
+                const v = data.vitals;
+                document.getElementById('v-boost').innerText = v.boost || "--";
+                document.getElementById('v-fuel').innerText = v.fuel || "--";
+                document.getElementById('v-receiver').innerText = v.rec || "--";
+                document.getElementById('v-temp').innerText = (v.hyd || "--") + "°C";
+                document.getElementById('vitals-date-stamp').innerText = "Data as of: " + (v.date || "--");
+            }
+
+            // --- 4. STOP THE "SCANNING" MESSAGE ---
+            const al = document.getElementById('alert-list');
+            if (al) al.innerHTML = `<div style="text-align:center; padding:15px; color:var(--green); font-weight:bold;">● ALL SYSTEMS NORMAL</div>`;
+
+            drawChart();
+        } catch (e) {
+            console.error("UI Error:", e);
+            const al = document.getElementById('alert-list');
+            if (al) al.innerHTML = "<span style='color:red'>Render Error. Check Console.</span>"; //
+        }
+    }
+
+    function drawChart() {
+        const plotData = globalData?.monthlyData || globalData?.history || [];
+        const canvas = document.getElementById('mainChart');
+        if (!canvas || plotData.length === 0) {
+            if (chart) chart.destroy();
+            return;
         }
 
-        // 2. SUMMARY TABLE POPULATION
-        summaryBody.innerHTML = data.summary.map(r => {
-            const isSelected = String(r.id).trim().toUpperCase() === selectedId;
-            return `
-                <tr style="${isSelected ? 'background:rgba(241,196,15,0.15); outline:1px solid var(--ey);' : ''}">
-                    <td><b>${r.id}</b></td>
-                    <td style="color:${parseInt(r.audits) < currentDay ? 'var(--red)' : 'var(--green)'}">${r.audits}</td>
-                    <td style="color:var(--ey)">${r.avgLoad}%</td>
-                    <td>${r.avgTemp}</td>
-                    <td>${r.avgOil}</td>
-                    <td>${r.avgFuel}</td>
-                    <td>${r.avgAir}</td>
-                    <td>${r.avgBit}</td>
-                    <td>${r.avgImpact}</td>
-                </tr>`;
-        }).join('');
-    }
-
-    // 3. MACHINE VITALS SYNC
-    if (data.vitals) {
-        document.getElementById('v-boost').innerText = data.vitals.boost || "0";
-        document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
-        document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
-        document.getElementById('v-temp').innerText = (data.vitals.hyd || "0") + "°C";
-        document.getElementById('vitals-date-stamp').innerText = "Data as of: " + (data.vitals.date || "--");
-    }
-
-    // 4. CHART TRIGGER
-    drawChart();
-}
-
-function drawChart() {
-    // Structure Guard: Looks for any available trend array
-    const d = globalData?.monthlyData || globalData?.history || [];
-    const canvas = document.getElementById('mainChart');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    
-    if (chart) chart.destroy();
-    if (d.length === 0) return;
-
-    const mode = document.getElementById('chartMode').value;
-    const labels = d.map(x => x.date || x.day || "");
-    let datasets = [];
-
-    // All Axis Modes Mapped
-    if (mode === 'tempVsOil') {
-        datasets = [
-            { label: 'Oil bar', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'y' },
-            { label: 'Temp °C', data: d.map(x => x.temp), borderColor: '#ff4d4d', yAxisID: 'y1' },
-            { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'y1', borderDash: [5, 5] }
-        ];
-    } else if (mode === 'loadVsComp') {
-        datasets = [
-            { label: 'Load %', data: d.map(x => x.load), borderColor: '#f1c40f' },
-            { label: 'Comp %', data: d.map(x => x.comp), borderColor: '#3498db' }
-        ];
-    } else if (mode === 'hydro_impact') {
-        datasets = [
-            { label: 'Impact', data: d.map(x => x.impact || x.imp), borderColor: '#f1c40f' },
-            { label: 'Feed', data: d.map(x => x.feed || x.fd), borderColor: '#e67e22' },
-            { label: 'Damper', data: d.map(x => x.damper || x.dmp), borderColor: '#3498db' }
-        ];
-    }
-
-    chart = new Chart(ctx, {
-        type: 'line',
-        data: { labels, datasets },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
+        const ctx = canvas.getContext('2d');
+        if (chart) chart.destroy();
+        
+        const mode = document.getElementById('chartMode').value;
+        const labels = plotData.map(x => x.date || x.day || "");
+        let datasets = [];
+        
+        let opt = {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#fff' } } },
             scales: {
-                y: { beginAtZero: true, grid: { color: '#222' }, ticks: { color: '#fff' } },
-                y1: { position: 'right', display: mode === 'tempVsOil', grid: { drawOnChartArea: false }, ticks: { color: '#ff4d4d' } }
-            },
-            plugins: { legend: { labels: { color: '#fff' } } }
+                x: { grid: { color: '#222' }, ticks: { color: '#888' } },
+                y: { grid: { color: '#222' }, ticks: { color: '#fff' }, beginAtZero: true }
+            }
+        };
+
+        if (mode === 'tempVsOil') {
+            datasets = [
+                { label: 'Oil bar', data: plotData.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'y', tension: 0.3 },
+                { label: 'Temp °C', data: plotData.map(x => x.temp), borderColor: '#ff4d4d', yAxisID: 'yRight', tension: 0.3 }
+            ];
+            opt.scales.yRight = { position: 'right', grid: { drawOnChartArea: false } };
+        } else if (mode === 'hydro_impact') {
+            datasets = [
+                { label: 'Impact', data: plotData.map(x => x.impact || x.imp), borderColor: '#f1c40f' },
+                { label: 'Feed', data: plotData.map(x => x.feed || x.fd), borderColor: '#e67e22' },
+                { label: 'Damper', data: plotData.map(x => x.damper || x.dmp), borderColor: '#3498db' }
+            ];
+        } else {
+            datasets = [{ label: 'Engine Load %', data: plotData.map(x => x.load), borderColor: '#f1c40f' }];
         }
-    });
-}
+
+        chart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: opt });
+    }
+
     function exportToExcel() {
         const table = document.getElementById("summary-tbl");
         const url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
         const link = document.createElement('a');
-        link.download = "Report.xls"; link.href = url; link.click();
+        link.download = "Epiroc_Report.xls"; link.href = url; link.click();
     }
 
-    window.onload = function() {
-        const now = new Date();
-        const mFilter = document.getElementById('monthFilter');
-        if (mFilter) mFilter.value = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
-    };
+    window.onload = init;
 </script>
 </body>
 </html>
+
 
 
 
