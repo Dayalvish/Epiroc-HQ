@@ -552,31 +552,23 @@
 
 function updateUI(data) {
     try {
-        // 1. ELEMENTS CHECK
         const summaryBody = document.getElementById('fleet-summary-body');
         const rigSelectElem = document.getElementById('rigSelect');
-        const alertList = document.getElementById('alert-list'); // DECLARE ONCE HERE
+        const alertList = document.getElementById('alert-list');
         
         if (!data || data.length === 0) return;
 
-        // 2. GET SELECTION SAFELY
-        const selectedRigId = rigSelectElem && rigSelectElem.value ? rigSelectElem.value : null;
+        // SAFE DATA MATCHING: Checks both 'rig_id' and 'RigID'
+        const selectedId = rigSelectElem ? rigSelectElem.value : "";
+        let rigData = data.find(r => 
+            String(r.rig_id || r.RigID || "").toLowerCase() === String(selectedId).toLowerCase()
+        );
 
-        // 3. FIND RIG DATA
-        let rigData = data.find(r => {
-            const rId = r.rig_id || r.RigID || r.id; 
-            return String(rId).toLowerCase() === String(selectedRigId).toLowerCase();
-        });
+        // FALLBACK: If no match, take the first rig so the screen isn't blank
+        if (!rigData) rigData = data[0];
 
-        // 4. FALLBACK
-        if (!rigData && data.length > 0) {
-            rigData = data[0];
-        }
-
-        // 5. AUDIT CHECK (Pro-rata Logic)
-        if (typeof checkAuditProgress === "function" && rigData) {
-            checkAuditProgress(rigData);
-        }
+        // 1. DYNAMIC AUDIT LOGIC (The Pro-Rata 1-per-day fix)
+        checkAuditProgress(rigData);
 
         // 6. UPDATE VITALS
         const safeSet = (id, val) => {
@@ -616,17 +608,20 @@ function updateUI(data) {
         console.error("UI Update Error:", err);
     }
 }
-// Keep this outside
 function checkAuditProgress(rigData) {
     const now = new Date();
-    const currentDay = now.getDate(); 
+    const currentDay = now.getDate(); // Today's date (e.g., 4th Feb)
     const auditsDone = parseInt(rigData.audits || 0);
     const warningEl = document.getElementById('auditWarning');
+    
     if (!warningEl) return;
 
+    // TARGET: 1 Audit per day. If today is the 4th, target is 4.
     if (auditsDone < currentDay) {
         warningEl.style.display = 'block';
-        warningEl.innerHTML = `⚠️ RIG ${rigData.rig_id} PROGRESS: ${auditsDone}/${currentDay} AUDITS (Required: 1 Per Day)`;
+        warningEl.innerHTML = `⚠️ RIG ${rigData.rig_id || 'ID'}: ${auditsDone}/${currentDay} AUDITS DONE (Required: 1 Per Day)`;
+        
+        // Red if > 2 days behind, Orange if 1-2 days behind
         warningEl.style.background = (currentDay - auditsDone > 2) ? 'var(--red)' : '#e67e22';
     } else {
         warningEl.style.display = 'none';
@@ -772,9 +767,23 @@ async function updateRigDropdown() {
     // Trigger refresh to update the table and charts for the new selection
     refresh();
 }
+    // ADD THIS AT THE VERY BOTTOM OF YOUR SCRIPT TAG
+window.onload = function() {
+    const now = new Date();
+    const mFilter = document.getElementById('monthFilter');
+    if (mFilter) {
+        // Sets the default month so the first fetch isn't empty
+        mFilter.value = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
+    }
+    // If already authorized (page refresh), start the init
+    if (document.body.classList.contains('authorized')) {
+        init();
+    }
+}
 </script>
 </body>
 </html>
+
 
 
 
