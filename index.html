@@ -543,75 +543,93 @@
 }
 
 function updateUI(data) {
-    // 1. SELECTOR & BOX ELEMENTS
-    const summaryBody = document.getElementById('fleet-summary-body');
-    const warningBox = document.getElementById('auditWarning');
-    const rigSelectElem = document.getElementById('rigSelect');
-    
-    // Safety check: Find the currently selected rig's data
-    const selectedRigId = rigSelectElem ? rigSelectElem.value : null;
-    const rigData = data.find(r => r.rig_id === selectedRigId);
+    try {
+        const summaryBody = document.getElementById('fleet-summary-body');
+        const warningBox = document.getElementById('auditWarning');
+        const rigSelectElem = document.getElementById('rigSelect');
+        const alertList = document.getElementById('alert-list');
+        
+        // Safety check: Is data empty?
+        if (!data || data.length === 0) {
+            if (alertList) alertList.innerHTML = "No data available.";
+            return;
+        }
 
-    // 2. RUN AUDIT LOGIC
-    if (rigData) {
-        checkAuditProgress(rigData);
-    } else if (warningBox) {
-        warningBox.style.display = 'none';
-    }
+        const selectedRigId = rigSelectElem ? rigSelectElem.value : null;
+        const rigData = data.find(r => r.rig_id === selectedRigId) || data[0];
 
-    // 3. RE-POPULATE SUMMARY TABLE
-    if (summaryBody) {
-        summaryBody.innerHTML = data.map(r => `
-            <tr>
-                <td>${r.rig_id}</td>
-                <td style="color:${parseInt(r.audits) < (new Date().getDate()) ? 'var(--red)' : 'var(--green)'}">${r.audits}</td>
-                <td>${r.load}%</td>
-                <td>${r.temp}°C</td>
-                <td>${r.oil}</td>
-                <td>${r.fuel}</td>
-                <td>${r.air}</td>
-                <td>${r.bit}</td>
-                <td>${r.impact}</td>
-            </tr>
-        `).join('');
-    }
+        // 1. RUN AUDIT LOGIC
+        if (rigData && typeof checkAuditProgress === "function") {
+            checkAuditProgress(rigData);
+        }
 
-    // 4. UPDATE MACHINE VITALS (Moved inside function)
-    // Assuming 'data' contains a vitals object or we use the selected rigData
-    const vitalsSource = rigData || data[0]; // Fallback to first rig if none selected
-    
-    if (vitalsSource) {
+        // 2. RE-POPULATE SUMMARY TABLE
+        if (summaryBody) {
+            summaryBody.innerHTML = data.map(r => `
+                <tr>
+                    <td>${r.rig_id}</td>
+                    <td style="color:${parseInt(r.audits) < (new Date().getDate()) ? 'var(--red)' : 'var(--green)'}">${r.audits}</td>
+                    <td>${r.load || 0}%</td>
+                    <td>${r.temp || 0}°C</td>
+                    <td>${r.oil || 0}</td>
+                    <td>${r.fuel || 0}</td>
+                    <td>${r.air || 0}</td>
+                    <td>${r.bit || 0}</td>
+                    <td>${r.impact || 0}</td>
+                </tr>
+            `).join('');
+        }
+
+        // 3. UPDATE MACHINE VITALS
         const dateEl = document.getElementById('vitals-date-stamp');
-        if (dateEl) dateEl.innerText = "Data as of: " + (vitalsSource.date || "--"); 
+        if (dateEl) dateEl.innerText = "Data as of: " + (rigData.date || "--"); 
 
-        if (document.getElementById('v-boost')) document.getElementById('v-boost').innerText = vitalsSource.boost || "0";
-        if (document.getElementById('v-fuel')) document.getElementById('v-fuel').innerText = vitalsSource.fuel || "0";
-        if (document.getElementById('v-receiver')) document.getElementById('v-receiver').innerText = vitalsSource.rec || "0";
+        // Safely update each vital (Prevents freeze if one ID is missing)
+        const updateVal = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = val || "0";
+        };
+
+        updateVal('v-boost', rigData.boost);
+        updateVal('v-fuel', rigData.fuel);
+        updateVal('v-receiver', rigData.rec || rigData.receiver);
         
         const tempEl = document.getElementById('v-temp');
-        if (tempEl) tempEl.innerText = (vitalsSource.temp || "0") + "°C";
-    }
+        if (tempEl) tempEl.innerText = (rigData.temp || rigData.hyd || "0") + "°C";
 
-    // 5. TRIGGER ALERTS SIDEBAR (Moved inside function)
-    const alertList = document.getElementById('alert-list');
-    if (alertList) {
-        if (vitalsSource && vitalsSource.alerts && vitalsSource.alerts.length > 0) {
-            alertList.innerHTML = vitalsSource.alerts.map(a => `
-                <div class="alert-card" style="border-left:4px solid var(--red); background:rgba(255,77,77,0.1); padding:8px; margin-bottom:8px; border-radius:4px;">
-                    <b style="color:var(--ey); font-size:0.7rem;">UNIT: ${a.rig}</b><br>
-                    <b style="color:var(--red); font-size:0.8rem;">⚠️ ${a.parameter}</b>
-                </div>`).join('');
-        } else { 
-            alertList.innerHTML = `
-                <div style="text-align:center; padding:15px; color:var(--green); font-weight:bold;">
-                    <span class="live-dot"></span> ALL PARAMETERS NORMAL
-                </div>`; 
+        // 4. TRIGGER ALERTS SIDEBAR (This stops the "Scanning" text)
+        if (alertList) {
+            if (rigData.alerts && rigData.alerts.length > 0) {
+                alertList.innerHTML = rigData.alerts.map(a => `
+                    <div class="alert-card" style="border-left:4px solid var(--red); background:rgba(255,77,77,0.1); padding:8px; margin-bottom:8px; border-radius:4px;">
+                        <b style="color:var(--ey); font-size:0.7rem;">UNIT: ${a.rig || rigData.rig_id}</b><br>
+                        <b style="color:var(--red); font-size:0.8rem;">⚠️ ${a.parameter}</b>
+                    </div>`).join('');
+            } else { 
+                alertList.innerHTML = `
+                    <div style="text-align:center; padding:15px; color:var(--green); font-weight:bold;">
+                        <span class="live-dot"></span> ALL PARAMETERS NORMAL
+                    </div>`; 
+            }
         }
-    }
-    
-    // 6. DRAW CHART
-    if (typeof drawChart === "function") {
-        drawChart();
+
+        // 5. UPDATE MINI STATS (Fleet Avg & Active Rigs)
+        const fleetLoad = data.reduce((acc, curr) => acc + parseFloat(curr.load || 0), 0) / data.length;
+        const avgLoadEl = document.getElementById('v-fleet-load');
+        if (avgLoadEl) avgLoadEl.innerText = fleetLoad.toFixed(1) + "%";
+
+        const activeRigsEl = document.getElementById('v-active-rigs');
+        if (activeRigsEl) activeRigsEl.innerText = data.length;
+
+        // 6. DRAW THE CHART
+        if (typeof drawChart === "function") {
+            drawChart();
+        }
+
+    } catch (criticalError) {
+        console.error("Dashboard Render Failed:", criticalError);
+        const alertList = document.getElementById('alert-list');
+        if (alertList) alertList.innerHTML = "<span style='color:red'>Render Error. Check Console.</span>";
     }
 }
 
@@ -774,6 +792,7 @@ async function updateRigDropdown() {
 </script>
 </body>
 </html>
+
 
 
 
