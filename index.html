@@ -523,7 +523,7 @@
     }
 }
 
-   async function refresh() {
+  async function refresh() {
     const rig = document.getElementById('rigSelect').value;
     const month = document.getElementById('monthFilter').value; 
     const mode = document.getElementById('dataSource').value; 
@@ -534,22 +534,24 @@
     try {
         const url = getFullUrl(`get=data&rig=${encodeURIComponent(rig)}&month=${month}&mode=${mode}`);
         const res = await fetch(url);
-        const data = await res.json();
+        const json = await res.json();
         
-        if (!data || data.length === 0) {
-            if (alertList) alertList.innerHTML = "<span style='color:var(--ey)'>No data found for this selection.</span>";
+        // CRITICAL FIX: Ensure we are passing an ARRAY to updateUI
+        const dataArray = Array.isArray(json) ? json : (json.data || json.fleet || []);
+        
+        if (dataArray.length === 0) {
+            if (alertList) alertList.innerHTML = "<span style='color:var(--ey)'>No data found.</span>";
             return;
         }
 
-        globalData = data; 
-        updateUI(data); 
+        globalData = json; // Keep the full object for the chart
+        updateUI(dataArray); // Pass the clean list to the UI
         
     } catch (err) { 
         console.error("Fetch Error:", err); 
-        if (alertList) alertList.innerHTML = "<span style='color:red'>Connection Error. Check Console.</span>";
+        if (alertList) alertList.innerHTML = "<span style='color:red'>Connection Error</span>";
     }
 }
-
 function updateUI(data) {
     try {
         const summaryBody = document.getElementById('fleet-summary-body');
@@ -804,6 +806,7 @@ window.onload = function() {
 </script>
 </body>
 </html>
+
 
 
 
