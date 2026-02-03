@@ -5,57 +5,106 @@
     <title>EPIROC CENTRAL PARAMETER DASH VIEW</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --ey: #f1c40f; --bg: #0d0d0d; --card: #1a1a1a; --red: #ff4d4d; --green: #2ecc71; --blue: #3498db; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 20px; overflow: hidden; }
-        
-        /* AUTH OVERLAY */
-        #login-overlay { position: fixed; inset: 0; background: var(--bg); display: flex; justify-content: center; align-items: center; z-index: 9999; }
-        .login-box { background: var(--card); padding: 40px; border-radius: 12px; border-top: 5px solid var(--ey); width: 350px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
-        .login-box input { width: 100%; padding: 12px; margin: 10px 0; background: #222; border: 1px solid #444; color: #fff; border-radius: 4px; box-sizing: border-box; }
-        .login-box button { width: 100%; padding: 12px; background: var(--ey); color: #000; border: none; font-weight: bold; border-radius: 4px; cursor: pointer; margin-top: 10px; }
+    /* 1. YOUR ORIGINAL VARIABLES & BASE */
+    :root { --ey: #f1c40f; --bg: #0d0d0d; --card: #1a1a1a; --red: #ff4d4d; --green: #2ecc71; --blue: #3498db; }
+    
+    html, body { 
+        height: 100%; 
+        margin: 0; 
+        padding: 0; 
+        overflow: hidden; /* Fixes the scrolling distortion */
+        font-family: 'Segoe UI', sans-serif; 
+        background: var(--bg); 
+        color: #fff; 
+    }
 
-        /* DASHBOARD LAYOUT */
-        #dashboard-content { opacity: 0; transition: 0.8s; pointer-events: none; }
-        .authorized #dashboard-content { opacity: 1; pointer-events: auto; }
-        .authorized #login-overlay { display: none; }
+    /* 2. AUTH OVERLAY (Original) */
+    #login-overlay { position: fixed; inset: 0; background: var(--bg); display: flex; justify-content: center; align-items: center; z-index: 9999; }
+    .login-box { background: var(--card); padding: 40px; border-radius: 12px; border-top: 5px solid var(--ey); width: 350px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+    .login-box input { width: 100%; padding: 12px; margin: 10px 0; background: #222; border: 1px solid #444; color: #fff; border-radius: 4px; box-sizing: border-box; }
+    .login-box button { width: 100%; padding: 12px; background: var(--ey); color: #000; border: none; font-weight: bold; border-radius: 4px; cursor: pointer; margin-top: 10px; }
 
-        .header { display: grid; grid-template-columns: 280px 1fr 280px; align-items: center; border-bottom: 3px solid var(--ey); padding-bottom: 15px; margin-bottom: 20px; }
-        .header-left { display: flex; flex-direction: column; align-items: flex-start; }
-        .header-center { text-align: center; }
-        .header-center h1 { margin: 0; font-size: 1.8rem; letter-spacing: 2px; }
+    /* 3. DASHBOARD CONTENT WRAPPER (Flexible Height Fix) */
+    #dashboard-content { 
+        display: flex;
+        flex-direction: column;
+        height: 100vh; /* Lock to window height */
+        padding: 15px;
+        box-sizing: border-box;
+        opacity: 0; 
+        transition: 0.8s; 
+        pointer-events: none; 
+    }
+    .authorized #dashboard-content { opacity: 1; pointer-events: auto; }
+    .authorized #login-overlay { display: none; }
 
-        .user-badge { background: var(--ey); color: #000; padding: 4px 12px; border-radius: 15px; font-weight: bold; font-size: 0.8rem; margin-top: 5px; display: inline-block; }
-        .live-dot { height: 10px; width: 10px; background: var(--green); border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; margin-right: 5px; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); } 100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); } }
+    /* 4. HEADER (Original Styles with flexible width) */
+    .header { 
+        display: grid; 
+        grid-template-columns: 280px 1fr 280px; 
+        align-items: center; 
+        border-bottom: 3px solid var(--ey); 
+        padding-bottom: 10px; 
+        margin-bottom: 10px;
+        flex-shrink: 0; 
+    }
+    .header-left { display: flex; flex-direction: column; align-items: flex-start; }
+    .header-center { text-align: center; }
+    .header-center h1 { margin: 0; font-size: 1.6rem; letter-spacing: 2px; }
 
-        /* GRID SYSTEM */
-        .main-layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 20px; }
-        .sidebar, .chart-area, .warning-sidebar { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); height: 85vh; overflow-y: auto; }
-        
-        /* SIDEBAR VITALS */
-        .vital-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #111; border: 1px solid #333; }
-        .vital-table td { padding: 10px; border-bottom: 1px solid #333; font-size: 0.8rem; }
-        .v-label { color: #888; text-transform: uppercase; font-size: 0.65rem; }
-        .v-value { text-align: right; color: var(--ey); font-weight: bold; font-size: 0.95rem; }
+    .user-badge { background: var(--ey); color: #000; padding: 4px 12px; border-radius: 15px; font-weight: bold; font-size: 0.8rem; margin-top: 5px; display: inline-block; }
+    .live-dot { height: 10px; width: 10px; background: var(--green); border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; margin-right: 5px; }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); } 100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); } }
 
-        /* SUMMARY TABLE */
-        .summary-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #111; font-size: 0.75rem; }
-        .summary-table th, .summary-table td { padding: 8px; border: 1px solid #333; text-align: center; }
-        .summary-table th { background: #222; color: var(--ey); text-transform: uppercase; }
+    /* 5. MAIN LAYOUT (The Scaling Fix) */
+    .main-layout { 
+        display: grid; 
+        grid-template-columns: 280px 1fr 300px; 
+        gap: 15px; 
+        flex-grow: 1; /* Makes the grid take up all remaining space */
+        min-height: 0; /* Critical for internal scrolling */
+    }
 
-        /* BUTTONS & SELECTS */
-        select, input { width: 100%; padding: 10px; margin-top: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; }
-        .mini-stats { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .mini-card { background: #222; padding: 10px; border-radius: 4px; text-align: center; border: 1px solid #333; }
-        .mini-card small { color: #888; display: block; font-size: 0.65rem; }
-        .mini-card span { font-size: 1rem; font-weight: bold; color: var(--ey); }
-        
-        .btn-red { background: var(--red); color: white; border:none; padding:12px; border-radius:4px; font-weight:bold; width:100%; margin-top:15px; cursor:pointer;}
-        .btn-green { background: #27ae60; color: white; border:none; padding:12px; border-radius:4px; font-weight:bold; width:100%; margin-top:10px; cursor:pointer;}
+    /* Unified Sidebar/Chart Styling with Internal Scroll */
+    .sidebar, .chart-area, .warning-sidebar { 
+        background: var(--card); 
+        padding: 15px; 
+        border-radius: 8px; 
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5); 
+        overflow-y: auto; /* Buttons will always be reachable via scroll */
+        height: 100%; /* Fill the grid row height */
+        box-sizing: border-box;
+    }
+    
+    /* 6. YOUR ORIGINAL COMPONENT STYLES */
+    .vital-table { width: 100%; border-collapse: collapse; margin-top: 10px; background: #111; border: 1px solid #333; }
+    .vital-table td { padding: 8px; border-bottom: 1px solid #333; font-size: 0.75rem; }
+    .v-label { color: #888; text-transform: uppercase; font-size: 0.65rem; }
+    .v-value { text-align: right; color: var(--ey); font-weight: bold; font-size: 0.9rem; }
 
-        #auditWarning { display: none; position: fixed; top: 15%; left: 50%; transform: translateX(-50%); background: var(--red); color: white; padding: 15px 30px; border-radius: 8px; font-weight: bold; z-index: 10000; animation: blinker 1s linear infinite; }
-        @keyframes blinker { 0% { opacity: 1; } 50% { opacity: 0.7; box-shadow: 0 0 20px rgba(255, 77, 77, 0.6); } 100% { opacity: 1; } }
-    </style>
+    .summary-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #111; font-size: 0.75rem; }
+    .summary-table th, .summary-table td { padding: 8px; border: 1px solid #333; text-align: center; }
+    .summary-table th { background: #222; color: var(--ey); text-transform: uppercase; position: sticky; top: 0; }
+
+    select, input { width: 100%; padding: 8px; margin-top: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; font-size: 0.85rem; }
+    
+    .mini-stats { margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .mini-card { background: #222; padding: 8px; border-radius: 4px; text-align: center; border: 1px solid #333; }
+    .mini-card small { color: #888; display: block; font-size: 0.6rem; }
+    .mini-card span { font-size: 0.9rem; font-weight: bold; color: var(--ey); }
+    
+    .btn-red { background: var(--red); color: white; border:none; padding:10px; border-radius:4px; font-weight:bold; width:100%; margin-top:10px; cursor:pointer;}
+    .btn-green { background: #27ae60; color: white; border:none; padding:10px; border-radius:4px; font-weight:bold; width:100%; margin-top:10px; cursor:pointer;}
+
+    #auditWarning { display: none; position: fixed; top: 15%; left: 50%; transform: translateX(-50%); background: var(--red); color: white; padding: 15px 30px; border-radius: 8px; font-weight: bold; z-index: 10000; animation: blinker 1s linear infinite; }
+    @keyframes blinker { 0% { opacity: 1; } 50% { opacity: 0.7; box-shadow: 0 0 20px rgba(255, 77, 77, 0.6); } 100% { opacity: 1; } }
+
+    /* Custom scrollbar to keep it looking pro */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: #444; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--ey); }
+</style>
 </head>
 <body>
 
@@ -480,6 +529,7 @@ async function updateRigDropdown() {
 </script>
 </body>
 </html>
+
 
 
 
