@@ -528,12 +528,10 @@
     const month = document.getElementById('monthFilter').value; 
     const mode = document.getElementById('dataSource').value; 
     
-    // Show scanning state while fetching
     const alertList = document.getElementById('alert-list');
     if (alertList) alertList.innerHTML = "Scanning...";
 
     try {
-        // Updated parameter: using 'rig=' instead of 'fleetId=' to match GS logic
         const url = getFullUrl(`get=data&rig=${encodeURIComponent(rig)}&month=${month}&mode=${mode}`);
         const res = await fetch(url);
         const data = await res.json();
@@ -554,40 +552,33 @@
 
 function updateUI(data) {
     try {
-        // 1. Elements check
+        // 1. ELEMENTS CHECK
         const summaryBody = document.getElementById('fleet-summary-body');
         const rigSelectElem = document.getElementById('rigSelect');
-        const alertList = document.getElementById('alert-list');
+        const alertList = document.getElementById('alert-list'); // DECLARE ONCE HERE
         
         if (!data || data.length === 0) return;
 
-       // 1. Get the current selection safely
-const selectedRigId = rigSelectElem && rigSelectElem.value ? rigSelectElem.value : null;
+        // 2. GET SELECTION SAFELY
+        const selectedRigId = rigSelectElem && rigSelectElem.value ? rigSelectElem.value : null;
 
-// 2. Find the rig data (Checks rig_id, RigID, and is Case-Insensitive)
-let rigData = data.find(r => {
-    const rId = r.rig_id || r.RigID || r.id; // Check all common name variations
-    return String(rId).toLowerCase() === String(selectedRigId).toLowerCase();
-});
+        // 3. FIND RIG DATA
+        let rigData = data.find(r => {
+            const rId = r.rig_id || r.RigID || r.id; 
+            return String(rId).toLowerCase() === String(selectedRigId).toLowerCase();
+        });
 
-// 3. FALLBACK: If no match is found, use the very first machine in the list
-if (!rigData && data.length > 0) {
-    rigData = data[0];
-}
+        // 4. FALLBACK
+        if (!rigData && data.length > 0) {
+            rigData = data[0];
+        }
 
-// 4. STOP THE SCANNING: If we have data, clear the scanning message
-const alertList = document.getElementById('alert-list');
-if (rigData && alertList) {
-    // This line is what finally stops the "Scanning..." text
-    alertList.innerHTML = ""; 
-}
-
-        // 2. Audit Check (Pro-rata)
+        // 5. AUDIT CHECK (Pro-rata Logic)
         if (typeof checkAuditProgress === "function" && rigData) {
             checkAuditProgress(rigData);
         }
 
-        // 3. Update Vitals (Safe Helper)
+        // 6. UPDATE VITALS
         const safeSet = (id, val) => {
             const el = document.getElementById(id);
             if (el) el.innerText = val !== undefined && val !== null ? val : "--";
@@ -603,7 +594,7 @@ if (rigData && alertList) {
         const dEl = document.getElementById('vitals-date-stamp');
         if (dEl) dEl.innerText = "Data as of: " + (rigData.date || "--");
 
-        // 4. Alerts (The 'Scanning' Fix)
+        // 7. ALERTS (STOP SCANNING)
         if (alertList) {
             if (rigData.alerts && Array.isArray(rigData.alerts) && rigData.alerts.length > 0) {
                 alertList.innerHTML = rigData.alerts.map(a => `
@@ -615,37 +606,16 @@ if (rigData && alertList) {
                 alertList.innerHTML = `<div style="text-align:center; padding:15px; color:var(--green); font-weight:bold;"><span class="live-dot"></span> ALL PARAMETERS NORMAL</div>`;
             }
         }
-
-        // 5. Mini Stats
+        
+        // 8. UPDATE MINI STATS (Ensure these IDs exist in your sidebar)
         const avgL = data.reduce((s, c) => s + parseFloat(c.load || 0), 0) / data.length;
         safeSet('v-fleet-load', avgL.toFixed(1) + "%");
         safeSet('v-active-rigs', data.length);
 
-        // 6. Summary Table
-        if (summaryBody) {
-            summaryBody.innerHTML = data.map(r => `
-                <tr>
-                    <td>${r.rig_id}</td>
-                    <td style="color:${parseInt(r.audits) < (new Date().getDate()) ? 'var(--red)' : 'var(--green)'}">${r.audits || 0}</td>
-                    <td>${r.load || 0}%</td>
-                    <td>${r.temp || 0}°C</td>
-                    <td>${r.oil || 0}</td>
-                    <td>${r.fuel || 0}</td>
-                    <td>${r.air || 0}</td>
-                    <td>${r.bit || 0}</td>
-                    <td>${r.impact || 0}</td>
-                </tr>
-            `).join('');
-        }
-
-        // 7. Chart Trigger
-        if (typeof drawChart === "function") drawChart();
-
     } catch (err) {
-        console.error("UI Render Error:", err);
+        console.error("UI Update Error:", err);
     }
 }
-
 // Keep this outside
 function checkAuditProgress(rigData) {
     const now = new Date();
@@ -805,6 +775,7 @@ async function updateRigDropdown() {
 </script>
 </body>
 </html>
+
 
 
 
