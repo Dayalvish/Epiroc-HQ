@@ -173,16 +173,6 @@
             <label style="display:block; margin-top:15px;">Target Month</label>
             <input type="month" id="monthFilter" onchange="refresh()">
 
-            <h4 style="color:var(--ey); margin: 25px 0 5px 0; font-size: 0.85rem; border-bottom: 1px solid #333; padding-bottom: 5px;">
-                MACHINE VITALS <span id="v-date" style="float:right; color:#888; font-size:0.7rem;">--</span>
-            </h4>
-            <table class="vital-table">
-                <tr><td class="v-label">Boost Pressure</td><td id="v-boost" class="v-value">--</td></tr>
-                <tr><td class="v-label">Fuel Pressure</td><td id="v-fuel" class="v-value">--</td></tr>
-                <tr><td class="v-label">Receiver Pr</td><td id="v-receiver" class="v-value">--</td></tr>
-                <tr><td class="v-label">Hyd-Oil Temp</td><td id="v-hyd-temp" class="v-value">--</td></tr>
-            </table>
-
             <label style="display:block; margin-top:15px;">Analysis Mode</label>
             <select id="chartMode" onchange="drawChart()">
                 <option value="tempVsOil">Trend: Temp / Oil / RPM</option>
