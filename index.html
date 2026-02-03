@@ -18,249 +18,99 @@
     }
     
     html, body { 
-        height: 100%; 
-        margin: 0; 
-        padding: 0; 
-        overflow: hidden; 
+        height: 100%; margin: 0; padding: 0; overflow: hidden; 
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-        background: var(--bg); 
-        color: #fff; 
-        -webkit-font-smoothing: antialiased;
+        background: var(--bg); color: #fff; -webkit-font-smoothing: antialiased;
     }
 
     /* =========================================
-       2. AUTHENTICATION & LOGIN OVERLAY
+       2. TOP BAR AUDIT WARNING (FIXED POSITION)
+       ========================================= */
+    #auditWarning { 
+        display: none; 
+        position: fixed; top: 0; left: 0; width: 100%; 
+        background: var(--red); color: white; 
+        text-align: center; padding: 10px 0; 
+        font-weight: bold; z-index: 10001; cursor: pointer;
+        animation: blinker 1.2s linear infinite;
+    }
+    @keyframes blinker { 50% { opacity: 0.2; } }
+
+    /* =========================================
+       3. AUTHENTICATION & LOGIN OVERLAY
        ========================================= */
     #login-overlay { 
-        position: fixed; 
-        inset: 0; 
-        background: var(--bg); 
-        display: flex; 
-        justify-content: center; 
-        align-items: center; 
-        z-index: 9999; 
+        position: fixed; inset: 0; background: var(--bg); 
+        display: flex; justify-content: center; align-items: center; z-index: 9999; 
     }
     .login-box { 
-        background: var(--card); 
-        padding: 35px; 
-        border-radius: 12px; 
-        border-top: 5px solid var(--ey); 
-        width: 320px; 
-        text-align: center; 
+        background: var(--card); padding: 35px; border-radius: 12px; 
+        border-top: 5px solid var(--ey); width: 320px; text-align: center; 
         box-shadow: 0 15px 35px rgba(0,0,0,0.9);
     }
     .login-box input { 
-        width: 100%; 
-        padding: 12px; 
-        margin: 10px 0; 
-        background: #222; 
-        border: 1px solid #444; 
-        color: #fff; 
-        border-radius: 4px; 
-        box-sizing: border-box; 
+        width: 100%; padding: 12px; margin: 10px 0; background: #222; 
+        border: 1px solid #444; color: #fff; border-radius: 4px; box-sizing: border-box; 
     }
     .login-box button { 
-        width: 100%; 
-        padding: 12px; 
-        background: var(--ey); 
-        color: #000; 
-        border: none; 
-        font-weight: bold; 
-        border-radius: 4px; 
-        cursor: pointer; 
-        transition: 0.3s;
+        width: 100%; padding: 12px; background: var(--ey); color: #000; 
+        border: none; font-weight: bold; border-radius: 4px; cursor: pointer; transition: 0.3s;
     }
-    .login-box button:hover { background: #d4ac0d; }
 
     /* =========================================
-       3. DASHBOARD MAIN STRUCTURE
+       4. DASHBOARD MAIN STRUCTURE
        ========================================= */
     #dashboard-content { 
-        display: flex; 
-        flex-direction: column; 
-        height: 100vh; 
-        padding: 12px; 
-        box-sizing: border-box; 
-        opacity: 0; 
-        transition: opacity 0.8s ease-in-out; 
+        display: flex; flex-direction: column; height: 100vh; 
+        padding: 12px; padding-top: 20px; /* Space for Top Bar */
+        box-sizing: border-box; opacity: 0; transition: opacity 0.8s ease-in-out; 
     }
     .authorized #dashboard-content { opacity: 1; pointer-events: auto; }
     .authorized #login-overlay { display: none; }
 
-    /* =========================================
-       4. HEADER & NAVIGATION BAR
-       ========================================= */
     .header { 
-        display: grid; 
-        grid-template-columns: 260px 1fr 260px; 
-        align-items: center; 
-        border-bottom: 2px solid var(--ey); 
-        padding-bottom: 8px; 
-        margin-bottom: 12px; 
-        flex-shrink: 0; 
+        display: grid; grid-template-columns: 260px 1fr 260px; 
+        align-items: center; border-bottom: 2px solid var(--ey); 
+        padding-bottom: 8px; margin-bottom: 12px; flex-shrink: 0; 
     }
-    .header-left { display: flex; flex-direction: column; align-items: flex-start; }
-    .header-center { text-align: center; }
-    .header-center h1 { 
-        margin: 0; 
-        font-size: 1.4rem; 
-        letter-spacing: 2px; 
-        color: var(--ey); 
-        text-transform: uppercase;
-    }
+    .header-center h1 { margin: 0; font-size: 1.4rem; letter-spacing: 2px; color: var(--ey); text-transform: uppercase; text-align: center;}
     
-    .user-badge { 
-        background: var(--ey); 
-        color: #000; 
-        padding: 3px 12px; 
-        border-radius: 15px; 
-        font-weight: bold; 
-        font-size: 0.7rem; 
-        margin-top: 5px; 
-        display: inline-block; 
-    }
+    .user-badge { background: var(--ey); color: #000; padding: 3px 12px; border-radius: 15px; font-weight: bold; font-size: 0.7rem; margin-top: 5px; display: inline-block; }
 
-    .live-dot { 
-        height: 8px; 
-        width: 8px; 
-        background: var(--green); 
-        border-radius: 50%; 
-        display: inline-block; 
-        margin-right: 6px; 
-        animation: pulse 1.5s infinite; 
-    }
-    @keyframes pulse { 
-        0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); } 
-        70% { box-shadow: 0 0 0 8px rgba(46, 204, 113, 0); } 
-        100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); } 
-    }
+    .live-dot { height: 8px; width: 8px; background: var(--green); border-radius: 50%; display: inline-block; margin-right: 6px; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); } 70% { box-shadow: 0 0 0 8px rgba(46, 204, 113, 0); } 100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); } }
 
-    /* =========================================
-       5. MAIN GRID SYSTEM (3 COLUMNS)
-       ========================================= */
-    .main-layout { 
-        display: grid; 
-        grid-template-columns: 260px 1fr 280px; 
-        gap: 12px; 
-        flex-grow: 1; 
-        min-height: 0; 
-    }
+    .main-layout { display: grid; grid-template-columns: 260px 1fr 280px; gap: 12px; flex-grow: 1; min-height: 0; }
 
-    .sidebar, .chart-area { 
-        background: var(--card); 
-        padding: 15px; 
-        border-radius: 8px; 
-        box-shadow: 0 4px 20px rgba(0,0,0,0.6); 
-        overflow-y: auto; 
-        height: 100%; 
-        box-sizing: border-box; 
-    }
+    .sidebar, .chart-area { background: var(--card); padding: 15px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.6); overflow-y: auto; height: 100%; box-sizing: border-box; }
 
-    /* =========================================
-       6. RIGHT SIDEBAR PARTITION (60/40)
-       ========================================= */
-    .sidebar-right-split { 
-        display: flex; 
-        flex-direction: column; 
-        gap: 12px; 
-        height: 100%; 
-    }
-    
-    .alert-box { 
-        flex: 1.6; 
-        background: var(--card); 
-        padding: 15px; 
-        border-radius: 8px; 
-        border: 1px solid #333; 
-        overflow-y: auto; 
-        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-    }
-    
-    .vitals-box { 
-        flex: 1; 
-        background: var(--card); 
-        padding: 15px; 
-        border-radius: 8px; 
-        border: 1px solid #333; 
-        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-    }
+    .sidebar-right-split { display: flex; flex-direction: column; gap: 12px; height: 100%; }
+    .alert-box { flex: 1.6; background: var(--card); padding: 15px; border-radius: 8px; border: 1px solid #333; overflow-y: auto; }
+    .vitals-box { flex: 1; background: var(--card); padding: 15px; border-radius: 8px; border: 1px solid #333; }
 
-    /* =========================================
-       7. HEADERS & COMPONENT TEXT
-       ========================================= */
-    h3 { 
-        font-size: 0.85rem; 
-        margin: 0 0 10px 0; 
-        border-bottom: 1px solid #333; 
-        padding-bottom: 5px; 
-        color: #fff;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
+    h3 { font-size: 0.85rem; margin: 0 0 10px 0; border-bottom: 1px solid #333; padding-bottom: 5px; color: #fff; text-transform: uppercase; }
     
     .vital-table { width: 100%; border-collapse: collapse; margin-top: 5px; background: #111; }
     .vital-table td { padding: 8px; border-bottom: 1px solid #222; font-size: 0.9rem; } 
-    
     .v-label { color: #888; text-transform: uppercase; font-size: 0.6rem; }
     .v-value { text-align: right; color: var(--ey); font-weight: bold; font-size: 1.05rem; }
     
-    .timestamp { 
-        font-size: 0.65rem; 
-        color: #777; 
-        font-style: italic; 
-        text-align: left; 
-        margin-top: 10px; 
-        display: block; 
-    }
+    .timestamp { font-size: 0.65rem; color: #777; font-style: italic; margin-top: 10px; display: block; }
 
-    /* =========================================
-       8. SUMMARY TABLE & CHARTS
-       ========================================= */
     .summary-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #111; font-size: 0.75rem; }
     .summary-table th, .summary-table td { padding: 8px; border: 1px solid #333; text-align: center; }
     .summary-table th { background: #222; color: var(--ey); text-transform: uppercase; position: sticky; top: 0; }
 
-    /* =========================================
-       9. INPUTS, SELECTS & MINI-STATS
-       ========================================= */
     .mini-stats { margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .mini-card { background: #222; padding: 10px; border-radius: 4px; text-align: center; border: 1px solid #333; }
-    .mini-card small { color: #888; display: block; font-size: 0.6rem; margin-bottom: 4px; }
+    .mini-card small { color: #888; display: block; font-size: 0.6rem; }
     .mini-card span { font-size: 1.1rem; font-weight: bold; color: var(--ey); }
 
-    select, input { 
-        width: 100%; 
-        padding: 8px; 
-        margin-top: 6px; 
-        background: #222; 
-        color: #fff; 
-        border: 1px solid #444; 
-        border-radius: 4px; 
-        font-size: 0.85rem; 
-        box-sizing: border-box;
-    }
-    
-    input[type="month"] { 
-        color: #ffffff !important; 
-        color-scheme: dark; 
-    }
-    
+    select, input { width: 100%; padding: 8px; margin-top: 6px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; font-size: 0.85rem; box-sizing: border-box; }
+    input[type="month"] { color-scheme: dark; }
     label { font-size: 0.7rem; color: #888; text-transform: uppercase; display: block; margin-top: 12px; }
 
-    /* =========================================
-       10. EXPORT BUTTONS
-       ========================================= */
-    .btn-red, .btn-green { 
-        padding: 8px; 
-        border-radius: 4px; 
-        font-weight: bold; 
-        width: 100%; 
-        cursor: pointer; 
-        border: none; 
-        font-size: 0.75rem; 
-        transition: 0.3s;
-        text-transform: uppercase;
-    }
+    .btn-red, .btn-green { padding: 8px; border-radius: 4px; font-weight: bold; width: 100%; cursor: pointer; border: none; font-size: 0.75rem; transition: 0.3s; text-transform: uppercase; }
     .btn-red { background: var(--red); color: white; margin-top: 15px; }
     .btn-green { background: #27ae60; color: white; margin-top: 8px; }
 </style>
@@ -345,33 +195,33 @@
         </div>
 
         <div class="chart-area">
-    <div id="chart-container" style="position: relative; height:350px; width:100%;">
-        <canvas id="mainChart"></canvas>
-    </div>
-    
-    <h3 style="color:var(--ey); margin:20px 0 10px 0;">FLEET PERFORMANCE SUMMARY</h3>
-    
-    <table class="summary-table" id="summary-tbl">
-        <thead>
-            <tr>
-                <th rowspan="2">Rig ID</th>
-                <th rowspan="2">Audits</th>
-                <th colspan="4">Engine Health</th>
-                <th colspan="3">Productivity</th>
-            </tr>
-            <tr>
-                <th>Load %</th>
-                <th>Temp °C</th>
-                <th>Oil bar</th>
-                <th>Fuel bar</th>
-                <th>Air Set</th>
-                <th>Bit Pr</th>
-                <th>Impact</th>
-            </tr>
-        </thead>
-        <tbody id="fleet-summary-body"></tbody>
-    </table>
-</div>
+            <div id="chart-container" style="position: relative; height:350px; width:100%;">
+                <canvas id="mainChart"></canvas>
+            </div>
+            
+            <h3 style="color:var(--ey); margin:20px 0 10px 0;">FLEET PERFORMANCE SUMMARY</h3>
+            
+            <table class="summary-table" id="summary-tbl">
+                <thead>
+                    <tr>
+                        <th rowspan="2">Rig ID</th>
+                        <th rowspan="2">Audits</th>
+                        <th colspan="4">Engine Health</th>
+                        <th colspan="3">Productivity</th>
+                    </tr>
+                    <tr>
+                        <th>Load %</th>
+                        <th>Temp °C</th>
+                        <th>Oil bar</th>
+                        <th>Fuel bar</th>
+                        <th>Air Set</th>
+                        <th>Bit Pr</th>
+                        <th>Impact</th>
+                    </tr>
+                </thead>
+                <tbody id="fleet-summary-body"></tbody>
+            </table>
+        </div>
 
         <div class="sidebar-right-split">
             <div class="alert-box">
@@ -451,7 +301,7 @@
         const month = document.getElementById('monthFilter').value; 
         const mode = document.getElementById('dataSource').value; 
         const alertList = document.getElementById('alert-list');
-        if (alertList) alertList.innerHTML = "Scanning..."; // Reset status
+        if (alertList) alertList.innerHTML = "Scanning...";
         try {
             const res = await fetch(getFullUrl(`get=data&rig=${encodeURIComponent(rig)}&month=${month}&mode=${mode}`));
             const data = await res.json();
@@ -471,20 +321,18 @@
             const currentDay = new Date().getDate(); 
             const selectedId = rigSelectElem ? rigSelectElem.value.toUpperCase() : "";
 
+            // --- 1. Audit Warning Logic (Top Bar) ---
             if (data.summary) {
                 const rigInfo = data.summary.find(r => String(r.id).toUpperCase() === selectedId);
-
-                // --- 1. Audit Warning Logic (Top Bar) ---
                 if (rigInfo && parseInt(rigInfo.audits) < currentDay) {
                     warningBox.style.display = 'block';
-                    warningBox.innerHTML = `⚠️ CRITICAL: RIG ${selectedId} IS BEHIND (${rigInfo.audits}/${currentDay} AUDITS). CLICK TO CLOSE.`;
+                    warningBox.innerHTML = `⚠️ AUDIT ALERT: RIG ${selectedId} IS BEHIND (${rigInfo.audits}/${currentDay} DONE). DISMISS.`;
                     if (window.auditTimer) clearTimeout(window.auditTimer);
                     window.auditTimer = setTimeout(() => { warningBox.style.display = 'none'; }, 15000);
                 } else {
                     warningBox.style.display = 'none';
                 }
 
-                // --- 2. Table Population ---
                 summaryBody.innerHTML = data.summary.map(r => `
                     <tr style="${String(r.id).toUpperCase() === selectedId ? 'background:rgba(241,196,15,0.1); outline:1px solid var(--ey);' : ''}">
                         <td><b>${r.id}</b></td>
@@ -495,43 +343,46 @@
                     </tr>`).join('');
             }
 
-            // --- 3. Machine Vitals ---
+            // --- 2. Machine Vitals ---
             if (data.vitals) {
-                const v = data.vitals;
-                document.getElementById('v-boost').innerText = v.boost || "--";
-                document.getElementById('v-fuel').innerText = v.fuel || "--";
-                document.getElementById('v-receiver').innerText = v.rec || "--";
-                document.getElementById('v-temp').innerText = (v.hyd || "--") + "°C";
-                document.getElementById('vitals-date-stamp').innerText = "Data as of: " + (v.date || "--");
+                document.getElementById('v-boost').innerText = data.vitals.boost || "--";
+                document.getElementById('v-fuel').innerText = data.vitals.fuel || "--";
+                document.getElementById('v-receiver').innerText = data.vitals.rec || "--";
+                document.getElementById('v-temp').innerText = (data.vitals.hyd || "--") + "°C";
+                document.getElementById('vitals-date-stamp').innerText = "Data as of: " + (data.vitals.date || "--");
             }
 
-            // --- 4. STOP THE "SCANNING" MESSAGE ---
+            // --- 3. Alert Status ---
             const al = document.getElementById('alert-list');
-            if (al) al.innerHTML = `<div style="text-align:center; padding:15px; color:var(--green); font-weight:bold;">● ALL SYSTEMS NORMAL</div>`;
+            if (al) al.innerHTML = `<div style="text-align:center; padding:15px; color:var(--green); font-weight:bold;">● ALL SYSTEMS NOMINAL</div>`;
+
+            // --- 4. Mini Stats ---
+            if (data.summary) {
+                const totalRigs = data.summary.length;
+                const avgLoad = (data.summary.reduce((s, r) => s + parseFloat(r.avgLoad), 0) / (totalRigs || 1)).toFixed(1);
+                document.getElementById('v-active-rigs').innerText = totalRigs;
+                document.getElementById('v-fleet-load').innerText = avgLoad + "%";
+            }
 
             drawChart();
         } catch (e) {
             console.error("UI Error:", e);
-            const al = document.getElementById('alert-list');
-            if (al) al.innerHTML = "<span style='color:red'>Render Error. Check Console.</span>"; //
         }
     }
 
     function drawChart() {
+        // Fallback search for data points
         const plotData = globalData?.monthlyData || globalData?.history || [];
         const canvas = document.getElementById('mainChart');
-        if (!canvas || plotData.length === 0) {
-            if (chart) chart.destroy();
-            return;
-        }
-
+        if (!canvas) return;
         const ctx = canvas.getContext('2d');
-        if (chart) chart.destroy();
         
+        if (chart) chart.destroy();
+        if (plotData.length === 0) return;
+
         const mode = document.getElementById('chartMode').value;
         const labels = plotData.map(x => x.date || x.day || "");
         let datasets = [];
-        
         let opt = {
             responsive: true, maintainAspectRatio: false,
             plugins: { legend: { labels: { color: '#fff' } } },
@@ -546,7 +397,7 @@
                 { label: 'Oil bar', data: plotData.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'y', tension: 0.3 },
                 { label: 'Temp °C', data: plotData.map(x => x.temp), borderColor: '#ff4d4d', yAxisID: 'yRight', tension: 0.3 }
             ];
-            opt.scales.yRight = { position: 'right', grid: { drawOnChartArea: false } };
+            opt.scales.yRight = { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#ff4d4d' } };
         } else if (mode === 'hydro_impact') {
             datasets = [
                 { label: 'Impact', data: plotData.map(x => x.impact || x.imp), borderColor: '#f1c40f' },
@@ -564,16 +415,12 @@
         const table = document.getElementById("summary-tbl");
         const url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
         const link = document.createElement('a');
-        link.download = "Epiroc_Report.xls"; link.href = url; link.click();
+        link.download = "Report.xls"; link.href = url; link.click();
     }
 
-    window.onload = init;
+    window.onload = function() {
+        if (document.body.classList.contains('authorized')) init();
+    };
 </script>
 </body>
 </html>
-
-
-
-
-
-
