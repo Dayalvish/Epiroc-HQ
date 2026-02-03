@@ -528,23 +528,27 @@
     const month = document.getElementById('monthFilter').value; 
     const mode = document.getElementById('dataSource').value; 
     
+    // Show scanning state while fetching
+    const alertList = document.getElementById('alert-list');
+    if (alertList) alertList.innerHTML = "Scanning...";
+
     try {
-        const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}&mode=${mode}`));
+        // Updated parameter: using 'rig=' instead of 'fleetId=' to match GS logic
+        const url = getFullUrl(`get=data&rig=${encodeURIComponent(rig)}&month=${month}&mode=${mode}`);
+        const res = await fetch(url);
         const data = await res.json();
         
-        // Ensure data is an array before proceeding
-        if (!Array.isArray(data)) {
-            console.error("Data received is not an array:", data);
+        if (!data || data.length === 0) {
+            if (alertList) alertList.innerHTML = "<span style='color:var(--ey)'>No data found for this selection.</span>";
             return;
         }
 
-        globalData = data; // Store for charts
-        updateUI(data);    // Trigger UI update
+        globalData = data; 
+        updateUI(data); 
         
     } catch (err) { 
-        console.error("Refresh Error:", err); 
-        const al = document.getElementById('alert-list');
-        if (al) al.innerHTML = "<span style='color:red'>Connection Error</span>";
+        console.error("Fetch Error:", err); 
+        if (alertList) alertList.innerHTML = "<span style='color:red'>Connection Error. Check Console.</span>";
     }
 }
 
@@ -557,9 +561,26 @@ function updateUI(data) {
         
         if (!data || data.length === 0) return;
 
-        const selectedRigId = rigSelectElem ? rigSelectElem.value : null;
-        // Safety: Find rig or default to first
-        const rigData = data.find(r => r.rig_id === selectedRigId) || data[0];
+       // 1. Get the current selection safely
+const selectedRigId = rigSelectElem && rigSelectElem.value ? rigSelectElem.value : null;
+
+// 2. Find the rig data (Checks rig_id, RigID, and is Case-Insensitive)
+let rigData = data.find(r => {
+    const rId = r.rig_id || r.RigID || r.id; // Check all common name variations
+    return String(rId).toLowerCase() === String(selectedRigId).toLowerCase();
+});
+
+// 3. FALLBACK: If no match is found, use the very first machine in the list
+if (!rigData && data.length > 0) {
+    rigData = data[0];
+}
+
+// 4. STOP THE SCANNING: If we have data, clear the scanning message
+const alertList = document.getElementById('alert-list');
+if (rigData && alertList) {
+    // This line is what finally stops the "Scanning..." text
+    alertList.innerHTML = ""; 
+}
 
         // 2. Audit Check (Pro-rata)
         if (typeof checkAuditProgress === "function" && rigData) {
@@ -784,6 +805,7 @@ async function updateRigDropdown() {
 </script>
 </body>
 </html>
+
 
 
 
