@@ -379,6 +379,7 @@
     const API = "https://script.google.com/macros/s/AKfycbyfTF7xgkds2hhOoGIgnYLLmzzuzyw_mRvMiCFl05oYUwdTdBDwP8kMf_D40oEbY357/exec"; 
     let chart = null, globalData = null;
 
+    // --- 1. LOGIN & AUTH ---
     async function handleLogin() {
         const u = document.getElementById('userIn').value;
         const p = document.getElementById('passIn').value;
@@ -406,6 +407,7 @@
         return `${API}?${params}&userRegion=${encodeURIComponent(r)}&siteView=${encodeURIComponent(s)}&user=${encodeURIComponent(u)}&v=${Date.now()}`;
     }
 
+    // --- 2. INITIALIZATION ---
     async function init() {
         const now = new Date(); 
         document.getElementById('monthFilter').value = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
@@ -419,6 +421,7 @@
         } catch (e) { console.error("Init Error:", e); }
     }
 
+    // --- 3. DROPDOWN SYNC ---
     async function updateRigDropdown() {
         const model = document.getElementById('modelSelect').value;
         const region = document.getElementById('cityFocus') ? document.getElementById('cityFocus').value : "All";
@@ -436,6 +439,7 @@
         } catch (e) { console.error("Rig list sync failed:", e); }
     }
 
+    // --- 4. DATA FETCH ---
     async function refresh() {
         const rig = document.getElementById('rigSelect').value;
         const month = document.getElementById('monthFilter').value; 
@@ -450,24 +454,22 @@
         } catch (err) { console.error("Refresh Error:", err); }
     }
 
+    // --- 5. UI RENDERING & FLEET TRIGGER ---
     function updateUI(data) {
         const summaryBody = document.getElementById('fleet-summary-body');
         const warningBox = document.getElementById('auditWarning');
-        const rigSelectElem = document.getElementById('rigSelect');
         
         if (data.summary && data.summary.length > 0) {
-            const selectedRigId = rigSelectElem ? rigSelectElem.value.trim().toUpperCase() : "";
-            const selectedRigData = data.summary.find(r => String(r.id).trim().toUpperCase() === selectedRigId);
-            
-            // --- PRO-RATA AUDIT LOGIC (1 per day) ---
             const currentDay = new Date().getDate(); 
-            const auditsDone = selectedRigData ? parseInt(selectedRigData.audits) : 0;
-
-            if (auditsDone < currentDay) {
+            
+            // --- FLEET-SPECIFIC AUDIT TRIGGER ---
+            // Checks every rig in the summary list. If ANY are behind, trigger the warning.
+            const failingRigs = data.summary.filter(r => parseInt(r.audits) < currentDay);
+            
+            if (failingRigs.length > 0) {
                 warningBox.style.display = 'block';
-                warningBox.innerHTML = `⚠️ RIG ${selectedRigId}: ${auditsDone}/${currentDay} AUDITS DONE (Target: 1 per day)`;
-                // Red if > 2 behind, Orange if only 1 behind
-                warningBox.style.background = (currentDay - auditsDone > 2) ? 'var(--red)' : '#e67e22';
+                warningBox.innerHTML = `⚠️ FLEET ALERT: ${failingRigs.length} RIGS BELOW AUDIT TARGET (${currentDay} MIN)`;
+                warningBox.style.background = 'var(--red)';
             } else {
                 warningBox.style.display = 'none';
             }
@@ -486,6 +488,7 @@
                 </tr>`).join('');
         }
 
+        // --- MACHINE VITALS ---
         if (data.vitals) {
             document.getElementById('vitals-date-stamp').innerText = "Data as of: " + (data.vitals.date || "--"); 
             document.getElementById('v-boost').innerText = data.vitals.boost || "0";
@@ -494,6 +497,7 @@
             document.getElementById('v-temp').innerText = (data.vitals.hyd || "0") + "°C";
         }
 
+        // --- TRIGGER ALERTS ---
         const alertList = document.getElementById('alert-list');
         if (alertList) {
             if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
@@ -512,71 +516,68 @@
         document.getElementById('v-active-rigs').innerText = totalRigs;
         document.getElementById('v-fleet-load').innerText = avgLoad + "%";
 
+        // Call chart drawing immediately after UI update to ensure spontaneous load
         drawChart(); 
         document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
     }
 
-    // --- 6. ANALYTICAL CHARTING & EXPORT ---
-   function drawChart() {
-    if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
-        if (chart) chart.destroy(); 
-        return;
-    }
-
-    const canvas = document.getElementById('mainChart');
-    const ctx = canvas.getContext('2d');
-    if (chart) chart.destroy();
-    
-    const mode = document.getElementById('chartMode').value;
-    const d = globalData.monthlyData;
-    const labels = d.map(x => x.date);
-    
-    let datasets = [];
-    let options = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { labels: { color: '#fff' } } },
-        scales: {
-            x: { grid: { color: '#333' }, ticks: { color: '#888' } },
-            y: { grid: { color: '#333' }, ticks: { color: '#fff' } }
+    // --- 6. SPONTANEOUS CHARTING ---
+    function drawChart() {
+        if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
+            if (chart) chart.destroy(); 
+            return;
         }
-    };
 
-    if (mode === 'tempVsOil') {
-        // Triple Axis Mode
-        datasets = [
-            { label: 'Oil Pr (bar)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yOil', tension: 0.3 },
-            { label: 'Temp (°C)', data: d.map(x => x.temp), borderColor: '#ff4d4d', yAxisID: 'yTemp', tension: 0.3 },
-            { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRPM', borderDash: [5, 5], tension: 0.3 }
-        ];
-        options.scales.yOil = { position: 'left', min: 0, max: 8, ticks: { stepSize: 0.2, color: '#2ecc71' } };
-        options.scales.yTemp = { position: 'right', min: 60, max: 130, ticks: { stepSize: 3, color: '#ff4d4d' }, grid: { drawOnChartArea: false } };
-        options.scales.yRPM = { position: 'right', min: 600, max: 2200, ticks: { stepSize: 25, color: '#3498db' }, grid: { drawOnChartArea: false } };
-    } 
-    else if (mode === 'loadVsComp') {
-        datasets = [
-            { label: 'Engine Load %', data: d.map(x => x.load), borderColor: '#f1c40f', tension: 0.3 },
-            { label: 'Compressor %', data: d.map(x => x.comp), borderColor: '#3498db', tension: 0.3 }
-        ];
-        options.scales.y.max = 100;
-    } 
-    else if (mode === 'setBit') {
-        datasets = [
-            { label: 'Air Set (bar)', data: d.map(x => x.air), borderColor: '#2ecc71', tension: 0.3 },
-            { label: 'Bit Pr (bar)', data: d.map(x => x.bit), borderColor: '#3498db', tension: 0.3 }
-        ];
-    } 
-    else if (mode === 'hydro_impact') {
-        datasets = [
-            { label: 'Impact (bar)', data: d.map(x => x.impact), borderColor: '#f1c40f', tension: 0.3 },
-            { label: 'Feed (bar)', data: d.map(x => x.feed), borderColor: '#e67e22', tension: 0.3 },
-            { label: 'Damper (bar)', data: d.map(x => x.damper), borderColor: '#3498db', tension: 0.3 }
-        ];
+        const canvas = document.getElementById('mainChart');
+        const ctx = canvas.getContext('2d');
+        if (chart) chart.destroy();
+        
+        const mode = document.getElementById('chartMode').value;
+        const d = globalData.monthlyData;
+        const labels = d.map(x => x.date);
+        
+        let datasets = [];
+        let options = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#fff' } } },
+            scales: {
+                x: { grid: { color: '#333' }, ticks: { color: '#888' } },
+                y: { grid: { color: '#333' }, ticks: { color: '#fff' }, beginAtZero: true }
+            }
+        };
+
+        if (mode === 'tempVsOil') {
+            datasets = [
+                { label: 'Oil bar', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yLeft', tension: 0.3 },
+                { label: 'Temp °C', data: d.map(x => x.temp), borderColor: '#ff4d4d', yAxisID: 'yRight', tension: 0.3 },
+                { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRight', borderDash: [5, 5], tension: 0.3 }
+            ];
+            options.scales.yLeft = { position: 'left', ticks: { color: '#2ecc71' } };
+            options.scales.yRight = { position: 'right', ticks: { color: '#ff4d4d' }, grid: { drawOnChartArea: false } };
+        } 
+        else if (mode === 'loadVsComp') {
+            datasets = [
+                { label: 'Engine Load %', data: d.map(x => x.load), borderColor: '#f1c40f', tension: 0.3 },
+                { label: 'Compressor %', data: d.map(x => x.comp), borderColor: '#3498db', tension: 0.3 }
+            ];
+        } 
+        else if (mode === 'setBit') {
+            datasets = [
+                { label: 'Air Set (bar)', data: d.map(x => x.air), borderColor: '#2ecc71', tension: 0.3 },
+                { label: 'Bit Pr (bar)', data: d.map(x => x.bit), borderColor: '#3498db', tension: 0.3 }
+            ];
+        } 
+        else if (mode === 'hydro_impact') {
+            datasets = [
+                { label: 'Impact (bar)', data: d.map(x => x.impact), borderColor: '#f1c40f', tension: 0.3 },
+                { label: 'Feed (bar)', data: d.map(x => x.feed), borderColor: '#e67e22', tension: 0.3 },
+                { label: 'Damper (bar)', data: d.map(x => x.damper), borderColor: '#3498db', tension: 0.3 }
+            ];
+        }
+
+        chart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: options });
     }
-
-    chart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: options });
-}
-
 
     function exportToExcel() {
         const table = document.getElementById("summary-tbl");
@@ -585,7 +586,6 @@
         link.download = "Report.xls"; link.href = url; link.click();
     }
 
-    // --- SPONTANEOUS IGNITION TRIGGER ---
     window.onload = function() {
         const now = new Date();
         const mFilter = document.getElementById('monthFilter');
@@ -594,4 +594,5 @@
 </script>
 </body>
 </html>
+
 
