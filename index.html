@@ -570,7 +570,25 @@ function updateUI(data) {
         // 1. DYNAMIC AUDIT LOGIC (The Pro-Rata 1-per-day fix)
         checkAuditProgress(rigData);
 
-        // 6. UPDATE VITALS
+        // 2. RE-POPULATE SUMMARY TABLE (Restored this missing section)
+        if (summaryBody) {
+            const currentDay = new Date().getDate();
+            summaryBody.innerHTML = data.map(r => `
+                <tr data-region="${r.region || ''}" data-model="${r.model || ''}">
+                    <td>${r.rig_id || r.RigID}</td>
+                    <td style="color:${parseInt(r.audits || 0) < currentDay ? 'var(--red)' : 'var(--green)'}">${r.audits || 0}</td>
+                    <td>${r.load || 0}%</td>
+                    <td>${r.temp || 0}°C</td>
+                    <td>${r.oil || 0}</td>
+                    <td>${r.fuel || 0}</td>
+                    <td>${r.air || 0}</td>
+                    <td>${r.bit || 0}</td>
+                    <td>${r.impact || 0}</td>
+                </tr>
+            `).join('');
+        }
+
+        // 3. UPDATE VITALS
         const safeSet = (id, val) => {
             const el = document.getElementById(id);
             if (el) el.innerText = val !== undefined && val !== null ? val : "--";
@@ -586,7 +604,7 @@ function updateUI(data) {
         const dEl = document.getElementById('vitals-date-stamp');
         if (dEl) dEl.innerText = "Data as of: " + (rigData.date || "--");
 
-        // 7. ALERTS (STOP SCANNING)
+        // 4. ALERTS (STOP SCANNING)
         if (alertList) {
             if (rigData.alerts && Array.isArray(rigData.alerts) && rigData.alerts.length > 0) {
                 alertList.innerHTML = rigData.alerts.map(a => `
@@ -599,15 +617,18 @@ function updateUI(data) {
             }
         }
         
-        // 8. UPDATE MINI STATS (Ensure these IDs exist in your sidebar)
+        // 5. UPDATE MINI STATS
         const avgL = data.reduce((s, c) => s + parseFloat(c.load || 0), 0) / data.length;
         safeSet('v-fleet-load', avgL.toFixed(1) + "%");
         safeSet('v-active-rigs', data.length);
 
+        // 6. REDRAW CHART
+        drawChart();
+
     } catch (err) {
         console.error("UI Update Error:", err);
     }
-}
+} // FIXED: Added missing closing brace here
 function checkAuditProgress(rigData) {
     const now = new Date();
     const currentDay = now.getDate(); // Today's date (e.g., 4th Feb)
@@ -783,6 +804,7 @@ window.onload = function() {
 </script>
 </body>
 </html>
+
 
 
 
