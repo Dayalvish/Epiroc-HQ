@@ -524,47 +524,60 @@
     }
 }
 
-   function updateUI(data) {
+  function updateUI(data) {
     const summaryBody = document.getElementById('fleet-summary-body');
     const warningBox = document.getElementById('auditWarning');
     const rigSelectElem = document.getElementById('rigSelect');
     
-    function checkAuditProgress(rigData) {
+    // Safety check: Find the currently selected rig's data
+    const selectedRigId = rigSelectElem.value;
+    const rigData = data.find(r => r.rig_id === selectedRigId);
+
+    // 1. RUN AUDIT LOGIC (Only if a rig is selected)
+    if (rigData) {
+        checkAuditProgress(rigData);
+    } else {
+        if (warningBox) warningBox.style.display = 'none';
+    }
+
+    // 2. RE-POPULATE SUMMARY TABLE
+    if (summaryBody) {
+        summaryBody.innerHTML = data.map(r => `
+            <tr>
+                <td>${r.rig_id}</td>
+                <td style="color:${parseInt(r.audits) < (new Date().getDate()) ? 'var(--red)' : 'var(--green)'}">${r.audits}</td>
+                <td>${r.load}%</td>
+                <td>${r.temp}°C</td>
+                <td>${r.oil}</td>
+                <td>${r.fuel}</td>
+                <td>${r.air}</td>
+                <td>${r.bit}</td>
+                <td>${r.impact}</td>
+            </tr>
+        `).join('');
+    }
+}
+
+// MOVE THIS OUTSIDE updateUI so it can be used anywhere
+function checkAuditProgress(rigData) {
     const now = new Date();
-    const currentDay = now.getDate(); // e.g., 3 for Feb 3rd
+    const currentDay = now.getDate(); 
     const auditsDone = parseInt(rigData.audits || 0);
-    
-    // LOGIC: 1 Audit required per day of the month
-    // Target: 10 by day 10, 20 by day 20, 30 by month end.
     const dynamicTarget = currentDay; 
     
     const warningEl = document.getElementById('auditWarning');
-    
+    if (!warningEl) return; // Prevent crash if element is missing
+
     if (auditsDone < dynamicTarget) {
         warningEl.style.display = 'block';
-        warningEl.innerHTML = `⚠️ RIG ${rigData.rig_id} PROGRESS: ${auditsDone}/${dynamicTarget} AUDITS (Required: 1 per day)`;
+        warningEl.innerHTML = `⚠️ RIG ${rigData.rig_id} PROGRESS: ${auditsDone}/${dynamicTarget} AUDITS (Target: 1/Day)`;
         
-        // Change color to orange if close, red if very behind
-        warningEl.style.background = (dynamicTarget - auditsDone > 5) ? 'var(--red)' : '#e67e22';
+        // Color Logic: Red if more than 2 days behind, Orange if slightly behind
+        warningEl.style.background = (dynamicTarget - auditsDone > 2) ? 'var(--red)' : '#e67e22';
     } else {
         warningEl.style.display = 'none';
     }
 }
-
-        summaryBody.innerHTML = data.summary.map(r => `
-            <tr data-region="${r.region}" data-model="${r.model}">
-                <td><b>${r.id}</b></td>
-                <td>${r.audits}</td>
-                <td style="color:var(--ey)">${r.avgLoad}%</td>
-                <td>${r.avgTemp}</td>
-                <td>${r.avgOil}</td>
-                <td>${r.avgFuel}</td>
-                <td>${r.avgAir}</td>
-                <td>${r.avgBit}</td>
-                <td>${r.avgImpact}</td>
-            </tr>`).join('');
-    }
-
     // 2. MACHINE VITALS (Updated to match new Right Sidebar IDs)
 if (data.vitals) {
     // Target the new Left-Aligned Date Stamp
@@ -745,4 +758,5 @@ async function updateRigDropdown() {
 </script>
 </body>
 </html>
+
 
