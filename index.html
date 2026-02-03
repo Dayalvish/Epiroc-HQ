@@ -199,20 +199,26 @@
         letter-spacing: 1px;
     }
     
-    .vital-table { width: 100%; border-collapse: collapse; margin-top: 5px; background: #111; }
-    .vital-table td { padding: 8px; border-bottom: 1px solid #222; font-size: 0.9rem; } /* LARGE DATA TEXT */
-    
-    .v-label { color: #888; text-transform: uppercase; font-size: 0.6rem; }
-    .v-value { text-align: right; color: var(--ey); font-weight: bold; font-size: 1.05rem; }
-    
-    .timestamp { 
-        font-size: 0.65rem; 
-        color: #777; 
-        font-style: italic; 
-        text-align: left; /* ALIGNED LEFT */
-        margin-top: 10px; 
-        display: block; 
-    }
+    .vital-table td { 
+    padding: 10px 5px; /* More vertical space */
+    border-bottom: 1px solid #222; 
+    font-size: 1rem; /* Base text larger */
+}
+
+.v-label { 
+    color: #888; 
+    text-transform: uppercase; 
+    font-size: 0.65rem; 
+    padding-left: 5px; 
+}
+
+.v-value { 
+    text-align: right; 
+    color: var(--ey); 
+    font-weight: bold; 
+    font-size: 1.25rem; /* Large and bold for visibility */
+    padding-right: 10px; /* Pushed further to the right */
+}
 
     /* =========================================
        8. SUMMARY TABLE & CHARTS
@@ -523,23 +529,27 @@
     const warningBox = document.getElementById('auditWarning');
     const rigSelectElem = document.getElementById('rigSelect');
     
-    // 1. DYNAMIC SUMMARY TABLE & AUDIT WARNING (< 15)
-    if (data.summary && data.summary.length > 0) {
-        const selectedRigId = rigSelectElem ? rigSelectElem.value.trim().toUpperCase() : "";
-        const selectedRigData = data.summary.find(r => String(r.id).trim().toUpperCase() === selectedRigId);
+    function checkAuditProgress(rigData) {
+    const now = new Date();
+    const currentDay = now.getDate(); // e.g., 3 for Feb 3rd
+    const auditsDone = parseInt(rigData.audits || 0);
+    
+    // LOGIC: 1 Audit required per day of the month
+    // Target: 10 by day 10, 20 by day 20, 30 by month end.
+    const dynamicTarget = currentDay; 
+    
+    const warningEl = document.getElementById('auditWarning');
+    
+    if (auditsDone < dynamicTarget) {
+        warningEl.style.display = 'block';
+        warningEl.innerHTML = `⚠️ RIG ${rigData.rig_id} PROGRESS: ${auditsDone}/${dynamicTarget} AUDITS (Required: 1 per day)`;
         
-        if (window.warningTimer) clearTimeout(window.warningTimer);
-
-        if (selectedRigData && parseInt(selectedRigData.audits) < 15) {
-            warningBox.style.display = 'block';
-            warningBox.innerHTML = `⚠️ RIG ${selectedRigId} HAS ONLY ${selectedRigData.audits} AUDITS (Target: 15)`;
-            
-            window.warningTimer = setTimeout(() => {
-                warningBox.style.display = 'none';
-            }, 15000);
-        } else {
-            warningBox.style.display = 'none';
-        }
+        // Change color to orange if close, red if very behind
+        warningEl.style.background = (dynamicTarget - auditsDone > 5) ? 'var(--red)' : '#e67e22';
+    } else {
+        warningEl.style.display = 'none';
+    }
+}
 
         summaryBody.innerHTML = data.summary.map(r => `
             <tr data-region="${r.region}" data-model="${r.model}">
@@ -735,3 +745,4 @@ async function updateRigDropdown() {
 </script>
 </body>
 </html>
+
