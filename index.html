@@ -555,27 +555,38 @@
             </tr>`).join('');
     }
 
-    // 2. MACHINE VITALS
-    if (data.vitals) {
-        document.getElementById('v-date').innerText = data.vitals.date || "--"; 
-        document.getElementById('v-boost').innerText = data.vitals.boost || "0";
-        document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
-        document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
-        document.getElementById('v-hyd-temp').innerText = (data.vitals.hyd || "0") + "°C";
-    }
+    // 2. MACHINE VITALS (Updated to match new Right Sidebar IDs)
+if (data.vitals) {
+    // Target the new Left-Aligned Date Stamp
+    const dateEl = document.getElementById('vitals-date-stamp');
+    if (dateEl) dateEl.innerText = "Data as of: " + (data.vitals.date || "--"); 
 
-    // 3. TRIGGER ALERTS SIDEBAR
-    const alertList = document.getElementById('alert-list');
+    // Target the new Vital IDs
+    if (document.getElementById('v-boost')) document.getElementById('v-boost').innerText = data.vitals.boost || "0";
+    if (document.getElementById('v-fuel')) document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
+    if (document.getElementById('v-receiver')) document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
+    
+    // Target the new Temp ID
+    const tempEl = document.getElementById('v-temp');
+    if (tempEl) tempEl.innerText = (data.vitals.hyd || "0") + "°C";
+}
+
+// 3. TRIGGER ALERTS SIDEBAR (Updated to match new HTML)
+const alertList = document.getElementById('alert-list');
+if (alertList) {
     if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
         alertList.innerHTML = data.vitals.alerts.map(a => `
-            <div class="alert-card" style="border-left:5px solid var(--red); background:rgba(255,77,77,0.1); padding:10px; margin-bottom:8px;">
-                <b style="color:var(--ey); font-size:0.75rem;">UNIT: ${a.rig}</b><br>
-                <b style="color:var(--red); font-size:0.85rem;">⚠️ ${a.parameter}</b>
+            <div class="alert-card" style="border-left:4px solid var(--red); background:rgba(255,77,77,0.1); padding:8px; margin-bottom:8px; border-radius:4px;">
+                <b style="color:var(--ey); font-size:0.7rem;">UNIT: ${a.rig}</b><br>
+                <b style="color:var(--red); font-size:0.8rem;">⚠️ ${a.parameter}</b>
             </div>`).join('');
     } else { 
-        alertList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--green);">✅ ALL NORMAL</div>`; 
+        alertList.innerHTML = `
+            <div style="text-align:center; padding:15px; color:var(--green); font-weight:bold;">
+                <span class="live-dot"></span> ALL PARAMETERS NORMAL
+            </div>`; 
     }
-
+}
     // 4. THE CASCADING TRIGGERS
     applyGlobalFilters(); 
     drawChart(); 
@@ -724,33 +735,3 @@ async function updateRigDropdown() {
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
