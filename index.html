@@ -172,67 +172,56 @@
             min-height: 0;
         }
 
-       /* =========================================
-       NEW RADIAL DIAL GAUGE STYLING
+      /* =========================================
+       BOLDER RADIAL DIAL GAUGE STYLING
        ========================================= */
     .gauge-partition {
-        flex: 0 0 22%; /* Increased height for dial arcs */
+        flex: 0 0 25%; /* Slightly more height for bigger dials */
         display: flex;
         justify-content: space-around;
         align-items: center;
-        background: rgba(0,0,0,0.7);
+        background: rgba(0,0,0,0.8);
         border: 1px solid #444;
         margin: 5px 0;
         border-radius: 4px;
-        padding: 10px;
+        padding: 15px 10px;
         position: relative;
     }
 
     .dial-wrapper {
         position: relative;
-        width: 130px; /* Width of each radial gauge */
+        width: 160px; /* Bigger dial footprint */
         text-align: center;
         display: flex;
         flex-direction: column;
         align-items: center;
     }
 
-    /* Smooth Needle Movement */
+    /* Bolder Needle */
     .needle {
         transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
         transform-origin: 50px 50px;
+        stroke-width: 4px; /* Bolder needle */
     }
 
     .dial-value {
-        font-size: 1.4rem;
-        font-weight: bold;
-        color: var(--ey);
+        font-size: 1.7rem; /* Bigger numerical view */
+        font-weight: 900; 
+        color: #fff; /* White text for high contrast */
         font-family: 'Courier New', monospace;
-        margin-top: -18px; /* Positions number inside the arch */
+        margin-top: -20px;
         z-index: 2;
+        text-shadow: 0 0 10px rgba(0,0,0,1);
     }
 
     .dial-label {
-        font-size: 0.6rem;
-        color: #888;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        margin-top: 2px;
-    }
-
-    .date-badge {
-        position: absolute;
-        top: 8px;
-        left: 10px;
-        color: var(--green);
-        border: 1px solid var(--green);
-        padding: 2px 8px;
-        border-radius: 10px;
-        font-size: 0.65rem;
+        font-size: 0.7rem;
+        color: var(--ey); /* Gold labels */
         font-weight: bold;
-        background: rgba(0,0,0,0.6);
-    }
-        .summary-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        margin-top: 5px;
+    }        .summary-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
         .summary-table th { background: #222; color: var(--ey); position: sticky; top: 0; z-index: 10; }
         .summary-table td { padding: 6px; border: 1px solid #333; text-align: center; }
 
@@ -575,54 +564,40 @@ function startLivelyGauges(forceReset = false) {
         const entry = d[currentIdx];
         if (!entry) { currentIdx = 0; return; }
 
-        let html = `<div class="date-badge">AUDIT DATE: ${entry.date || entry.Date || 'N/A'}</div>`;
+        let html = `<div class="date-badge">AUDIT DATE: ${entry.date || 'N/A'}</div>`;
         let config = [];
 
-        // Define Max limits for needle scaling
+        // Modes configuration
         if (mode === 'tempVsOil') {
-            config = [
-                { lab: 'Oil Pr', val: entry.oil || 0, max: 8, unit: 'bar' },
-                { lab: 'RPM', val: entry.rpm || 0, max: 2500, unit: '' },
-                { lab: 'Temp', val: entry.temp || 0, max: 120, unit: '°C' }
-            ];
+            config = [{ lab: 'Oil bar', val: entry.oil || 0, max: 8 }, { lab: 'RPM', val: entry.rpm || 0, max: 2500 }, { lab: 'Temp °C', val: entry.temp || 0, max: 120 }];
         } else if (mode === 'hydro_impact') {
-            config = [
-                { lab: 'Impact', val: entry.impact || 0, max: 250, unit: 'bar' },
-                { lab: 'Feed', val: entry.feed || 0, max: 100, unit: 'bar' },
-                { lab: 'Damper', val: entry.damper || 0, max: 50, unit: 'bar' }
-            ];
+            config = [{ lab: 'Impact', val: entry.impact || 0, max: 250 }, { lab: 'Feed', val: entry.feed || 0, max: 100 }, { lab: 'Damper', val: entry.damper || 0, max: 50 }];
         } else if (mode === 'setBit') {
-            config = [
-                { lab: 'Air Set', val: entry.air || 0, max: 30, unit: 'bar' },
-                { lab: 'Bit Pr', val: entry.bit || 0, max: 30, unit: 'bar' }
-            ];
+            config = [{ lab: 'Air Set', val: entry.air || 0, max: 30 }, { lab: 'Bit Pr', val: entry.bit || 0, max: 30 }];
         } else {
-            config = [
-                { lab: 'Load', val: entry.load || 0, max: 100, unit: '%' },
-                { lab: 'Comp %', val: entry.comp || 0, max: 100, unit: '%' }
-            ];
+            config = [{ lab: 'Load %', val: entry.load || 0, max: 100 }, { lab: 'Comp %', val: entry.comp || 0, max: 100 }];
         }
 
         config.forEach(g => {
-            // Calculate needle rotation: 0% = -90deg, 100% = +90deg
             const percent = Math.min(g.val / g.max, 1);
             const angle = (percent * 180) - 90;
-            
-            // Color logic: Red if over 90% of max
             const color = percent > 0.9 ? 'var(--red)' : 'var(--ey)';
 
             html += `
                 <div class="dial-wrapper">
-                    <svg viewBox="0 0 100 60">
-                        <path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="#222" stroke-width="6" stroke-linecap="round" />
-                        <path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="${percent * 126}, 126" opacity="0.3" />
-                        <line class="needle" x1="50" y1="50" x2="50" y2="15" 
-                              stroke="${color}" stroke-width="2" stroke-linecap="round"
+                    <svg viewBox="0 0 100 65">
+                        <path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="8" stroke-linecap="round" />
+                        
+                        <path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="${percent * 126}, 126" stroke-linecap="round" />
+
+                        <line class="needle" x1="50" y1="50" x2="50" y2="12" 
+                              stroke="${color}" stroke-width="4" stroke-linecap="round"
                               style="transform: rotate(${angle}deg); transform-origin: 50px 50px;" />
-                        <circle cx="50" cy="50" r="3" fill="#888" />
+                        
+                        <circle cx="50" cy="50" r="4" fill="#333" stroke="#666" stroke-width="1" />
                     </svg>
-                    <div class="dial-value" style="color:${color}">${Math.round(g.val)}</div>
-                    <span class="dial-label">${g.lab} ${g.unit}</span>
+                    <div class="dial-value">${Math.round(g.val)}</div>
+                    <span class="dial-label">${g.lab}</span>
                 </div>`;
         });
 
@@ -704,6 +679,7 @@ function startLivelyGauges(forceReset = false) {
 </script>
 </body>
 </html>
+
 
 
 
