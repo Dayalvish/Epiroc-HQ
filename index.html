@@ -551,37 +551,70 @@ try {
 var currentIdx = 0;
 
 function startLivelyGauges(forceReset = false) {
-    if (livelyTimer) clearInterval(livelyTimer);
-    
+    // 1. CLEAR: Stop any existing timer to prevent freezing or overlapping
+    if (livelyTimer) {
+        clearInterval(livelyTimer);
+        livelyTimer = null;
+    }
+
+    // 2. DATA CHECK: Ensure globalData and monthlyData exist
     const d = globalData?.monthlyData || [];
     const row = document.getElementById('gauge-row');
     if (!row || d.length === 0) return;
 
+    // 3. RESET: Restart at index 0 if rig or mode changed
     if (forceReset) currentIdx = 0;
-    const mode = document.getElementById('chartMode').value;
+    
+    const mode = document.getElementById('chartMode')?.value || 'tempVsOil';
 
     livelyTimer = setInterval(() => {
-        const entry = d[currentIdx];
-        if (!entry) { currentIdx = 0; return; }
-
-        let html = `<div class="date-badge">AUDIT DATE: ${entry.date || 'N/A'}</div>`;
-        let config = [];
-
-        // Modes configuration
-        if (mode === 'tempVsOil') {
-            config = [{ lab: 'Oil bar', val: entry.oil || 0, max: 8 }, { lab: 'RPM', val: entry.rpm || 0, max: 2500 }, { lab: 'Temp °C', val: entry.temp || 0, max: 120 }];
-        } else if (mode === 'hydro_impact') {
-            config = [{ lab: 'Impact', val: entry.impact || 0, max: 250 }, { lab: 'Feed', val: entry.feed || 0, max: 100 }, { lab: 'Damper', val: entry.damper || 0, max: 50 }];
-        } else if (mode === 'setBit') {
-            config = [{ lab: 'Air Set', val: entry.air || 0, max: 30 }, { lab: 'Bit Pr', val: entry.bit || 0, max: 30 }];
-        } else {
-            config = [{ lab: 'Load %', val: entry.load || 0, max: 100 }, { lab: 'Comp %', val: entry.comp || 0, max: 100 }];
+        if (!d[currentIdx]) {
+            currentIdx = 0;
+            return;
         }
 
+        const entry = d[currentIdx];
+        const dateStr = entry.date || entry.Date || "N/A";
+        
+        // Date Badge for clarity
+        let html = `<div class="date-badge">AUDIT DATE: ${dateStr}</div>`;
+        let config = [];
+
+        // 4. DYNAMIC CONFIGURATION (Mapping parameters to Max Scales)
+        if (mode === 'tempVsOil') {
+            config = [
+                { lab: 'Oil bar', val: entry.oil || entry.Oil || 0, max: 8, decimal: true },
+                { lab: 'RPM', val: entry.rpm || entry.RPM || 0, max: 2500, decimal: false },
+                { lab: 'Temp °C', val: entry.temp || entry.Temp || 0, max: 120, decimal: false }
+            ];
+        } else if (mode === 'hydro_impact') {
+            config = [
+                { lab: 'Impact', val: entry.impact || 0, max: 250, decimal: false },
+                { lab: 'Feed', val: entry.feed || 0, max: 100, decimal: false },
+                { lab: 'Damper', val: entry.damper || 0, max: 50, decimal: false }
+            ];
+        } else if (mode === 'setBit') {
+            config = [
+                { lab: 'Air Set', val: entry.air || 0, max: 30, decimal: true },
+                { lab: 'Bit Pr', val: entry.bit || 0, max: 30, decimal: true }
+            ];
+        } else {
+            config = [
+                { lab: 'Eng Load %', val: entry.load || 0, max: 100, decimal: false },
+                { lab: 'Comp %', val: entry.comp || 0, max: 100, decimal: false }
+            ];
+        }
+
+        // 5. GENERATE RADIAL DIALS
         config.forEach(g => {
             const percent = Math.min(g.val / g.max, 1);
-            const angle = (percent * 180) - 90;
+            const angle = (percent * 180) - 90; // Calculate -90deg to +90deg
+            
+            // Critical alert color (90% threshold)
             const color = percent > 0.9 ? 'var(--red)' : 'var(--ey)';
+
+            // DECIMAL LOGIC: Force 0.0 format if 'decimal' flag is true
+            const displayVal = g.decimal ? parseFloat(g.val).toFixed(1) : Math.round(g.val);
 
             html += `
                 <div class="dial-wrapper">
@@ -596,14 +629,14 @@ function startLivelyGauges(forceReset = false) {
                         
                         <circle cx="50" cy="50" r="4" fill="#333" stroke="#666" stroke-width="1" />
                     </svg>
-                    <div class="dial-value">${Math.round(g.val)}</div>
+                    <div class="dial-value" style="color:${color}">${displayVal}</div>
                     <span class="dial-label">${g.lab}</span>
                 </div>`;
         });
 
         row.innerHTML = html;
-        currentIdx = (currentIdx + 1) % d.length;
-    }, 2000);
+        currentIdx = (currentIdx + 1) % d.length; // Loop to start after last audit
+    }, 2000); // 2-second heartbeat
 }    function drawChart() {
     if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
         if (chart) chart.destroy();
@@ -679,6 +712,7 @@ function startLivelyGauges(forceReset = false) {
 </script>
 </body>
 </html>
+
 
 
 
