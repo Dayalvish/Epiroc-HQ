@@ -694,11 +694,12 @@ function applyGlobalFilters() {
         link.href = url; 
         link.click();
     }
-   // 1. UPDATED: Updates Models based on selected Region
+   // 1. REGION -> MODEL CASCADE
 async function updateModelDropdown() {
     const region = document.getElementById('cityFocus').value;
     const modelSelect = document.getElementById('modelSelect');
     
+    // This tells the database: "Give me only models present in this region"
     try {
         const res = await fetch(getFullUrl(`get=model_list&userRegion=${encodeURIComponent(region)}`));
         const models = await res.json();
@@ -706,12 +707,12 @@ async function updateModelDropdown() {
         modelSelect.innerHTML = '<option value="">All Models</option>' + 
             models.map(m => `<option value="${m}">${m}</option>`).join('');
             
-        // Immediately trigger the next level of the cascade
+        // Immediately trigger the Rig ID update
         updateRigDropdown();
     } catch (e) { console.error("Model sync failed", e); }
 }
 
-// 2. UPDATED: Updates Rigs based on BOTH Region and Model
+// 2. MODEL -> FLEET (RIG ID) CASCADE
 async function updateRigDropdown() {
     const region = document.getElementById('cityFocus').value;
     const model = document.getElementById('modelSelect').value;
@@ -719,6 +720,7 @@ async function updateRigDropdown() {
     
     rigSelect.innerHTML = '<option value="">Loading...</option>';
     
+    // This tells the database: "Give me only Rigs that are [Region] AND [Model]"
     try {
         const res = await fetch(getFullUrl(`get=list&userRegion=${encodeURIComponent(region)}&model=${encodeURIComponent(model)}`));
         const rigs = await res.json();
@@ -731,16 +733,15 @@ async function updateRigDropdown() {
             rigSelect.innerHTML = '<option value="">No Rigs Found</option>';
         }
         
-        // IMPORTANT: Update the Table view and stats to match the new selection
+        // REFRESH UI: Hides rows in the table and updates Vitals/Charts
         applyGlobalFilters();
-
-        // Trigger the refresh for the Charts and Vitals
         refresh();
     } catch (e) { console.error("Rig sync failed", e); }
 }
 </script>
 </body>
 </html>
+
 
 
 
