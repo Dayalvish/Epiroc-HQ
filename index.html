@@ -296,12 +296,12 @@
             <input type="month" id="monthFilter" onchange="refresh()">
 
             <label style="display:block; margin-top:15px;">Analysis Mode</label>
-            <select id="chartMode" onchange="drawChart()">
-                <option value="tempVsOil">Trend: Temp / Oil / RPM</option>
-                <option value="loadVsComp">Load vs Compressor %</option>
-                <option value="setBit">DTH: Set vs Bit Pressure</option>
-                <option value="hydro_impact">Hydraulic: Impact/Feed/Damper</option>
-            </select>
+<select id="chartMode" onchange="drawChart(); startLivelyGauges();">
+    <option value="tempVsOil">Trend: Temp / Oil / RPM</option>
+    <option value="loadVsComp">Load vs Compressor %</option>
+    <option value="setBit">DTH: Set vs Bit Pressure</option>
+    <option value="hydro_impact">Hydraulic: Impact/Feed/Damper</option>
+</select>
 
             <div class="mini-stats">
                 <div class="mini-card"><small>Fleet Avg Load</small><span id="v-fleet-load">--</span></div>
@@ -474,11 +474,21 @@
             document.getElementById('v-temp').innerText = (data.vitals.hyd || "0") + "°C";
         }
 
-        applyGlobalFilters();
-        drawChart(); 
-        if (document.body.classList.contains('authorized')) startLivelyGauges();
-        document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+       // --- 5. FINAL TRIGGERS (REFINED) ---
+try {
+    applyGlobalFilters();
+    drawChart(); 
+
+    // Reset and restart gauges on every UI update
+    if (document.body.classList.contains('authorized') && globalData?.monthlyData) {
+        currentIdx = 0; // Force reset to the first audit of the month
+        startLivelyGauges(); 
     }
+} catch (err) {
+    console.error("UI Update Error:", err);
+}
+
+document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
 
     function applyGlobalFilters() {
         const selRegion = document.getElementById('cityFocus')?.value || "All";
@@ -500,45 +510,41 @@
         document.getElementById('v-fleet-load').innerText = visibleCount > 0 ? (totalLoad / visibleCount).toFixed(1) + "%" : "0%";
     }
 
-    // --- STABILIZED DATA MAPPING ---
-function startLivelyGauges() {
-    if (livelyTimer) clearInterval(livelyTimer); // Prevents duplicate timers
+   function startLivelyGauges() {
+    if (livelyTimer) clearInterval(livelyTimer); // Stop old timer
     
     const d = globalData?.monthlyData || [];
     const row = document.getElementById('gauge-row');
     if (!row || d.length === 0) return;
 
     const mode = document.getElementById('chartMode').value;
-    currentIdx = 0;
 
     livelyTimer = setInterval(() => {
         const entry = d[currentIdx];
         if (!entry) { currentIdx = 0; return; }
 
-        // Use Date for clarity instead of SEQ
-        let html = `<div class="date-badge">DATE: ${entry.date || 'N/A'}</div>`;
+        let html = `<div style="color:var(--green); border:1px solid; padding:2px 8px; border-radius:10px; font-size:0.7rem; font-weight:bold;">DATE: ${entry.date || entry.Date || 'N/A'}</div>`;
         let config = [];
 
-        // Dynamic Mode Mapping to fix missing values
+        // MODE-SPECIFIC MAPPING: Fixes the "not changing" issue
         if (mode === 'tempVsOil') {
-            config = [{ lab: 'Oil bar', val: entry.oil }, { lab: 'RPM', val: entry.rpm }, { lab: 'Temp °C', val: entry.temp }];
+            config = [{ lab: 'Oil bar', val: entry.oil || entry.Oil }, { lab: 'RPM', val: entry.rpm || entry.RPM }, { lab: 'Temp °C', val: entry.temp || entry.Temp }];
         } else if (mode === 'hydro_impact') {
-            config = [{ lab: 'Impact', val: entry.impact || 0 }, { lab: 'Feed', val: entry.feed || 0 }, { lab: 'Damper', val: entry.damper || 0 }];
+            config = [{ lab: 'Impact', val: entry.impact || entry.Impact }, { lab: 'Feed', val: entry.feed || entry.Feed }, { lab: 'Damper', val: entry.damper || entry.Damper }];
         } else if (mode === 'setBit') {
-            config = [{ lab: 'Air Set', val: entry.air || 0 }, { lab: 'Bit Pr', val: entry.bit || 0 }];
+            config = [{ lab: 'Air Set', val: entry.air || entry.Air }, { lab: 'Bit Pr', val: entry.bit || entry.Bit }];
         } else {
-            config = [{ lab: 'Eng Load', val: entry.load || 0 }, { lab: 'Comp %', val: entry.comp || 0 }];
+            config = [{ lab: 'Eng Load', val: entry.load || entry.Load }, { lab: 'Comp %', val: entry.comp || entry.Comp }];
         }
 
         config.forEach(g => {
-            html += `<div class="gauge-box"><span class="g-val">${g.val || 0}</span><span class="g-lab">${g.lab}</span></div>`;
+            html += `<div style="text-align:center;"><span class="g-val">${g.val || 0}</span><span class="g-lab">${g.lab}</span></div>`;
         });
 
         row.innerHTML = html;
-        currentIdx = (currentIdx + 1) % d.length;
-    }, 2000); // 2-second heartbeat
+        currentIdx = (currentIdx + 1) % d.length; // Loop through the audits
+    }, 2000); 
 }
-
     function drawChart() {
     if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
         if (chart) chart.destroy();
@@ -614,4 +620,5 @@ function startLivelyGauges() {
 </script>
 </body>
 </html>
+
 
