@@ -463,36 +463,44 @@
         } catch (err) { console.error("Refresh Error:", err); }
     }
 
-    function updateUI(data) {
-        const summaryBody = document.getElementById('fleet-summary-body');
-        const warningBox = document.getElementById('auditWarning');
-        if (!data || !data.summary) return;
+   function updateUI(data) {
+    if (!data) return;
+    globalData = data; // Set global context for other functions
 
+    const summaryBody = document.getElementById('fleet-summary-body');
+    const warningBox = document.getElementById('auditWarning');
+
+    try {
+        // --- 1. AUDIT COMPLIANCE WARNING ---
         const selectedRigId = document.getElementById('rigSelect').value.toUpperCase();
-        const selectedRigData = data.summary.find(r => String(r.id).toUpperCase() === selectedRigId);
-        const today = new Date().getDate();
-        const requiredAudits = Math.max(0, today - 1);
+        if (data.summary) {
+            const selectedRigData = data.summary.find(r => String(r.id).toUpperCase() === selectedRigId);
+            const today = new Date().getDate();
+            const requiredAudits = Math.max(0, today - 1);
 
-        if (selectedRigData && parseInt(selectedRigData.audits || 0) < requiredAudits) {
-            warningBox.style.display = 'block';
-            warningBox.innerHTML = `⚠️ RIG ${selectedRigId}: ONLY ${selectedRigData.audits}/${today} AUDITS DONE`;
-        } else {
-            warningBox.style.display = 'none';
+            if (selectedRigData && parseInt(selectedRigData.audits || 0) < requiredAudits) {
+                warningBox.style.display = 'block';
+                warningBox.innerHTML = `⚠️ RIG ${selectedRigId}: ONLY ${selectedRigData.audits}/${today} AUDITS DONE`;
+            } else {
+                warningBox.style.display = 'none';
+            }
+
+            // --- 2. UPDATE FLEET SUMMARY TABLE ---
+            summaryBody.innerHTML = data.summary.map(r => `
+                <tr data-region="${r.region || ''}" data-model="${r.model || ''}">
+                    <td><b>${r.id}</b></td>
+                    <td>${r.audits || 0}</td>
+                    <td>${r.avgLoad || 0}%</td>
+                    <td>${r.avgTemp || 0}</td>
+                    <td>${r.avgOil || 0}</td>
+                    <td>${r.avgFuel || 0}</td>
+                    <td>${r.avgAir || 0}</td>
+                    <td>${r.avgBit || 0}</td>
+                    <td>${r.avgImpact || 0}</td>
+                </tr>`).join('');
         }
 
-        summaryBody.innerHTML = data.summary.map(r => `
-            <tr data-region="${r.region || ''}" data-model="${r.model || ''}">
-                <td><b>${r.id}</b></td>
-                <td>${r.audits || 0}</td>
-                <td>${r.avgLoad || 0}%</td>
-                <td>${r.avgTemp || 0}</td>
-                <td>${r.avgOil || 0}</td>
-                <td>${r.avgFuel || 0}</td>
-                <td>${r.avgAir || 0}</td>
-                <td>${r.avgBit || 0}</td>
-                <td>${r.avgImpact || 0}</td>
-            </tr>`).join('');
-
+        // --- 3. UPDATE TOP VITALS ---
         if (data.vitals) {
             document.getElementById('v-boost').innerText = data.vitals.boost || "0";
             document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
@@ -500,21 +508,15 @@
             document.getElementById('v-temp').innerText = (data.vitals.hyd || "0") + "°C";
         }
 
-     // --- 5. FINAL TRIGGERS (CONSOLIDATED & ERROR-FREE) ---
-function updateUI(data) {
-    if (!data) return;
-    globalData = data;
-
-    try {
-        // 1. Data Refresh
-        applyGlobalFilters();
+        // --- 4. RUN FILTERS & DYNAMIC ALERTS ---
+        applyGlobalFilters(); 
         
-        // 2. Chart Refresh (Safety Check)
+        // --- 5. REFRESH CHARTS ---
         if (typeof drawChart === 'function') {
             drawChart();
         }
 
-        // 3. Gauge Restart
+        // --- 6. RESTART RADIAL GAUGE LOOP ---
         if (document.body.classList.contains('authorized')) {
             if (globalData.monthlyData && globalData.monthlyData.length > 0) {
                 startLivelyGauges(true);
@@ -525,10 +527,9 @@ function updateUI(data) {
         if (syncEl) syncEl.innerText = new Date().toLocaleTimeString();
 
     } catch (err) {
-        console.error("UI Update Crashed:", err);
+        console.error("UI Update Error:", err);
     }
 }
-
 // --- APPLY GLOBAL FILTERS & DYNAMIC ALERTS ---
 function applyGlobalFilters() {
     const alertList = document.getElementById('alert-list');
@@ -732,6 +733,7 @@ function exportToExcel() {
 </script>
 </body>
 </html>
+
 
 
 
