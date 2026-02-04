@@ -525,20 +525,21 @@
     
     // --- 1. DYNAMIC PRO-RATA AUDIT WARNING (1 per day, 1-day grace) ---
 if (data.summary && data.summary.length > 0) {
-    const selectedRigId = rigSelectElem ? rigSelectElem.value.trim().toUpperCase() : "";
+    // FIX: Consistently use selectedRigId
+    const selectedRigId = rigSelectElem && rigSelectElem.value ? rigSelectElem.value.trim().toUpperCase() : "";
     const selectedRigData = data.summary.find(r => String(r.id).trim().toUpperCase() === selectedRigId);
     
-    // Calculate Threshold: Today's date minus 1 (Grace Period)
-    // Example: On Feb 4th, it expects at least 3 audits.
     const today = new Date().getDate();
     const gracePeriod = 1;
     const requiredAudits = Math.max(0, today - gracePeriod);
 
     if (window.warningTimer) clearTimeout(window.warningTimer);
 
-    if (selectedRigData && parseInt(selectedRigData.audits) < requiredAudits) {
+    // Check if we actually found data for the selected rig before comparing
+    if (selectedRigData && parseInt(selectedRigData.audits || 0) < requiredAudits) {
         warningBox.style.display = 'block';
-        warningBox.innerHTML = `⚠️ RIG ${selectedId}: ONLY ${selectedRigData.audits}/${today} AUDITS DONE (Required: ${requiredAudits})`;
+        // FIX: Changed selectedId to selectedRigId
+        warningBox.innerHTML = `⚠️ RIG ${selectedRigId}: ONLY ${selectedRigData.audits}/${today} AUDITS DONE (Required: ${requiredAudits})`;
         
         window.warningTimer = setTimeout(() => {
             warningBox.style.display = 'none';
@@ -546,8 +547,6 @@ if (data.summary && data.summary.length > 0) {
     } else {
         warningBox.style.display = 'none';
     }
-    
-    // ... rest of your table population code ...
 }
         summaryBody.innerHTML = data.summary.map(r => `
             <tr data-region="${r.region}" data-model="${r.model}">
@@ -743,4 +742,5 @@ async function updateRigDropdown() {
 </script>
 </body>
 </html>
+
 
