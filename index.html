@@ -136,14 +136,14 @@
     }
 
     /* =========================================
-       FIXED LAYOUT & SCALING (SECTION 5)
+       5. MAIN GRID SYSTEM & FIXED SCALING
        ========================================= */
     .main-layout { 
         display: grid; 
         grid-template-columns: 260px 1fr 280px; 
         gap: 12px; 
         flex-grow: 1; 
-        height: calc(100vh - 130px); /* Forces full view at 100% zoom */
+        height: calc(100vh - 130px); 
         min-height: 0; 
     }
 
@@ -159,52 +159,41 @@
     }
 
     #chart-container {
-        flex: 0 0 50%; /* Adjusted for better visibility */
+        flex: 0 0 50%; 
         position: relative;
         width: 100%;
         min-height: 0;
     }
 
     .gauge-partition {
-        flex: 0 0 18%; /* Space for 3-gauge digital playback */
+        flex: 0 0 16%; 
         display: flex;
         justify-content: space-around;
         align-items: center;
-        background: rgba(0,0,0,0.5);
-        border: 1px solid #333;
+        background: rgba(0,0,0,0.6);
+        border: 1px solid #444;
         margin: 5px 0;
         border-radius: 4px;
         padding: 5px;
     }
 
-    /* Digital Gauge Styling */
-    .g-val { display: block; font-size: 2.2rem; font-weight: bold; color: var(--ey); font-family: 'Courier New', monospace; }
-    .g-lab { display: block; font-size: 0.65rem; color: #888; text-transform: uppercase; margin-top: 4px; }
+    .g-val { display: block; font-size: 2rem; font-weight: bold; color: var(--ey); font-family: 'Courier New', monospace; }
+    .g-lab { display: block; font-size: 0.6rem; color: #888; text-transform: uppercase; margin-top: 2px; }
 
-    .table-scroll-container {
-        flex-grow: 1;
-        overflow-y: auto;
-        border: 1px solid #333;
-        background: #111;
-    }
-
-    .summary-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
-    .summary-table th { background: #222; color: var(--ey); position: sticky; top: 0; z-index: 10; }
     /* =========================================
-       6. SUMMARY TABLE (SCROLLABLE FIX)
+       6. SUMMARY TABLE (INTERNAL SCROLL)
        ========================================= */
     .table-scroll-container {
         flex-grow: 1;
-        overflow-y: auto;          /* Internal scrollbar for the table */
+        overflow-y: auto;
         margin-top: 5px;
         border: 1px solid #333;
         background: #111;
     }
 
     .summary-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
-    .summary-table th { background: #222; color: var(--ey); position: sticky; top: 0; z-index: 5; }
+    .summary-table th { background: #222; color: var(--ey); position: sticky; top: 0; z-index: 10; }
     .summary-table td { padding: 6px; border: 1px solid #333; text-align: center; }
-
     /* =========================================
        7. OTHER UI ELEMENTS
        ========================================= */
@@ -756,58 +745,92 @@ async function updateRigDropdown() {
             rigSelect.innerHTML = '<option value="">No Rigs Found</option>';
         }
         
-        // REFRESH UI: Hides rows in the table and updates Vitals/Charts
-        applyGlobalFilters();
-        refresh();
-    } catch (e) { console.error("Rig sync failed", e); }
-}
-    let playbackTimer = null;
-let currentIdx = 0;
-
+       // --- GAUGE CONTROLS ---
+// Remove the duplicate declarations you had. Use only these:
 let livelyTimer = null;
-let currentIdx = 0;
+let currentIdx = 0; 
 
 function startLivelyGauges() {
+    // 1. CLEAR PREVIOUS TIMER IMMEDIATELY
+    if (livelyTimer) {
+        clearInterval(livelyTimer);
+        livelyTimer = null;
+    }
+
+    // 2. DATA VALIDATION
     const d = globalData?.monthlyData || []; 
-    if (d.length === 0) return;
+    if (d.length === 0) {
+        document.getElementById('gauge-row').innerHTML = '<div style="color:#666">No Audit Data for Playback</div>';
+        return;
+    }
+
+    // 3. RESET INDEX
+    // This prevents the "Freezing" when switching rigs
+    currentIdx = 0; 
 
     const mode = document.getElementById('chartMode').value;
     const row = document.getElementById('gauge-row');
-    
-    // Clear interval to reset switch speed
-    if (livelyTimer) clearInterval(livelyTimer);
 
     livelyTimer = setInterval(() => {
-        const entry = d[currentIdx];
-        
-        // Show actual Date from data instead of SEQ number
-        let gaugeHtml = `<div style="color:var(--green); border:1px solid; padding:2px 8px; border-radius:10px; font-size:0.75rem;">DATE: ${entry.date}</div>`;
-        let config = [];
-
-        // Dynamic Configuration mapping for missing values
-        if (mode === 'tempVsOil') {
-            config = [{ lab: 'Oil Pr', val: entry.oil }, { lab: 'RPM', val: entry.rpm }, { lab: 'Temp °C', val: entry.temp }];
-        } else if (mode === 'hydro_impact') {
-            // Added support for missing Hydraulic parameters
-            config = [{ lab: 'Impact', val: entry.impact }, { lab: 'Feed', val: entry.feed }, { lab: 'Damper', val: entry.damper }];
-        } else if (mode === 'setBit') {
-            // Added support for Set vs Bit
-            config = [{ lab: 'Air Set', val: entry.air }, { lab: 'Bit Pr', val: entry.bit }];
-        } else {
-            config = [{ lab: 'Eng Load', val: entry.load }, { lab: 'Comp %', val: entry.comp }];
+        // Safety check to ensure data still exists
+        if (!d[currentIdx]) {
+            currentIdx = 0;
+            return;
         }
 
+        const entry = d[currentIdx];
+        
+        // Show Date with fallback
+        let displayDate = entry.date || entry.Date || "N/A";
+        let gaugeHtml = `<div style="color:var(--green); border:1px solid; padding:2px 8px; border-radius:10px; font-size:0.75rem; font-weight:bold;">DATE: ${displayDate}</div>`;
+        
+        let config = [];
+
+        // 4. ROBUST MAPPING (Handles lowercase/uppercase naming)
+        if (mode === 'tempVsOil') {
+            config = [
+                { lab: 'Oil bar', val: entry.oil || entry.Oil || 0 },
+                { lab: 'RPM', val: entry.rpm || entry.RPM || 0 },
+                { lab: 'Temp °C', val: entry.temp || entry.Temp || 0 }
+            ];
+        } else if (mode === 'hydro_impact') {
+            config = [
+                { lab: 'Impact', val: entry.impact || entry.Impact || 0 },
+                { lab: 'Feed', val: entry.feed || entry.Feed || 0 },
+                { lab: 'Damper', val: entry.damper || entry.Damper || 0 }
+            ];
+        } else if (mode === 'setBit') {
+            config = [
+                { lab: 'Air Set', val: entry.air || entry.Air || 0 },
+                { lab: 'Bit Pr', val: entry.bit || entry.Bit || 0 }
+            ];
+        } else {
+            // Load vs Comp
+            config = [
+                { lab: 'Eng Load', val: entry.load || entry.Load || 0 },
+                { lab: 'Comp %', val: entry.comp || entry.Comp || 0 }
+            ];
+        }
+
+        // 5. INJECT HTML
         config.forEach(g => {
-            gaugeHtml += `<div style="text-align:center;"><span class="g-val">${g.val || 0}</span><span class="g-lab">${g.lab}</span></div>`;
+            gaugeHtml += `
+                <div style="text-align:center;">
+                    <span class="g-val">${g.val}</span>
+                    <span class="g-lab">${g.lab}</span>
+                </div>`;
         });
 
         row.innerHTML = gaugeHtml;
+
+        // 6. INCREMENT
         currentIdx = (currentIdx + 1) % d.length;
-    }, 2000); // Speed increased to 2 seconds for better clarity
+    }, 2000); 
 }
 </script>
 </body>
 </html>
+
 
 
 
