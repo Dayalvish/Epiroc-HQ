@@ -500,94 +500,83 @@
             document.getElementById('v-temp').innerText = (data.vitals.hyd || "0") + "°C";
         }
 
-       // --- 5. FINAL TRIGGERS (CLEAN & OPTIMIZED) ---
-function updateDashboardUI() {
-    try {
-        // 1. Run Table Filtering & Populate Trigger Alerts
-        applyGlobalFilters();
-        
-        // 2. Refresh the Trend Chart
-        if (typeof drawChart === "function") {
-            drawChart();
-        }
+      // --- 5. FINAL TRIGGERS (CRASH-PROOF VERSION) ---
+try {
+    // Safety check: Don't do anything if globalData is missing
+    if (!globalData || !globalData.vitals) {
+        console.warn("Waiting for data...");
+        return;
+    }
 
-        // 3. Safety Trigger for Gauges: Only starts if the user is authorized
-        if (document.body.classList.contains('authorized')) {
-            // Restart gauges to ensure they sync with newly fetched data
+    // 1. First run filtering and alerts
+    applyGlobalFilters();
+    
+    // 2. Refresh the Trend Chart (Only if the function exists)
+    if (typeof drawChart === 'function') {
+        drawChart(); 
+    }
+
+    // 3. Safety Trigger for Gauges
+    if (document.body.classList.contains('authorized')) {
+        // Only start gauges if we have monthly data
+        if (globalData.monthlyData && globalData.monthlyData.length > 0) {
             startLivelyGauges(true); 
         }
-
-        // 4. Update Sync Timestamp
-        const syncEl = document.getElementById('last-sync');
-        if (syncEl) syncEl.innerText = new Date().toLocaleTimeString();
-        
-    } catch (err) {
-        console.error("Dashboard Refresh Failed:", err);
     }
+
+    // 4. Update the timestamp
+    const syncTime = document.getElementById('last-sync');
+    if (syncTime) syncTime.innerText = new Date().toLocaleTimeString();
+    
+} catch (err) {
+    console.error("UI Update Crashed:", err);
 }
 
-// --- APPLY GLOBAL FILTERS & DYNAMIC ALERTS ---
 function applyGlobalFilters() {
-    const selRegion = document.getElementById('cityFocus')?.value || "All";
-    const selModel = document.getElementById('modelSelect')?.value || "";
-    const rows = document.querySelectorAll('#fleet-summary-body tr');
     const alertList = document.getElementById('alert-list');
-    
-    // Safety check for global data
+    if (!alertList) return; // Prevent crash if element is missing
+
+    // Safety access to data
     const T = globalData?.thresholds || {};
     const d = globalData?.vitals || {}; 
     
-    let visibleCount = 0; 
-    let totalLoad = 0;
     let activeAlerts = [];
 
-    // --- PART A: TABLE FILTERING ---
+    // --- TABLE FILTERING LOGIC ---
+    const selRegion = document.getElementById('cityFocus')?.value || "All";
+    const selModel = document.getElementById('modelSelect')?.value || "";
+    const rows = document.querySelectorAll('#fleet-summary-body tr');
+
     rows.forEach(row => {
         const rReg = row.getAttribute('data-region') || "";
         const rMod = row.getAttribute('data-model') || "";
         const regionMatch = (selRegion === "All India (National)" || selRegion === "All" || rReg === selRegion);
         const modelMatch = (selModel === "" || rMod === selModel);
-        
-        if (regionMatch && modelMatch) {
-            row.style.display = ""; 
-            visibleCount++;
-            totalLoad += parseFloat(row.cells[2]?.innerText) || 0;
-        } else { 
-            row.style.display = "none"; 
-        }
+        row.style.display = (regionMatch && modelMatch) ? "" : "none";
     });
 
-    const activeRigsEl = document.getElementById('v-active-rigs');
-    const fleetLoadEl = document.getElementById('v-fleet-load');
-    if (activeRigsEl) activeRigsEl.innerText = visibleCount;
-    if (fleetLoadEl) fleetLoadEl.innerText = visibleCount > 0 ? (totalLoad / visibleCount).toFixed(1) + "%" : "0%";
-
-    // --- PART B: DYNAMIC ALERT TRIGGER (THE 3.1 BAR FIX) ---
+    // --- DYNAMIC ALERT LOGIC (THE 3.1 BAR FIX) ---
     const oilVal = parseFloat(d.oil || 0);
     const oilLimit = parseFloat(T['Engine oil pressure_Low'] || 3.5);
     
-    // If oil is 3.1 and limit is 3.5, this triggers
+    // Check if 3.1 is less than 3.5
     if (oilVal > 0 && oilVal <= oilLimit) {
         activeAlerts.push(`<li style="color:var(--red); font-weight:bold; margin-bottom:5px;">⚠️ LOW OIL PRESSURE: ${oilVal.toFixed(1)} bar</li>`);
     }
 
     const tempVal = parseFloat(d.temp || 0);
     const tempLimit = parseFloat(T['Engine coolant temp_High'] || 105);
-    
     if (tempVal >= tempLimit) {
         activeAlerts.push(`<li style="color:var(--red); font-weight:bold; margin-bottom:5px;">⚠️ HIGH COOLANT TEMP: ${tempVal}°C</li>`);
     }
 
-    // --- PART C: RENDER TRIGGER WINDOW ---
-    if (alertList) {
-        if (activeAlerts.length > 0) {
-            alertList.innerHTML = `<ul style="list-style:none; padding:0; margin:0; text-align:left;">${activeAlerts.join('')}</ul>`;
-        } else {
-            alertList.innerHTML = `<div style="color:var(--green); font-weight:bold; padding:10px; text-align:center;"><span class="live-dot"></span> ALL PARAMETERS NORMAL</div>`;
-        }
+    // --- RENDER ---
+    if (activeAlerts.length > 0) {
+        alertList.innerHTML = `<ul style="list-style:none; padding:0; margin:0; text-align:left;">${activeAlerts.join('')}</ul>`;
+    } else {
+        alertList.innerHTML = `<div style="color:var(--green); font-weight:bold; padding:10px; text-align:center;"><span class="live-dot"></span> ALL PARAMETERS NORMAL</div>`;
     }
 }
-
 // --- RADIAL DIAL GAUGE LOGIC ---
 var livelyTimer = null;
 var currentIdx = 0;
@@ -750,6 +739,7 @@ function startLivelyGauges(forceReset = false) {
 </script>
 </body>
 </html>
+
 
 
 
