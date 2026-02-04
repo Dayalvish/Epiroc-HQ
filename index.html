@@ -523,24 +523,32 @@
     const warningBox = document.getElementById('auditWarning');
     const rigSelectElem = document.getElementById('rigSelect');
     
-    // 1. DYNAMIC SUMMARY TABLE & AUDIT WARNING (< 15)
-    if (data.summary && data.summary.length > 0) {
-        const selectedRigId = rigSelectElem ? rigSelectElem.value.trim().toUpperCase() : "";
-        const selectedRigData = data.summary.find(r => String(r.id).trim().toUpperCase() === selectedRigId);
+    // --- 1. DYNAMIC PRO-RATA AUDIT WARNING (1 per day, 1-day grace) ---
+if (data.summary && data.summary.length > 0) {
+    const selectedRigId = rigSelectElem ? rigSelectElem.value.trim().toUpperCase() : "";
+    const selectedRigData = data.summary.find(r => String(r.id).trim().toUpperCase() === selectedRigId);
+    
+    // Calculate Threshold: Today's date minus 1 (Grace Period)
+    // Example: On Feb 4th, it expects at least 3 audits.
+    const today = new Date().getDate();
+    const gracePeriod = 1;
+    const requiredAudits = Math.max(0, today - gracePeriod);
+
+    if (window.warningTimer) clearTimeout(window.warningTimer);
+
+    if (selectedRigData && parseInt(selectedRigData.audits) < requiredAudits) {
+        warningBox.style.display = 'block';
+        warningBox.innerHTML = `⚠️ RIG ${selectedId}: ONLY ${selectedRigData.audits}/${today} AUDITS DONE (Required: ${requiredAudits})`;
         
-        if (window.warningTimer) clearTimeout(window.warningTimer);
-
-        if (selectedRigData && parseInt(selectedRigData.audits) < 15) {
-            warningBox.style.display = 'block';
-            warningBox.innerHTML = `⚠️ RIG ${selectedRigId} HAS ONLY ${selectedRigData.audits} AUDITS (Target: 15)`;
-            
-            window.warningTimer = setTimeout(() => {
-                warningBox.style.display = 'none';
-            }, 15000);
-        } else {
+        window.warningTimer = setTimeout(() => {
             warningBox.style.display = 'none';
-        }
-
+        }, 15000);
+    } else {
+        warningBox.style.display = 'none';
+    }
+    
+    // ... rest of your table population code ...
+}
         summaryBody.innerHTML = data.summary.map(r => `
             <tr data-region="${r.region}" data-model="${r.model}">
                 <td><b>${r.id}</b></td>
@@ -735,3 +743,4 @@ async function updateRigDropdown() {
 </script>
 </body>
 </html>
+
