@@ -530,18 +530,18 @@
         console.error("UI Update Error:", err);
     }
 }
-// --- APPLY GLOBAL FILTERS & DYNAMIC ALERTS ---
+// --- 1. DYNAMIC ALERT WINDOW LOGIC ---
 function applyGlobalFilters() {
     const alertList = document.getElementById('alert-list');
     if (!alertList) return;
 
     const T = globalData?.thresholds || {};
-    const d = globalData?.vitals || {};
+    const d = globalData?.vitals || {}; // Latest audit values
     let activeAlerts = [];
 
-    // Filter Table
+    // Table Filtering Logic
     const selRegion = document.getElementById('cityFocus')?.value || "All";
-    const selModel = document.getElementById('modelSelect')?.value || "";
+    const selModel = document.getElementById('modelSelect').value;
     const rows = document.querySelectorAll('#fleet-summary-body tr');
 
     rows.forEach(row => {
@@ -552,31 +552,29 @@ function applyGlobalFilters() {
         row.style.display = (regionMatch && modelMatch) ? "" : "none";
     });
 
-    // Alert Logic: Oil Pressure (3.1 vs 3.5 trigger)
+    // LOW OIL PRESSURE TRIGGER (Matches Column I in Sheet)
     const oilVal = parseFloat(d.oil || 0);
-    const oilLimit = parseFloat(T['Engine oil pressure_Low'] || 3.5);
+    const oilLimit = parseFloat(T['Engine oil pressure_Low'] || 3.5); 
     if (oilVal > 0 && oilVal <= oilLimit) {
-        activeAlerts.push(`<li style="color:var(--red); font-weight:bold;">⚠️ LOW OIL PRESSURE: ${oilVal.toFixed(1)} bar</li>`);
+        activeAlerts.push(`<li style="color:var(--red); font-weight:bold;">⚠️ LOW OIL PRESSURE: ${oilVal.toFixed(1)} bar (Limit: ${oilLimit})</li>`);
     }
 
+    // HIGH COOLANT TEMP TRIGGER (Matches Column E in Sheet)
     const tempVal = parseFloat(d.temp || 0);
-    const tempLimit = parseFloat(T['Engine coolant temp_High'] || 105);
+    const tempLimit = parseFloat(T['Engine Temp_High'] || 98); 
     if (tempVal >= tempLimit) {
-        activeAlerts.push(`<li style="color:var(--red); font-weight:bold;">⚠️ HIGH COOLANT TEMP: ${tempVal}°C</li>`);
+        activeAlerts.push(`<li style="color:var(--red); font-weight:bold;">⚠️ HIGH COOLANT TEMP: ${tempVal}°C (Limit: ${tempLimit})</li>`);
     }
 
-    // Render Window
+    // RENDER ALERT BOX
     if (activeAlerts.length > 0) {
-        alertList.innerHTML = `<ul style="list-style:none; padding:0; margin:0;">${activeAlerts.join('')}</ul>`;
+        alertList.innerHTML = `<ul style="list-style:none; padding:0; margin:0; text-align:left;">${activeAlerts.join('')}</ul>`;
     } else {
         alertList.innerHTML = `<div style="color:var(--green); font-weight:bold; padding:10px; text-align:center;"><span class="live-dot"></span> ALL PARAMETERS NORMAL</div>`;
     }
 }
 
-// --- RADIAL DIAL GAUGE LOGIC ---
-var livelyTimer = null;
-var currentIdx = 0;
-
+// --- 2. DYNAMIC RADIAL DIAL GAUGE LOGIC ---
 function startLivelyGauges(forceReset = false) {
     if (livelyTimer) clearInterval(livelyTimer);
     const d = globalData?.monthlyData || [];
@@ -596,22 +594,24 @@ function startLivelyGauges(forceReset = false) {
 
         if (mode === 'tempVsOil') {
             config = [
-                { lab: 'Oil bar', val: entry.oil || 0, max: T.oil_max || 8, limit: T['Engine oil pressure_Low'] || 3.5, decimal: true, isLow: true },
-                { lab: 'RPM', val: entry.rpm || 0, max: T.rpm_max || 2500, limit: 2300, decimal: false, isLow: false },
-                { lab: 'Temp °C', val: entry.temp || 0, max: T.temp_max || 120, limit: T['Engine coolant temp_High'] || 105, decimal: false, isLow: false }
+                { lab: 'Oil bar', val: entry.oil || 0, max: 8, limit: T['Engine oil pressure_Low'] || 3.5, decimal: true, isLow: true },
+                { lab: 'RPM', val: entry.rpm || 0, max: 2500, limit: T['Engine RPM Drilling_High'] || 1700, decimal: false, isLow: false },
+                { lab: 'Temp °C', val: entry.temp || 0, max: 120, limit: T['Engine Temp_High'] || 98, decimal: false, isLow: false }
             ];
         } else if (mode === 'hydro_impact') {
             config = [
-                { lab: 'Impact', val: entry.impact || 0, max: T.impact_max || 250, limit: 220, isLow: false },
-                { lab: 'Feed', val: entry.feed || 0, max: T.feed_max || 100, limit: 90, isLow: false },
-                { lab: 'Damper', val: entry.damper || 0, max: T.damper_max || 50, limit: 45, isLow: false }
+                { lab: 'Impact', val: entry.impact || 0, max: 250, limit: 220, isLow: false },
+                { lab: 'Feed', val: entry.feed || 0, max: 100, limit: T['Engine load Drilling_High'] || 82, isLow: false },
+                { lab: 'Damper', val: entry.damper || 0, max: 50, limit: 45, isLow: false }
             ];
         }
 
         config.forEach(g => {
             const percent = Math.min(g.val / g.max, 1);
             const angle = (percent * 180) - 90;
-            const isAlert = g.isLow ? (g.val <= g.limit) : (g.val >= (g.limit || g.max * 0.9));
+            
+            // Apply Red Color if Low Value < Limit (Oil) OR High Value > Limit (Temp/RPM)
+            const isAlert = g.isLow ? (parseFloat(g.val) <= parseFloat(g.limit)) : (parseFloat(g.val) >= parseFloat(g.limit));
             const color = isAlert ? 'var(--red)' : 'var(--ey)';
 
             html += `
@@ -733,6 +733,7 @@ function exportToExcel() {
 </script>
 </body>
 </html>
+
 
 
 
