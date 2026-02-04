@@ -296,7 +296,7 @@
             <input type="month" id="monthFilter" onchange="refresh()">
 
             <label style="display:block; margin-top:15px;">Analysis Mode</label>
-<select id="chartMode" onchange="drawChart(); startLivelyGauges();">
+<select id="chartMode" onchange="drawChart(); startLivelyGauges(true);">
     <option value="tempVsOil">Trend: Temp / Oil / RPM</option>
     <option value="loadVsComp">Load vs Compressor %</option>
     <option value="setBit">DTH: Set vs Bit Pressure</option>
@@ -479,16 +479,27 @@ try {
     applyGlobalFilters();
     drawChart(); 
 
-    // Reset and restart gauges on every UI update
-    if (document.body.classList.contains('authorized') && globalData?.monthlyData) {
-        currentIdx = 0; // Force reset to the first audit of the month
-        startLivelyGauges(); 
-    }
-} catch (err) {
-    console.error("UI Update Error:", err);
-}
+    // FINAL UI REFRESH
+        applyGlobalFilters(); 
+        drawChart(); 
+        
+        // Safety Trigger for Gauges
+        if (document.body.classList.contains('authorized')) {
+            startLivelyGauges(true); // Always start fresh when data updates
+        }
 
-document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+        document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+        
+        // IMPORTANT: Clear the alert scanning status
+        const alertList = document.getElementById('alert-list');
+        if (!data.vitals?.alerts || data.vitals.alerts.length === 0) {
+            alertList.innerHTML = `<div style="color:var(--green); font-weight:bold; padding:10px; text-align:center;"><span class="live-dot"></span> ALL PARAMETERS NORMAL</div>`;
+        }
+        
+    } catch (err) {
+        console.error("UI Update Crashed:", err);
+    }
+}
 
     function applyGlobalFilters() {
         const selRegion = document.getElementById('cityFocus')?.value || "All";
@@ -510,42 +521,81 @@ document.getElementById('last-sync').innerText = new Date().toLocaleTimeString()
         document.getElementById('v-fleet-load').innerText = visibleCount > 0 ? (totalLoad / visibleCount).toFixed(1) + "%" : "0%";
     }
 
-   function startLivelyGauges() {
-    if (livelyTimer) clearInterval(livelyTimer); // Stop old timer
-    
+   var livelyTimer = null;
+var currentIdx = 0;
+
+function startLivelyGauges(forceReset = false) {
+    // 1. CLEAR: Kill any existing heartbeat immediately
+    if (livelyTimer) {
+        clearInterval(livelyTimer);
+        livelyTimer = null;
+    }
+
+    // 2. DATA CHECK: Exit if no data is ready yet
     const d = globalData?.monthlyData || [];
     const row = document.getElementById('gauge-row');
     if (!row || d.length === 0) return;
 
+    // 3. INDEX RESET: If we changed the mode or rig, start from the first audit
+    if (forceReset) {
+        currentIdx = 0;
+        row.innerHTML = '<div style="color:var(--ey); font-size:0.7rem;">Syncing Mode...</div>';
+    }
+
     const mode = document.getElementById('chartMode').value;
 
+    // 4. HEARTBEAT: The 2-second cycle
     livelyTimer = setInterval(() => {
-        const entry = d[currentIdx];
-        if (!entry) { currentIdx = 0; return; }
+        if (!d[currentIdx]) {
+            currentIdx = 0; // Loop back to start if index is lost
+            return;
+        }
 
-        let html = `<div style="color:var(--green); border:1px solid; padding:2px 8px; border-radius:10px; font-size:0.7rem; font-weight:bold;">DATE: ${entry.date || entry.Date || 'N/A'}</div>`;
+        const entry = d[currentIdx];
+        let dateStr = entry.date || entry.Date || "N/A";
+        
+        // Digital Badge
+        let html = `<div style="color:var(--green); border:1px solid; padding:2px 8px; border-radius:10px; font-size:0.7rem; font-weight:bold;">DATE: ${dateStr}</div>`;
+        
         let config = [];
 
-        // MODE-SPECIFIC MAPPING: Fixes the "not changing" issue
+        // MODE MAPPING (Triple-line support)
         if (mode === 'tempVsOil') {
-            config = [{ lab: 'Oil bar', val: entry.oil || entry.Oil }, { lab: 'RPM', val: entry.rpm || entry.RPM }, { lab: 'Temp °C', val: entry.temp || entry.Temp }];
+            config = [
+                { lab: 'Oil bar', val: entry.oil || entry.Oil || 0 },
+                { lab: 'RPM', val: entry.rpm || entry.RPM || 0 },
+                { lab: 'Temp °C', val: entry.temp || entry.Temp || 0 }
+            ];
         } else if (mode === 'hydro_impact') {
-            config = [{ lab: 'Impact', val: entry.impact || entry.Impact }, { lab: 'Feed', val: entry.feed || entry.Feed }, { lab: 'Damper', val: entry.damper || entry.Damper }];
+            config = [
+                { lab: 'Impact', val: entry.impact || entry.Impact || 0 },
+                { lab: 'Feed', val: entry.feed || entry.Feed || 0 },
+                { lab: 'Damper', val: entry.damper || entry.Damper || 0 }
+            ];
         } else if (mode === 'setBit') {
-            config = [{ lab: 'Air Set', val: entry.air || entry.Air }, { lab: 'Bit Pr', val: entry.bit || entry.Bit }];
+            config = [
+                { lab: 'Air Set', val: entry.air || entry.Air || 0 },
+                { lab: 'Bit Pr', val: entry.bit || entry.Bit || 0 }
+            ];
         } else {
-            config = [{ lab: 'Eng Load', val: entry.load || entry.Load }, { lab: 'Comp %', val: entry.comp || entry.Comp }];
+            config = [
+                { lab: 'Eng Load', val: entry.load || entry.Load || 0 },
+                { lab: 'Comp %', val: entry.comp || entry.Comp || 0 }
+            ];
         }
 
         config.forEach(g => {
-            html += `<div style="text-align:center;"><span class="g-val">${g.val || 0}</span><span class="g-lab">${g.lab}</span></div>`;
+            html += `
+                <div style="text-align:center;">
+                    <span class="g-val">${g.val}</span>
+                    <span class="g-lab">${g.lab}</span>
+                </div>`;
         });
 
         row.innerHTML = html;
-        currentIdx = (currentIdx + 1) % d.length; // Loop through the audits
+        currentIdx = (currentIdx + 1) % d.length;
     }, 2000); 
-}
-    function drawChart() {
+}    function drawChart() {
     if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
         if (chart) chart.destroy();
         return;
@@ -620,5 +670,6 @@ document.getElementById('last-sync').innerText = new Date().toLocaleTimeString()
 </script>
 </body>
 </html>
+
 
 
