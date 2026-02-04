@@ -580,30 +580,33 @@ function startLivelyGauges(forceReset = false) {
         let html = `<div class="date-badge">AUDIT DATE: ${dateStr}</div>`;
         let config = [];
 
-        // 4. DYNAMIC CONFIGURATION (Mapping parameters to Max Scales)
-        if (mode === 'tempVsOil') {
-            config = [
-                { lab: 'Oil bar', val: entry.oil || entry.Oil || 0, max: 8, decimal: true },
-                { lab: 'RPM', val: entry.rpm || entry.RPM || 0, max: 2500, decimal: false },
-                { lab: 'Temp °C', val: entry.temp || entry.Temp || 0, max: 120, decimal: false }
-            ];
-        } else if (mode === 'hydro_impact') {
-            config = [
-                { lab: 'Impact', val: entry.impact || 0, max: 250, decimal: false },
-                { lab: 'Feed', val: entry.feed || 0, max: 100, decimal: false },
-                { lab: 'Damper', val: entry.damper || 0, max: 50, decimal: false }
-            ];
-        } else if (mode === 'setBit') {
-            config = [
-                { lab: 'Air Set', val: entry.air || 0, max: 30, decimal: true },
-                { lab: 'Bit Pr', val: entry.bit || 0, max: 30, decimal: true }
-            ];
-        } else {
-            config = [
-                { lab: 'Eng Load %', val: entry.load || 0, max: 100, decimal: false },
-                { lab: 'Comp %', val: entry.comp || 0, max: 100, decimal: false }
-            ];
-        }
+       // 4. DYNAMIC CONFIGURATION (Now picking from Threshold Sheet)
+// We use a fallback (e.g., || 8) just in case the sheet value is missing.
+const T = globalData?.thresholds || {};
+
+if (mode === 'tempVsOil') {
+    config = [
+        { lab: 'Oil bar', val: entry.oil || 0, max: T.oil_max || 8, decimal: true },
+        { lab: 'RPM', val: entry.rpm || 0, max: T.rpm_max || 2500, decimal: false },
+        { lab: 'Temp °C', val: entry.temp || 0, max: T.temp_max || 120, decimal: false }
+    ];
+} else if (mode === 'hydro_impact') {
+    config = [
+        { lab: 'Impact', val: entry.impact || 0, max: T.impact_max || 250, decimal: false },
+        { lab: 'Feed', val: entry.feed || 0, max: T.feed_max || 100, decimal: false },
+        { lab: 'Damper', val: entry.damper || 0, max: T.damper_max || 50, decimal: false }
+    ];
+} else if (mode === 'setBit') {
+    config = [
+        { lab: 'Air Set', val: entry.air || 0, max: T.air_max || 30, decimal: true },
+        { lab: 'Bit Pr', val: entry.bit || 0, max: T.bit_max || 30, decimal: true }
+    ];
+} else {
+    config = [
+        { lab: 'Eng Load %', val: entry.load || 0, max: 100, decimal: false },
+        { lab: 'Comp %', val: entry.comp || 0, max: 100, decimal: false }
+    ];
+}
 
         // 5. GENERATE RADIAL DIALS
         config.forEach(g => {
@@ -712,6 +715,7 @@ function startLivelyGauges(forceReset = false) {
 </script>
 </body>
 </html>
+
 
 
 
