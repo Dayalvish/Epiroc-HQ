@@ -530,16 +530,15 @@
         console.error("UI Update Error:", err);
     }
 }
-// --- 1. DYNAMIC ALERT WINDOW LOGIC (REPAIRED) ---
 function applyGlobalFilters() {
     const alertList = document.getElementById('alert-list');
-    if (!alertList) return;
+    if (!alertList || !globalData || !globalData.summary) return;
 
-    const T = globalData?.thresholds || {};
-    const d = globalData?.vitals || {}; 
+    const T_Map = globalData.thresholds || {}; // This is your parameter-to-value map
+    const fleetSummary = globalData.summary; // The list of all rigs and their averages
     let activeAlerts = [];
 
-    // --- PART A: TABLE FILTERING ---
+    // --- PART A: TABLE FILTERING (REGION/MODEL) ---
     const selRegion = document.getElementById('cityFocus')?.value || "All";
     const selModel = document.getElementById('modelSelect')?.value || "";
     const rows = document.querySelectorAll('#fleet-summary-body tr');
@@ -552,42 +551,43 @@ function applyGlobalFilters() {
         row.style.display = (regionMatch && modelMatch) ? "" : "none";
     });
 
-    // --- PART B: DYNAMIC TRIGGER LOGIC ---
-    
-    // 1. OIL PRESSURE (Low Trigger)
-    const oilVal = parseFloat(d.oil || 0);
-    // Matches Column I in your Sheet
-    const oilLimit = parseFloat(T['Engine oil pressure_Low'] || T['Oil bar'] || 0);
-    
-    if (oilLimit > 0 && oilVal > 0 && oilVal <= oilLimit) {
-        activeAlerts.push(`<li style="color:var(--red); font-weight:bold; margin-bottom:8px;">
-            ⚠️ LOW OIL PRESSURE: ${oilVal.toFixed(1)} bar 
-            <br><small style="color:#888;">(Limit: ${oilLimit} bar)</small>
-        </li>`);
-    }
+    // --- PART B: FLEET-WIDE SCANNER ---
+    fleetSummary.forEach(rig => {
+        // 1. OIL PRESSURE SCAN (Low Trigger)
+        const oilVal = parseFloat(rig.avgOil || 0);
+        // Link to the "Engine oil pressure_Low" header from your sheet
+        const oilLimit = parseFloat(T_Map['Engine oil pressure_Low'] || 0);
 
-    // 2. ENGINE TEMP (High Trigger)
-    const tempVal = parseFloat(d.temp || 0);
-    // Matches Column E in your Sheet
-    const tempLimit = parseFloat(T['Engine Temp_High'] || T['Temp °C'] || 98);
-    
-    if (tempLimit > 0 && tempVal >= tempLimit) {
-        activeAlerts.push(`<li style="color:var(--red); font-weight:bold; margin-bottom:8px;">
-            ⚠️ HIGH COOLANT TEMP: ${tempVal}°C
-            <br><small style="color:#888;">(Limit: ${tempLimit}°C)</small>
-        </li>`);
-    }
+        if (oilLimit > 0 && oilVal > 0 && oilVal <= oilLimit) {
+            activeAlerts.push(`
+                <li style="color:var(--red); font-weight:bold; margin-bottom:10px; list-style:none; border-left: 3px solid var(--red); padding-left: 10px;">
+                    <span style="color:#fff;">RIG ${rig.id}:</span> 🚨 LOW OIL PR<br>
+                    <small>Value: ${oilVal} bar | Limit: ${oilLimit}</small>
+                </li>`);
+        }
+
+        // 2. TEMPERATURE SCAN (High Trigger)
+        const tempVal = parseFloat(rig.avgTemp || 0);
+        const tempLimit = parseFloat(T_Map['Engine Temp_High'] || 999);
+
+        if (tempVal >= tempLimit) {
+            activeAlerts.push(`
+                <li style="color:var(--red); font-weight:bold; margin-bottom:10px; list-style:none; border-left: 3px solid var(--red); padding-left: 10px;">
+                    <span style="color:#fff;">RIG ${rig.id}:</span> 🚨 HIGH TEMP<br>
+                    <small>Value: ${tempVal}°C | Limit: ${tempLimit}</small>
+                </li>`);
+        }
+    });
 
     // --- PART C: RENDER TRIGGER BOX ---
     if (activeAlerts.length > 0) {
         alertList.innerHTML = `<ul style="list-style:none; padding:0; margin:0; text-align:left;">${activeAlerts.join('')}</ul>`;
     } else {
         alertList.innerHTML = `<div style="color:var(--green); font-weight:bold; padding:10px; text-align:center;">
-            <span class="live-dot"></span> ALL PARAMETERS NORMAL
+            <span class="live-dot"></span> ALL FLEET PARAMETERS NORMAL
         </div>`;
     }
 }
-
 // --- 2. DYNAMIC RADIAL DIAL GAUGE LOGIC ---
 function startLivelyGauges(forceReset = false) {
     if (livelyTimer) clearInterval(livelyTimer);
@@ -748,6 +748,7 @@ function exportToExcel() {
 </script>
 </body>
 </html>
+
 
 
 
