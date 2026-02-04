@@ -236,7 +236,29 @@
         .summary-table td { padding: 6px; border: 1px solid #333; text-align: center; }
 
         .sidebar-right-split { display: flex; flex-direction: column; gap: 12px; height: 100%; }
-        .alert-box { flex: 1.6; background: var(--card); padding: 15px; border-radius: 8px; overflow-y: auto; }
+        /* This locks the alert window so it doesn't push the chart down */
+.alert-box {
+    flex: 1.6;
+    background: var(--card);
+    padding: 15px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    max-height: 480px; /* Forces the box to stay a specific height */
+    overflow: hidden; 
+}
+
+/* This allows the alerts to scroll INSIDE the box */
+#alert-list {
+    flex-grow: 1;
+    overflow-y: auto; 
+    padding-right: 8px;
+    margin-top: 10px;
+}
+
+/* Optional: Make the scrollbar red to match the alerts */
+#alert-list::-webkit-scrollbar { width: 4px; }
+#alert-list::-webkit-scrollbar-thumb { background: var(--red); border-radius: 10px; }
         .vitals-box { flex: 1; background: var(--card); padding: 15px; border-radius: 8px; }
 
         .mini-stats { margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -372,10 +394,20 @@
         </div>
 
         <div class="sidebar-right-split">
-            <div class="alert-box">
-                <h3 style="color:var(--red); margin-top:0; border-bottom: 1px solid #333; padding-bottom: 10px;">⚠️ TRIGGER ALERTS</h3>
-                <div id="alert-list">Scanning...</div>
-            </div>
+    
+    <div class="alert-box">
+        <h3 style="color:var(--red); margin-top:0; border-bottom: 1px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <span>⚠️ FLEET ALERTS</span>
+            <span id="alert-count-badge" style="background:var(--red); color:white; padding:2px 10px; border-radius:4px; font-size:0.9rem; font-family: monospace;">0</span>
+        </h3>
+
+        <div id="alert-list">Scanning...</div>
+    </div>
+
+    <div class="vitals-box">
+        <h3 style="color:var(--ey); margin-top:0; border-bottom: 1px solid #333; padding-bottom: 10px;">📊 MACHINE VITALS</h3>
+        </div>
+</div>
 
             <div class="vitals-box">
                 <h3 style="color:var(--ey); margin-top:0; border-bottom: 1px solid #333; padding-bottom: 10px;">📊 MACHINE VITALS</h3>
@@ -540,13 +572,16 @@
         console.error("UI Update Error:", err);
     }
 }
-// --- 1. DYNAMIC ALERT WINDOW LOGIC (THE FLEET SCANNER) ---
+// --- 1. DYNAMIC ALERT WINDOW LOGIC (THE SOLID FLEET SCANNER) ---
 function applyGlobalFilters() {
     const alertList = document.getElementById('alert-list');
+    const countBadge = document.getElementById('alert-count-badge');
+    
+    // Safety check: Exit if globalData hasn't loaded yet
     if (!alertList || !globalData || !globalData.monthlyData) return;
 
-    const T = globalData.thresholds || {}; 
-    const rawEntries = globalData.monthlyData; // Now contains the WHOLE FLEET raw rows
+    const T_Map = globalData.thresholds || {}; 
+    const rawEntries = globalData.monthlyData; // Raw rows from ParameterDb
     let activeAlerts = []; 
 
     // --- PART A: TABLE FILTERING (REGION/MODEL) ---
@@ -562,50 +597,60 @@ function applyGlobalFilters() {
         row.style.display = (regionMatch && modelMatch) ? "" : "none";
     });
 
-    // --- PART B: RAW DATA INCIDENT SCANNER (The Fleet Fix) ---
-    // We scan every row in rawEntries to find any machine with a failure
+    // --- PART B: RAW DATA INCIDENT SCANNER (STRICT LOOKUP) ---
     rawEntries.forEach(entry => {
-        // IMPORTANT: Pull the Rig ID and Date from the row itself
         const rigName = entry.rigId || "Fleet Rig"; 
         const incidentDate = entry.date || "N/A"; 
 
-        // 1. OIL PRESSURE INCIDENT CHECK
+        // 1. OIL PRESSURE: STRICT SHEET LOOKUP
         const oilVal = parseFloat(entry.oil || 0);
-        // Look for the limit in the Sheet Thresholds map
-        const oilLimit = parseFloat(T['Engine oil pressure_Low'] || 3.5);
+        const oilLimit = parseFloat(T_Map['Engine oil pressure_Low'] || 0);
 
-        // If Rig ID exists and pressure (3.1) <= limit (3.5), trigger RED
-        if (oilVal > 0 && oilVal <= oilLimit) {
+        // Logic: Trigger if sheet limit exists AND value is at or below that limit
+        if (oilLimit > 0 && oilVal > 0 && oilVal <= oilLimit) {
             activeAlerts.push(`
-                <li style="color:var(--red); font-weight:bold; margin-bottom:12px; list-style:none; border-left: 4px solid var(--red); padding-left: 12px; background: rgba(255,77,77,0.15); padding:8px 12px; border-radius:0 4px 4px 0;">
+                <li style="color:var(--red); font-weight:bold; margin-bottom:12px; list-style:none; border-left: 4px solid var(--red); padding: 8px; background: rgba(255,77,77,0.1); border-radius: 0 4px 4px 0;">
                     <div style="color:var(--ey); font-size:0.85rem; text-transform:uppercase;">${rigName}</div>
                     <div style="font-size:0.95rem;">🚨 LOW OIL: ${oilVal.toFixed(1)} bar</div>
-                    <div style="color:#aaa; font-size:0.75rem; font-weight:normal; margin-top:4px;">DATE: ${incidentDate} | LIMIT: ${oilLimit}</div>
+                    <div style="color:#aaa; font-size:0.7rem; font-weight:normal; margin-top:4px;">DATE: ${incidentDate} | SPEC: ${oilLimit} bar</div>
                 </li>`);
         }
 
-        // 2. TEMPERATURE INCIDENT CHECK
+        // 2. ENGINE TEMP: STRICT SHEET LOOKUP
         const tempVal = parseFloat(entry.temp || 0);
-        const tempLimit = parseFloat(T['Engine Temp_High'] || 98);
+        const tempLimit = parseFloat(T_Map['Engine Temp_High'] || 0);
 
-        if (tempLimit > 0 && tempVal >= tempLimit) {
+        // Logic: Trigger if sheet limit exists AND value is at or above that limit
+        if (tempLimit > 0 && tempVal > 0 && tempVal >= tempLimit) {
             activeAlerts.push(`
-                <li style="color:var(--red); font-weight:bold; margin-bottom:12px; list-style:none; border-left: 4px solid var(--red); padding-left: 12px; background: rgba(255,77,77,0.15); padding:8px 12px; border-radius:0 4px 4px 0;">
+                <li style="color:var(--red); font-weight:bold; margin-bottom:12px; list-style:none; border-left: 4px solid var(--red); padding: 8px; background: rgba(255,77,77,0.1); border-radius: 0 4px 4px 0;">
                     <div style="color:var(--ey); font-size:0.85rem; text-transform:uppercase;">${rigName}</div>
-                    <div style="font-size:0.95rem;">🚨 HIGH TEMP: ${tempVal}°C</div>
-                    <div style="color:#aaa; font-size:0.75rem; font-weight:normal; margin-top:4px;">DATE: ${incidentDate} | LIMIT: ${tempLimit}</div>
+                    <div style="font-size:0.95rem;">🚨 HIGH TEMP: ${tempVal.toFixed(0)}°C</div>
+                    <div style="color:#aaa; font-size:0.7rem; font-weight:normal; margin-top:4px;">DATE: ${incidentDate} | SPEC: ${tempLimit}°C</div>
                 </li>`);
         }
     });
 
-    // --- PART C: RENDER TRIGGER BOX ---
+    // --- PART C: RENDER TRIGGER BOX & UPDATE COUNT ---
     if (activeAlerts.length > 0) {
-        // Reverse so the newest incidents show at the top
+        // 1. Update the Count Badge
+        if (countBadge) {
+            countBadge.innerText = activeAlerts.length;
+            countBadge.style.background = 'var(--red)';
+        }
+        // 2. Render List (Newest Incidents First)
         alertList.innerHTML = `<ul style="list-style:none; padding:0; margin:0; text-align:left;">${activeAlerts.reverse().join('')}</ul>`;
     } else {
-        alertList.innerHTML = `<div style="color:var(--green); font-weight:bold; padding:20px; text-align:center; border:1px dashed #333; border-radius:8px;">
-            <span class="live-dot"></span> FLEET STATUS: NORMAL
-        </div>`;
+        // 1. Reset Count Badge
+        if (countBadge) {
+            countBadge.innerText = "0";
+            countBadge.style.background = '#444';
+        }
+        // 2. Normal Status Message
+        alertList.innerHTML = `
+            <div style="color:var(--green); font-weight:bold; padding:20px; text-align:center; border:1px dashed #333; border-radius:8px;">
+                <span class="live-dot"></span> FLEET STATUS: NORMAL
+            </div>`;
     }
 }
 // --- 2. DYNAMIC RADIAL DIAL GAUGE LOGIC ---
@@ -768,6 +813,7 @@ function exportToExcel() {
 </script>
 </body>
 </html>
+
 
 
 
