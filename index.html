@@ -5,297 +5,228 @@
     <title>EPIROC CENTRAL PARAMETER DASH VIEW</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-    /* =========================================
-       1. CORE VARIABLES & GLOBAL RESET
-       ========================================= */
-    :root { 
-        --ey: #f1c40f; 
-        --bg: #0d0d0d; 
-        --card: #1a1a1a; 
-        --red: #ff4d4d; 
-        --green: #2ecc71; 
-        --blue: #3498db; 
-    }
-    
-    html, body { 
-        height: 100%; 
-        margin: 0; 
-        padding: 0; 
-        overflow: hidden; 
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-        background: var(--bg); 
-        color: #fff; 
-        -webkit-font-smoothing: antialiased;
-    }
+        /* =========================================
+           1. CORE VARIABLES & GLOBAL RESET
+           ========================================= */
+        :root { 
+            --ey: #f1c40f; 
+            --bg: #0d0d0d; 
+            --card: #1a1a1a; 
+            --red: #ff4d4d; 
+            --green: #2ecc71; 
+            --blue: #3498db; 
+        }
+        
+        html, body { 
+            height: 100%; 
+            margin: 0; 
+            padding: 0; 
+            overflow: hidden; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: var(--bg); 
+            color: #fff; 
+            -webkit-font-smoothing: antialiased;
+        }
 
-    /* =========================================
-       2. AUTHENTICATION & LOGIN OVERLAY
-       ========================================= */
-    #login-overlay { 
-        position: fixed; 
-        inset: 0; 
-        background: var(--bg); 
-        display: flex; 
-        justify-content: center; 
-        align-items: center; 
-        z-index: 9999; 
-    }
-    .login-box { 
-        background: var(--card); 
-        padding: 35px; 
-        border-radius: 12px; 
-        border-top: 5px solid var(--ey); 
-        width: 320px; 
-        text-align: center; 
-        box-shadow: 0 15px 35px rgba(0,0,0,0.9);
-    }
-    .login-box input { 
-        width: 100%; 
-        padding: 12px; 
-        margin: 10px 0; 
-        background: #222; 
-        border: 1px solid #444; 
-        color: #fff; 
-        border-radius: 4px; 
-        box-sizing: border-box; 
-    }
-    .login-box button { 
-        width: 100%; 
-        padding: 12px; 
-        background: var(--ey); 
-        color: #000; 
-        border: none; 
-        font-weight: bold; 
-        border-radius: 4px; 
-        cursor: pointer; 
-        transition: 0.3s;
-    }
-    .login-box button:hover { background: #d4ac0d; }
+        /* =========================================
+           2. AUTHENTICATION & LOGIN OVERLAY
+           ========================================= */
+        #login-overlay { 
+            position: fixed; 
+            inset: 0; 
+            background: var(--bg); 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            z-index: 9999; 
+        }
+        .login-box { 
+            background: var(--card); 
+            padding: 35px; 
+            border-radius: 12px; 
+            border-top: 5px solid var(--ey); 
+            width: 320px; 
+            text-align: center; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.9);
+        }
+        .login-box input { 
+            width: 100%; 
+            padding: 12px; 
+            margin: 10px 0; 
+            background: #222; 
+            border: 1px solid #444; 
+            color: #fff; 
+            border-radius: 4px; 
+            box-sizing: border-box; 
+        }
+        .login-box button { 
+            width: 100%; 
+            padding: 12px; 
+            background: var(--ey); 
+            color: #000; 
+            border: none; 
+            font-weight: bold; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            transition: 0.3s;
+        }
+        .login-box button:hover { background: #d4ac0d; }
 
-    /* =========================================
-       3. DASHBOARD MAIN STRUCTURE
-       ========================================= */
-    #dashboard-content { 
-        display: flex; 
-        flex-direction: column; 
-        height: 100vh; 
-        padding: 12px; 
-        box-sizing: border-box; 
-        opacity: 0; 
-        transition: opacity 0.8s ease-in-out; 
-    }
-    .authorized #dashboard-content { opacity: 1; pointer-events: auto; }
-    .authorized #login-overlay { display: none; }
+        /* =========================================
+           3. DASHBOARD MAIN STRUCTURE
+           ========================================= */
+        #dashboard-content { 
+            display: flex; 
+            flex-direction: column; 
+            height: 100vh; 
+            padding: 12px; 
+            box-sizing: border-box; 
+            opacity: 0; 
+            transition: opacity 0.8s ease-in-out; 
+        }
+        .authorized #dashboard-content { opacity: 1; pointer-events: auto; }
+        .authorized #login-overlay { display: none; }
 
-    /* =========================================
-       4. HEADER & NAVIGATION BAR
-       ========================================= */
-    .header { 
-        display: grid; 
-        grid-template-columns: 260px 1fr 260px; 
-        align-items: center; 
-        border-bottom: 2px solid var(--ey); 
-        padding-bottom: 8px; 
-        margin-bottom: 12px; 
-        flex-shrink: 0; 
-    }
-    .header-left { display: flex; flex-direction: column; align-items: flex-start; }
-    .header-center { text-align: center; }
-    .header-center h1 { 
-        margin: 0; 
-        font-size: 1.4rem; 
-        letter-spacing: 2px; 
-        color: var(--ey); 
-        text-transform: uppercase;
-    }
-    
-    .user-badge { 
-        background: var(--ey); 
-        color: #000; 
-        padding: 3px 12px; 
-        border-radius: 15px; 
-        font-weight: bold; 
-        font-size: 0.7rem; 
-        margin-top: 5px; 
-        display: inline-block; 
-    }
+        .header { 
+            display: grid; 
+            grid-template-columns: 260px 1fr 260px; 
+            align-items: center; 
+            border-bottom: 2px solid var(--ey); 
+            padding-bottom: 8px; 
+            margin-bottom: 12px; 
+            flex-shrink: 0; 
+        }
+        .header-left { display: flex; flex-direction: column; align-items: flex-start; }
+        .header-center { text-align: center; }
+        .header-center h1 { 
+            margin: 0; 
+            font-size: 1.4rem; 
+            letter-spacing: 2px; 
+            color: var(--ey); 
+            text-transform: uppercase;
+        }
+        
+        .user-badge { 
+            background: var(--ey); 
+            color: #000; 
+            padding: 3px 12px; 
+            border-radius: 15px; 
+            font-weight: bold; 
+            font-size: 0.7rem; 
+            margin-top: 5px; 
+            display: inline-block; 
+        }
 
-    .live-dot { 
-        height: 8px; 
-        width: 8px; 
-        background: var(--green); 
-        border-radius: 50%; 
-        display: inline-block; 
-        margin-right: 6px; 
-        animation: pulse 1.5s infinite; 
-    }
-    @keyframes pulse { 
-        0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); } 
-        70% { box-shadow: 0 0 0 8px rgba(46, 204, 113, 0); } 
-        100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); } 
-    }
+        .live-dot { 
+            height: 8px; 
+            width: 8px; 
+            background: var(--green); 
+            border-radius: 50%; 
+            display: inline-block; 
+            margin-right: 6px; 
+            animation: pulse 1.5s infinite; 
+        }
+        @keyframes pulse { 
+            0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); } 
+            70% { box-shadow: 0 0 0 8px rgba(46, 204, 113, 0); } 
+            100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); } 
+        }
 
-    <style>
-    /* =========================================
-       5. MAIN GRID SYSTEM & FIXED SCALING
-       ========================================= */
-    .main-layout { 
-        display: grid; 
-        grid-template-columns: 260px 1fr 280px; 
-        gap: 12px; 
-        flex-grow: 1; 
-        height: calc(100vh - 140px); /* Locks view to screen height */
-        min-height: 0; 
-    }
+        /* =========================================
+           5. MAIN GRID SYSTEM & FIXED SCALING
+           ========================================= */
+        .main-layout { 
+            display: grid; 
+            grid-template-columns: 260px 1fr 280px; 
+            gap: 12px; 
+            flex-grow: 1; 
+            height: calc(100vh - 140px); 
+            min-height: 0; 
+        }
 
-    .chart-area { 
-        background: var(--card); 
-        padding: 10px; 
-        border-radius: 8px; 
-        display: flex;             
-        flex-direction: column;    
-        height: 100%; 
-        box-sizing: border-box; 
-        overflow: hidden; 
-    }
+        .sidebar {
+            background: var(--card); 
+            padding: 15px; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6); 
+            overflow-y: auto; 
+            height: 100%; 
+            box-sizing: border-box; 
+        }
 
-    #chart-container {
-        flex: 0 0 50%; 
-        position: relative;
-        width: 100%;
-        min-height: 0;
-    }
+        .chart-area { 
+            background: var(--card); 
+            padding: 10px; 
+            border-radius: 8px; 
+            display: flex;             
+            flex-direction: column;    
+            height: 100%; 
+            box-sizing: border-box; 
+            overflow: hidden; 
+        }
 
-    .gauge-partition {
-        flex: 0 0 16%; 
-        display: flex;
-        justify-content: space-around;
-        align-items: center;
-        background: rgba(0,0,0,0.6);
-        border: 1px solid #444;
-        margin: 5px 0;
-        border-radius: 4px;
-        padding: 5px;
-    }
+        #chart-container {
+            flex: 0 0 50%; 
+            position: relative;
+            width: 100%;
+            min-height: 0;
+        }
 
-    .g-val { display: block; font-size: 2rem; font-weight: bold; color: var(--ey); font-family: 'Courier New', monospace; }
-    .g-lab { display: block; font-size: 0.6rem; color: #888; text-transform: uppercase; margin-top: 2px; }
+        .gauge-partition {
+            flex: 0 0 16%; 
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            background: rgba(0,0,0,0.6);
+            border: 1px solid #444;
+            margin: 5px 0;
+            border-radius: 4px;
+            padding: 5px;
+        }
 
-    /* =========================================
-       6. SUMMARY TABLE (INTERNAL SCROLL)
-       ========================================= */
-    .table-scroll-container {
-        flex-grow: 1;
-        overflow-y: auto;
-        margin-top: 5px;
-        border: 1px solid #333;
-        background: #111;
-    }
+        .g-val { display: block; font-size: 2rem; font-weight: bold; color: var(--ey); font-family: 'Courier New', monospace; }
+        .g-lab { display: block; font-size: 0.6rem; color: #888; text-transform: uppercase; margin-top: 2px; }
 
-    .summary-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
-    .summary-table th { background: #222; color: var(--ey); position: sticky; top: 0; z-index: 10; }
-    .summary-table td { padding: 6px; border: 1px solid #333; text-align: center; }
-</style>    /* =========================================
-       7. OTHER UI ELEMENTS
-       ========================================= */
-    .sidebar-right-split { display: flex; flex-direction: column; gap: 12px; height: 100%; }
-    .alert-box { flex: 1.6; background: var(--card); padding: 15px; border-radius: 8px; overflow-y: auto; }
-    .vitals-box { flex: 1; background: var(--card); padding: 15px; border-radius: 8px; }
+        .table-scroll-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            margin-top: 5px;
+            border: 1px solid #333;
+            background: #111;
+        }
 
-    .mini-stats { margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .mini-card { background: #222; padding: 10px; border-radius: 4px; text-align: center; border: 1px solid #333; }
-    
-    select, input { width: 100%; padding: 8px; margin-top: 6px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; }
-    
-    .alert-trigger { color: var(--red) !important; animation: pulse-red 0.8s infinite alternate; }
-    @keyframes pulse-red { from { opacity: 1; } to { opacity: 0.5; } }
+        .summary-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
+        .summary-table th { background: #222; color: var(--ey); position: sticky; top: 0; z-index: 10; }
+        .summary-table td { padding: 6px; border: 1px solid #333; text-align: center; }
 
-    ::-webkit-scrollbar { width: 5px; }
-    ::-webkit-scrollbar-thumb { background: #444; border-radius: 10px; }
+        .sidebar-right-split { display: flex; flex-direction: column; gap: 12px; height: 100%; }
+        .alert-box { flex: 1.6; background: var(--card); padding: 15px; border-radius: 8px; overflow-y: auto; }
+        .vitals-box { flex: 1; background: var(--card); padding: 15px; border-radius: 8px; }
 
-    /* =========================================
-       8. SUMMARY TABLE & CHARTS
-       ========================================= */
-    .summary-table { width: 100%; border-collapse: collapse; margin-top: 5px; background: #111; font-size: 0.75rem; }
-    .summary-table th, .summary-table td { padding: 8px; border: 1px solid #333; text-align: center; }
-    .summary-table th { background: #222; color: var(--ey); text-transform: uppercase; position: sticky; top: 0; }
+        .mini-stats { margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .mini-card { background: #222; padding: 10px; border-radius: 4px; text-align: center; border: 1px solid #333; }
+        .mini-card small { color: #888; display: block; font-size: 0.6rem; margin-bottom: 4px; }
+        .mini-card span { font-size: 1.1rem; font-weight: bold; color: var(--ey); }
 
-    /* =========================================
-       9. INPUTS, SELECTS & MINI-STATS
-       ========================================= */
-    .mini-stats { margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .mini-card { background: #222; padding: 10px; border-radius: 4px; text-align: center; border: 1px solid #333; }
-    .mini-card small { color: #888; display: block; font-size: 0.6rem; margin-bottom: 4px; }
-    .mini-card span { font-size: 1.1rem; font-weight: bold; color: var(--ey); }
+        select, input { width: 100%; padding: 8px; margin-top: 6px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; font-size: 0.85rem; box-sizing: border-box; }
+        input[type="month"] { color: #ffffff !important; color-scheme: dark; }
+        label { font-size: 0.7rem; color: #888; text-transform: uppercase; display: block; margin-top: 12px; }
 
-    select, input { 
-        width: 100%; 
-        padding: 8px; 
-        margin-top: 6px; 
-        background: #222; 
-        color: #fff; 
-        border: 1px solid #444; 
-        border-radius: 4px; 
-        font-size: 0.85rem; 
-        box-sizing: border-box;
-    }
-    
-    input[type="month"] { 
-        color: #ffffff !important; 
-        color-scheme: dark; 
-    }
-    
-    label { font-size: 0.7rem; color: #888; text-transform: uppercase; display: block; margin-top: 12px; }
+        .btn-red, .btn-green { padding: 8px; border-radius: 4px; font-weight: bold; width: 100%; cursor: pointer; border: none; font-size: 0.75rem; transition: 0.3s; text-transform: uppercase; }
+        .btn-red { background: var(--red); color: white; margin-top: 15px; }
+        .btn-green { background: #27ae60; color: white; margin-top: 8px; }
 
-    /* =========================================
-       10. EXPORT BUTTONS
-       ========================================= */
-    .btn-red, .btn-green { 
-        padding: 8px; 
-        border-radius: 4px; 
-        font-weight: bold; 
-        width: 100%; 
-        cursor: pointer; 
-        border: none; 
-        font-size: 0.75rem; 
-        transition: 0.3s;
-        text-transform: uppercase;
-    }
-    .btn-red { background: var(--red); color: white; margin-top: 15px; }
-    .btn-green { background: #27ae60; color: white; margin-top: 8px; }
+        .alert-trigger { color: var(--red) !important; animation: pulse-red 0.8s infinite alternate; }
+        @keyframes pulse-red { from { opacity: 1; } to { opacity: 0.5; } }
 
-    /* =========================================
-       11. AUDIT WARNING & ANIMATIONS
-       ========================================= */
-    #auditWarning { 
-        display: none; 
-        position: fixed; 
-        top: 15%; 
-        left: 50%; 
-        transform: translateX(-50%); 
-        background: var(--red); 
-        color: white; 
-        padding: 12px 30px; 
-        border-radius: 8px; 
-        font-weight: bold; 
-        z-index: 10000; 
-        animation: blinker 1s linear infinite; 
-        box-shadow: 0 0 25px rgba(255, 77, 77, 0.6);
-    }
-    @keyframes blinker { 
-        0% { opacity: 1; } 
-        50% { opacity: 0.6; } 
-        100% { opacity: 1; } 
-    }
+        #auditWarning { display: none; position: fixed; top: 15%; left: 50%; transform: translateX(-50%); background: var(--red); color: white; padding: 12px 30px; border-radius: 8px; font-weight: bold; z-index: 10000; animation: blinker 1s linear infinite; box-shadow: 0 0 25px rgba(255,77,77,0.6); }
+        @keyframes blinker { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
 
-    /* =========================================
-       12. CUSTOM SCROLLBARS
-       ========================================= */
-    ::-webkit-scrollbar { width: 5px; height: 5px; }
-    ::-webkit-scrollbar-track { background: var(--bg); }
-    ::-webkit-scrollbar-thumb { background: #444; border-radius: 10px; }
-    ::-webkit-scrollbar-thumb:hover { background: var(--ey); }
-</style>
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: #444; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--ey); }
+    </style>
 </head>
 <body>
 
@@ -312,8 +243,8 @@
 
 <div id="dashboard-content">
     <div id="auditWarning" onclick="this.style.display='none'" title="Click to dismiss">
-    ⚠️ RIG HAS NOT COVERED MANDATORY MINIMUM AUDITS
-</div>
+        ⚠️ RIG HAS NOT COVERED MANDATORY MINIMUM AUDITS
+    </div>
     
     <div class="header">
         <div class="header-left">
@@ -346,9 +277,9 @@
             </div>
 
             <label>Model Classification</label>
-<select id="modelSelect" onchange="applyGlobalFilters()">
-    <option value="">All Models</option>
-</select>
+            <select id="modelSelect" onchange="updateRigDropdown()">
+                <option value="">All Models</option>
+            </select>
 
             <div class="filter-group" style="margin-top:15px;">
                 <label for="dataSource">Data View:</label>
@@ -381,52 +312,55 @@
             <button onclick="exportToExcel()" class="btn-green">📊 EXCEL EXPORT</button>
         </div>
 
-       <div class="chart-area">
-    <div id="chart-container">
-        <canvas id="mainChart"></canvas>
-    </div>
+        <div class="chart-area">
+            <div id="chart-container">
+                <canvas id="mainChart"></canvas>
+            </div>
 
-    <div class="gauge-partition" id="gauge-row">
-        <div style="color:var(--green); border:1px solid; padding:2px 8px; border-radius:10px; font-size:0.65rem;">
-            SEQ: <span id="current-seq">0</span>
-        </div>
+            <div class="gauge-partition" id="gauge-row">
+                <div style="color:var(--green); border:1px solid; padding:2px 8px; border-radius:10px; font-size:0.65rem;">
+                    SEQ: <span id="current-seq">0</span>
+                </div>
+            </div>
+
+            <h3 style="color:var(--ey); margin: 5px 0;">FLEET PERFORMANCE SUMMARY</h3>
+            <div class="table-scroll-container">
+                <table class="summary-table" id="summary-tbl">
+                    <thead>
+                        <tr><th rowspan="2">Rig ID</th><th rowspan="2">Audits</th><th colspan="4">Engine Health</th><th colspan="3">Productivity</th></tr>
+                        <tr><th>Load %</th><th>Temp °C</th><th>Oil bar</th><th>Fuel bar</th><th>Air Set</th><th>Bit Pr</th><th>Impact</th></tr>
+                    </thead>
+                    <tbody id="fleet-summary-body"></tbody>
+                </table>
+            </div>
         </div>
 
-    <h3 style="color:var(--ey); margin: 5px 0;">FLEET PERFORMANCE SUMMARY</h3>
-    
-    <div class="table-scroll-container">
-        <table class="summary-table" id="summary-tbl">
-            <thead>
-                <tr><th rowspan="2">Rig ID</th><th rowspan="2">Audits</th><th colspan="4">Engine Health</th><th colspan="3">Productivity</th></tr>
-                <tr><th>Load %</th><th>Temp °C</th><th>Oil bar</th><th>Fuel bar</th><th>Air Set</th><th>Bit Pr</th><th>Impact</th></tr>
-            </thead>
-            <tbody id="fleet-summary-body"></tbody>
-        </table>
+        <div class="sidebar-right-split">
+            <div class="alert-box">
+                <h3 style="color:var(--red); margin-top:0; border-bottom: 1px solid #333; padding-bottom: 10px;">⚠️ TRIGGER ALERTS</h3>
+                <div id="alert-list">Scanning...</div>
+            </div>
+
+            <div class="vitals-box">
+                <h3 style="color:var(--ey); margin-top:0; border-bottom: 1px solid #333; padding-bottom: 10px;">📊 MACHINE VITALS</h3>
+                <table class="vital-table">
+                    <tr><td class="v-label">Boost Pressure</td><td class="v-value" id="v-boost">--</td></tr>
+                    <tr><td class="v-label">Fuel Pressure</td><td class="v-value" id="v-fuel">--</td></tr>
+                    <tr><td class="v-label">Receiver PR</td><td class="v-value" id="v-receiver">--</td></tr>
+                    <tr><td class="v-label">Hyd-Oil Temp</td><td class="v-value" id="v-temp">--</td></tr>
+                </table>
+                <div id="vitals-date-stamp" class="timestamp" style="font-size: 0.7rem; color: #666; text-align: right; margin-top: 10px;">Data as of: --</div>
+            </div>
+        </div> 
     </div>
 </div>
 
-<div class="sidebar-right-split">
-    <div class="alert-box">
-        <h3 style="color:var(--red); margin-top:0; border-bottom: 1px solid #333; padding-bottom: 10px;">⚠️ TRIGGER ALERTS</h3>
-        <div id="alert-list">Scanning...</div>
-    </div>
-
-    <div class="vitals-box">
-        <h3 style="color:var(--ey); margin-top:0; border-bottom: 1px solid #333; padding-bottom: 10px;">📊 MACHINE VITALS</h3>
-        <table class="vital-table">
-            <tr><td class="v-label">Boost Pressure</td><td class="v-value" id="v-boost">--</td></tr>
-            <tr><td class="v-label">Fuel Pressure</td><td class="v-value" id="v-fuel">--</td></tr>
-            <tr><td class="v-label">Receiver PR</td><td class="v-value" id="v-receiver">--</td></tr>
-            <tr><td class="v-label">Hyd-Oil Temp</td><td class="v-value" id="v-temp">--</td></tr>
-        </table>
-        <div id="vitals-date-stamp" class="timestamp" style="font-size: 0.7rem; color: #666; text-align: right; margin-top: 10px;">Data as of: --</div>
-    </div>
-</div> </div> </div> ```
 <script>
     const API = "https://script.google.com/macros/s/AKfycbyfTF7xgkds2hhOoGIgnYLLmzzuzyw_mRvMiCFl05oYUwdTdBDwP8kMf_D40oEbY357/exec"; 
     let chart = null, globalData = null;
+    var livelyTimer = null;
+    var currentIdx = 0;
 
-    // --- 1. LOGIN & AUTH ---
     async function handleLogin() {
         const u = document.getElementById('userIn').value;
         const p = document.getElementById('passIn').value;
@@ -460,7 +394,6 @@
         return `${API}?${params}&userRegion=${encodeURIComponent(r)}&siteView=${encodeURIComponent(s)}&user=${encodeURIComponent(u)}&v=${Date.now()}`;
     }
 
-    // --- 2. INITIALIZATION ---
     async function init() {
         const now = new Date(); 
         document.getElementById('monthFilter').value = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
@@ -468,99 +401,64 @@
             const mRes = await fetch(getFullUrl("get=model_list"));
             const mList = await mRes.json();
             document.getElementById('modelSelect').innerHTML = '<option value="">All Models</option>' + mList.map(m => `<option value="${m}">${m}</option>`).join('');
-            
             await updateRigDropdown(); 
-            
             if (window.refreshInterval) clearInterval(window.refreshInterval);
             window.refreshInterval = setInterval(() => { refresh(); }, 60000); 
         } catch (e) { console.error("Init Error:", e); }
     }
 
-    // --- 3. DROPDOWN & DATA REFRESH ---
-   async function updateRigDropdown() {
-    const model = document.getElementById('modelSelect').value;
-    const rigSelect = document.getElementById('rigSelect');
-    
-    // 1. Clear current options and show a loading state
-    rigSelect.innerHTML = '<option value="">Loading Rigs...</option>';
-    
-    try {
-        // 2. Fetch the filtered list from your GS Part 4 (list handler)
-        const res = await fetch(getFullUrl(`get=list&model=${encodeURIComponent(model)}`));
-        const rigs = await res.json();
-        
-        // 3. Populate the dropdown. 
-        // Use the first rig in the list as the default to avoid a blank start.
-        if (rigs && rigs.length > 0) {
-            rigSelect.innerHTML = rigs.map((id, index) => 
-                `<option value="${id}" ${index === 0 ? 'selected' : ''}>${id}</option>`
-            ).join('');
-        } else {
-            rigSelect.innerHTML = '<option value="">No Rigs Found</option>';
-        }
-        
-        // 4. Immediately trigger a refresh to update Vitals and Charts for the new first rig
-        refresh();
-    } catch (e) {
-        console.error("Rig list sync failed:", e);
-        rigSelect.innerHTML = '<option value="">Error Loading</option>';
+    async function updateRigDropdown() {
+        const model = document.getElementById('modelSelect').value;
+        const rigSelect = document.getElementById('rigSelect');
+        rigSelect.innerHTML = '<option value="">Loading Rigs...</option>';
+        try {
+            const res = await fetch(getFullUrl(`get=list&model=${encodeURIComponent(model)}`));
+            const rigs = await res.json();
+            if (rigs && rigs.length > 0) {
+                rigSelect.innerHTML = rigs.map((id, index) => 
+                    `<option value="${id}" ${index === 0 ? 'selected' : ''}>${id}</option>`
+                ).join('');
+            } else {
+                rigSelect.innerHTML = '<option value="">No Rigs Found</option>';
+            }
+            refresh();
+        } catch (e) { console.error("Rig list sync failed:", e); }
     }
-}
 
     async function refresh() {
-    const rig = document.getElementById('rigSelect').value;
-    const month = document.getElementById('monthFilter').value; 
-    const mode = document.getElementById('dataSource').value; 
-    
-    try {
-        const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}&mode=${mode}`));
-        const data = await res.json();
-        
-        // CRITICAL: Update the global variable so drawChart can see it
-        globalData = data; 
-        
-        // Now update the UI
-        updateUI(data);
-    } catch (err) { 
-        console.error("Refresh Error:", err); 
+        const rig = document.getElementById('rigSelect').value;
+        const month = document.getElementById('monthFilter').value; 
+        const mode = document.getElementById('dataSource').value; 
+        try {
+            const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}&mode=${mode}`));
+            const data = await res.json();
+            globalData = data; 
+            updateUI(data);
+        } catch (err) { console.error("Refresh Error:", err); }
     }
-}
 
-  function updateUI(data) {
-    try {
+    function updateUI(data) {
         const summaryBody = document.getElementById('fleet-summary-body');
         const warningBox = document.getElementById('auditWarning');
-        const rigSelectElem = document.getElementById('rigSelect');
-        
         if (!data || !data.summary) return;
 
-        // --- 1. DYNAMIC PRO-RATA AUDIT WARNING ---
-        const selectedRigId = (rigSelectElem && rigSelectElem.value) ? rigSelectElem.value.trim().toUpperCase() : "";
-        const selectedRigData = data.summary.find(r => String(r.id).trim().toUpperCase() === selectedRigId);
-        
+        const selectedRigId = document.getElementById('rigSelect').value.toUpperCase();
+        const selectedRigData = data.summary.find(r => String(r.id).toUpperCase() === selectedRigId);
         const today = new Date().getDate();
-        const gracePeriod = 1;
-        const requiredAudits = Math.max(0, today - gracePeriod);
-
-        if (window.warningTimer) clearTimeout(window.warningTimer);
+        const requiredAudits = Math.max(0, today - 1);
 
         if (selectedRigData && parseInt(selectedRigData.audits || 0) < requiredAudits) {
             warningBox.style.display = 'block';
-            warningBox.innerHTML = `⚠️ RIG ${selectedRigId}: ONLY ${selectedRigData.audits}/${today} AUDITS DONE (Required: ${requiredAudits})`;
-            
-            window.warningTimer = setTimeout(() => {
-                warningBox.style.display = 'none';
-            }, 15000);
+            warningBox.innerHTML = `⚠️ RIG ${selectedRigId}: ONLY ${selectedRigData.audits}/${today} AUDITS DONE`;
         } else {
             warningBox.style.display = 'none';
         }
 
-        // --- 2. TABLE POPULATION ---
         summaryBody.innerHTML = data.summary.map(r => `
             <tr data-region="${r.region || ''}" data-model="${r.model || ''}">
                 <td><b>${r.id}</b></td>
-                <td style="color:${parseInt(r.audits || 0) < requiredAudits ? 'var(--red)' : 'var(--green)'}">${r.audits || 0}</td>
-                <td style="color:var(--ey)">${r.avgLoad || 0}%</td>
+                <td>${r.audits || 0}</td>
+                <td>${r.avgLoad || 0}%</td>
                 <td>${r.avgTemp || 0}</td>
                 <td>${r.avgOil || 0}</td>
                 <td>${r.avgFuel || 0}</td>
@@ -569,240 +467,85 @@
                 <td>${r.avgImpact || 0}</td>
             </tr>`).join('');
 
-        // --- 3. MACHINE VITALS ---
         if (data.vitals) {
-            const dateEl = document.getElementById('vitals-date-stamp');
-            if (dateEl) dateEl.innerText = "Data as of: " + (data.vitals.date || "--"); 
-
-            if (document.getElementById('v-boost')) document.getElementById('v-boost').innerText = data.vitals.boost || "0";
-            if (document.getElementById('v-fuel')) document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
-            if (document.getElementById('v-receiver')) document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
-            if (document.getElementById('v-temp')) document.getElementById('v-temp').innerText = (data.vitals.hyd || "0") + "°C";
+            document.getElementById('v-boost').innerText = data.vitals.boost || "0";
+            document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
+            document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
+            document.getElementById('v-temp').innerText = (data.vitals.hyd || "0") + "°C";
         }
 
-        // --- 4. ALERTS ---
-        const alertList = document.getElementById('alert-list');
-        if (alertList) {
-            if (data.vitals && data.vitals.alerts && data.vitals.alerts.length > 0) {
-                alertList.innerHTML = data.vitals.alerts.map(a => `
-                    <div class="alert-card" style="border-left:4px solid var(--red); background:rgba(255,77,77,0.1); padding:8px; margin-bottom:8px; border-radius:4px;">
-                        <b style="color:var(--ey); font-size:0.7rem;">UNIT: ${a.rig}</b><br>
-                        <b style="color:var(--red); font-size:0.8rem;">⚠️ ${a.parameter}</b>
-                    </div>`).join('');
-            } else { 
-                alertList.innerHTML = `<div style="text-align:center; padding:15px; color:var(--green); font-weight:bold;"><span class="live-dot"></span> ALL PARAMETERS NORMAL</div>`; 
-            }
-        }
+        applyGlobalFilters();
+        drawChart(); 
+        if (document.body.classList.contains('authorized')) startLivelyGauges();
+        document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+    }
 
-      // --- 5. FINAL TRIGGERS ---
-applyGlobalFilters(); 
-drawChart(); 
+    function applyGlobalFilters() {
+        const selRegion = document.getElementById('cityFocus')?.value || "All";
+        const selModel = document.getElementById('modelSelect').value;
+        const rows = document.querySelectorAll('#fleet-summary-body tr');
+        let visibleCount = 0; let totalLoad = 0;
 
-// ONLY start gauges if we are actually authorized and have a rig selected
-if (document.body.classList.contains('authorized') && globalData?.monthlyData) {
-    startLivelyGauges(); 
-}
+        rows.forEach(row => {
+            const rReg = row.getAttribute('data-region') || "";
+            const rMod = row.getAttribute('data-model') || "";
+            const regionMatch = (selRegion === "All India (National)" || selRegion === "All" || rReg === selRegion);
+            const modelMatch = (selModel === "" || rMod === selModel);
+            if (regionMatch && modelMatch) {
+                row.style.display = ""; visibleCount++;
+                totalLoad += parseFloat(row.cells[2].innerText) || 0;
+            } else { row.style.display = "none"; }
+        });
+        document.getElementById('v-active-rigs').innerText = visibleCount;
+        document.getElementById('v-fleet-load').innerText = visibleCount > 0 ? (totalLoad / visibleCount).toFixed(1) + "%" : "0%";
+    }
 
-document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+    function startLivelyGauges() {
+        if (livelyTimer) clearInterval(livelyTimer);
+        const d = globalData?.monthlyData || [];
+        const row = document.getElementById('gauge-row');
+        if (!row || d.length === 0) return;
+        currentIdx = 0;
+        livelyTimer = setInterval(() => {
+            const entry = d[currentIdx];
+            if (!entry) { currentIdx = 0; return; }
+            const mode = document.getElementById('chartMode').value;
+            let dateStr = entry.date || "N/A";
+            let html = `<div style="color:var(--green); border:1px solid; padding:2px 8px; border-radius:10px; font-size:0.7rem; font-weight:bold;">DATE: ${dateStr}</div>`;
+            let config = [];
+            if (mode === 'tempVsOil') { config = [{ lab: 'Oil bar', val: entry.oil }, { lab: 'RPM', val: entry.rpm }, { lab: 'Temp °C', val: entry.temp }]; }
+            else if (mode === 'hydro_impact') { config = [{ lab: 'Impact', val: entry.impact }, { lab: 'Feed', val: entry.feed }, { lab: 'Damper', val: entry.damper }]; }
+            else if (mode === 'setBit') { config = [{ lab: 'Air Set', val: entry.air }, { lab: 'Bit Pr', val: entry.bit }]; }
+            else { config = [{ lab: 'Eng Load', val: entry.load }, { lab: 'Comp %', val: entry.comp }]; }
+            config.forEach(g => { html += `<div style="text-align:center;"><span class="g-val">${g.val || 0}</span><span class="g-lab">${g.lab}</span></div>`; });
+            row.innerHTML = html;
+            currentIdx = (currentIdx + 1) % d.length;
+        }, 2000);
+    }
 
-// 5. SAFE FILTERING FUNCTION
-function applyGlobalFilters() {
-    const cityElem = document.getElementById('cityFocus');
-    const selRegion = cityElem ? cityElem.value : "All";
-    const selModel = document.getElementById('modelSelect').value;
-    const rows = document.querySelectorAll('#fleet-summary-body tr');
-    
-    let visibleCount = 0;
-    let totalLoad = 0;
-
-    rows.forEach(row => {
-        const rReg = row.getAttribute('data-region') || "";
-        const rMod = row.getAttribute('data-model') || "";
-
-        const regionMatch = (selRegion === "All India (National)" || selRegion === "All" || rReg === selRegion);
-        const modelMatch = (selModel === "" || rMod === selModel);
-
-        if (regionMatch && modelMatch) {
-            row.style.display = ""; 
-            visibleCount++;
-            const loadVal = parseFloat(row.cells[2].innerText.replace('%', '')) || 0;
-            totalLoad += loadVal;
+    function drawChart() {
+        if (!globalData || !globalData.monthlyData) return;
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        if (chart) chart.destroy();
+        const d = globalData.monthlyData;
+        const mode = document.getElementById('chartMode').value;
+        let datasets = [];
+        if (mode === 'tempVsOil') {
+            datasets = [
+                { label: 'Oil', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'y' },
+                { label: 'Temp', data: d.map(x => x.temp), borderColor: '#ff4d4d', yAxisID: 'y1' }
+            ];
         } else {
-            row.style.display = "none"; 
+            datasets = [{ label: 'Value', data: d.map(x => x.load || x.impact || x.air), borderColor: '#f1c40f' }];
         }
-    });
-
-    document.getElementById('v-active-rigs').innerText = visibleCount;
-    document.getElementById('v-fleet-load').innerText = visibleCount > 0 ? (totalLoad / visibleCount).toFixed(1) + "%" : "0%";
-}
-    // --- 6. ANALYTICAL CHARTING & EXPORT ---
-   function drawChart() {
-    if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
-        if (chart) chart.destroy(); 
-        return;
+        chart = new Chart(ctx, { type: 'line', data: { labels: d.map(x => x.date), datasets }, options: { responsive: true, maintainAspectRatio: false } });
     }
 
-    const canvas = document.getElementById('mainChart');
-    const ctx = canvas.getContext('2d');
-    if (chart) chart.destroy();
-    
-    const mode = document.getElementById('chartMode').value;
-    const d = globalData.monthlyData;
-    const labels = d.map(x => x.date);
-    
-    let datasets = [];
-    let options = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { labels: { color: '#fff' } } },
-        scales: {
-            x: { grid: { color: '#333' }, ticks: { color: '#888' } },
-            y: { grid: { color: '#333' }, ticks: { color: '#fff' } }
-        }
-    };
-
-    if (mode === 'tempVsOil') {
-        // Triple Axis Mode
-        datasets = [
-            { label: 'Oil Pr (bar)', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'yOil', tension: 0.3 },
-            { label: 'Temp (°C)', data: d.map(x => x.temp), borderColor: '#ff4d4d', yAxisID: 'yTemp', tension: 0.3 },
-            { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'yRPM', borderDash: [5, 5], tension: 0.3 }
-        ];
-        options.scales.yOil = { position: 'left', min: 0, max: 8, ticks: { stepSize: 0.2, color: '#2ecc71' } };
-        options.scales.yTemp = { position: 'right', min: 60, max: 130, ticks: { stepSize: 3, color: '#ff4d4d' }, grid: { drawOnChartArea: false } };
-        options.scales.yRPM = { position: 'right', min: 600, max: 2200, ticks: { stepSize: 25, color: '#3498db' }, grid: { drawOnChartArea: false } };
-    } 
-    else if (mode === 'loadVsComp') {
-        datasets = [
-            { label: 'Engine Load %', data: d.map(x => x.load), borderColor: '#f1c40f', tension: 0.3 },
-            { label: 'Compressor %', data: d.map(x => x.comp), borderColor: '#3498db', tension: 0.3 }
-        ];
-        options.scales.y.max = 100;
-    } 
-    else if (mode === 'setBit') {
-        datasets = [
-            { label: 'Air Set (bar)', data: d.map(x => x.air), borderColor: '#2ecc71', tension: 0.3 },
-            { label: 'Bit Pr (bar)', data: d.map(x => x.bit), borderColor: '#3498db', tension: 0.3 }
-        ];
-    } 
-    else if (mode === 'hydro_impact') {
-        datasets = [
-            { label: 'Impact (bar)', data: d.map(x => x.impact), borderColor: '#f1c40f', tension: 0.3 },
-            { label: 'Feed (bar)', data: d.map(x => x.feed), borderColor: '#e67e22', tension: 0.3 },
-            { label: 'Damper (bar)', data: d.map(x => x.damper), borderColor: '#3498db', tension: 0.3 }
-        ];
-    }
-
-    chart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: options });
-}
     function exportToExcel() {
         let table = document.getElementById("summary-tbl");
         let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
-        let link = document.createElement('a'); 
-        link.download = "Fleet_Performance_Report.xls"; 
-        link.href = url; 
-        link.click();
+        let link = document.createElement('a'); link.download = "Report.xls"; link.href = url; link.click();
     }
-   // 1. REGION -> MODEL CASCADE
-async function updateModelDropdown() {
-    const region = document.getElementById('cityFocus').value;
-    const modelSelect = document.getElementById('modelSelect');
-    
-    // This tells the database: "Give me only models present in this region"
-    try {
-        const res = await fetch(getFullUrl(`get=model_list&userRegion=${encodeURIComponent(region)}`));
-        const models = await res.json();
-        
-        modelSelect.innerHTML = '<option value="">All Models</option>' + 
-            models.map(m => `<option value="${m}">${m}</option>`).join('');
-            
-        // Immediately trigger the Rig ID update
-        updateRigDropdown();
-    } catch (e) { console.error("Model sync failed", e); }
-}
-
-// 2. MODEL -> FLEET (RIG ID) CASCADE
-async function updateRigDropdown() {
-    const region = document.getElementById('cityFocus').value;
-    const model = document.getElementById('modelSelect').value;
-    const rigSelect = document.getElementById('rigSelect');
-    
-    rigSelect.innerHTML = '<option value="">Loading...</option>';
-    
-    // This tells the database: "Give me only Rigs that are [Region] AND [Model]"
-    try {
-        const res = await fetch(getFullUrl(`get=list&userRegion=${encodeURIComponent(region)}&model=${encodeURIComponent(model)}`));
-        const rigs = await res.json();
-        
-        if (rigs && rigs.length > 0) {
-            rigSelect.innerHTML = rigs.map((id, index) => 
-                `<option value="${id}" ${index === 0 ? 'selected' : ''}>${id}</option>`
-            ).join('');
-        } else {
-            rigSelect.innerHTML = '<option value="">No Rigs Found</option>';
-        }
-        
-       // --- GAUGE CONTROLS ---
-// Remove the duplicate declarations you had. Use only these:
-var livelyTimer = null;
-var currentIdx = 0;
-
-function startLivelyGauges() {
-    // 1. Kill old timer to stop freezing
-    if (livelyTimer) clearInterval(livelyTimer);
-    
-    // 2. Data Check
-    const d = globalData?.monthlyData || [];
-    const row = document.getElementById('gauge-row');
-    if (!row || d.length === 0) return;
-
-    const mode = document.getElementById('chartMode')?.value || 'tempVsOil';
-    currentIdx = 0;
-
-    livelyTimer = setInterval(() => {
-        const entry = d[currentIdx];
-        if (!entry) { currentIdx = 0; return; }
-
-        // Use the audit date for the badge
-        let dateStr = entry.date || entry.Date || "N/A";
-        let gaugeHtml = `<div style="color:var(--green); border:1px solid; padding:2px 8px; border-radius:10px; font-size:0.7rem; font-weight:bold;">DATE: ${dateStr}</div>`;
-        
-        let config = [];
-        if (mode === 'tempVsOil') {
-            config = [{ lab: 'Oil bar', val: entry.oil || entry.Oil || 0 }, { lab: 'RPM', val: entry.rpm || entry.RPM || 0 }, { lab: 'Temp °C', val: entry.temp || entry.Temp || 0 }];
-        } else if (mode === 'hydro_impact') {
-            config = [{ lab: 'Impact', val: entry.impact || entry.Impact || 0 }, { lab: 'Feed', val: entry.feed || entry.Feed || 0 }, { lab: 'Damper', val: entry.damper || entry.Damper || 0 }];
-        } else if (mode === 'setBit') {
-            config = [{ lab: 'Air Set', val: entry.air || entry.Air || 0 }, { lab: 'Bit Pr', val: entry.bit || entry.Bit || 0 }];
-        } else {
-            config = [{ lab: 'Eng Load', val: entry.load || entry.Load || 0 }, { lab: 'Comp %', val: entry.comp || entry.Comp || 0 }];
-        }
-
-        config.forEach(g => {
-            gaugeHtml += `<div style="text-align:center;"><span class="g-val">${g.val}</span><span class="g-lab">${g.lab}</span></div>`;
-        });
-
-        row.innerHTML = gaugeHtml;
-        currentIdx = (currentIdx + 1) % d.length;
-    }, 2000); // 2 second cycle
-}
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
