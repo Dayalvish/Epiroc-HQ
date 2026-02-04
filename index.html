@@ -593,20 +593,16 @@
             }
         }
 
-       // --- 5. FINAL TRIGGERS ---
+      // --- 5. FINAL TRIGGERS ---
 applyGlobalFilters(); 
 drawChart(); 
 
-// NEW: Reset and Start the 3-second gauge cycle
-playbackIdx = 0; 
-startLivelyGauges(); 
+// ONLY start gauges if we are actually authorized and have a rig selected
+if (document.body.classList.contains('authorized') && globalData?.monthlyData) {
+    startLivelyGauges(); 
+}
 
 document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
-
-    } catch (criticalError) {
-        console.error("Dashboard UI crashed:", criticalError);
-    }
-}
 
 // 5. SAFE FILTERING FUNCTION
 function applyGlobalFilters() {
@@ -751,85 +747,89 @@ let livelyTimer = null;
 let currentIdx = 0; 
 
 function startLivelyGauges() {
-    // 1. CLEAR PREVIOUS TIMER IMMEDIATELY
+    // 1. Safety Shutdown: Clear any existing timer first
     if (livelyTimer) {
         clearInterval(livelyTimer);
         livelyTimer = null;
     }
 
-    // 2. DATA VALIDATION
+    // 2. Authorization Check: Don't run if login is still active
+    if (!document.body.classList.contains('authorized')) return;
+
+    // 3. Data Validation: Ensure we have data to play back
     const d = globalData?.monthlyData || []; 
     if (d.length === 0) {
-        document.getElementById('gauge-row').innerHTML = '<div style="color:#666">No Audit Data for Playback</div>';
+        const row = document.getElementById('gauge-row');
+        if (row) row.innerHTML = '<div style="color:#666; font-size:0.7rem;">Waiting for audit data...</div>';
         return;
     }
 
-    // 3. RESET INDEX
-    // This prevents the "Freezing" when switching rigs
-    currentIdx = 0; 
-
+    currentIdx = 0; // Reset index for new rig selection
     const mode = document.getElementById('chartMode').value;
     const row = document.getElementById('gauge-row');
 
     livelyTimer = setInterval(() => {
-        // Safety check to ensure data still exists
-        if (!d[currentIdx]) {
-            currentIdx = 0;
-            return;
+        try {
+            // Safety: Ensure we aren't out of bounds
+            if (!d[currentIdx]) {
+                currentIdx = 0;
+                return;
+            }
+
+            const entry = d[currentIdx];
+            let displayDate = entry.date || entry.Date || "N/A";
+            
+            let gaugeHtml = `<div style="color:var(--green); border:1px solid; padding:2px 8px; border-radius:10px; font-size:0.75rem; font-weight:bold;">DATE: ${displayDate}</div>`;
+            let config = [];
+
+            // Mapping for all 4 Modes
+            if (mode === 'tempVsOil') {
+                config = [
+                    { lab: 'Oil bar', val: entry.oil || entry.Oil || 0 },
+                    { lab: 'RPM', val: entry.rpm || entry.RPM || 0 },
+                    { lab: 'Temp °C', val: entry.temp || entry.Temp || 0 }
+                ];
+            } else if (mode === 'hydro_impact') {
+                config = [
+                    { lab: 'Impact', val: entry.impact || entry.Impact || entry.imp || 0 },
+                    { lab: 'Feed', val: entry.feed || entry.Feed || entry.fd || 0 },
+                    { lab: 'Damper', val: entry.damper || entry.Damper || entry.dmp || 0 }
+                ];
+            } else if (mode === 'setBit') {
+                config = [
+                    { lab: 'Air Set', val: entry.air || entry.Air || 0 },
+                    { lab: 'Bit Pr', val: entry.bit || entry.Bit || 0 }
+                ];
+            } else {
+                config = [
+                    { lab: 'Eng Load', val: entry.load || entry.Load || 0 },
+                    { lab: 'Comp %', val: entry.comp || entry.Comp || 0 }
+                ];
+            }
+
+            config.forEach(g => {
+                gaugeHtml += `
+                    <div style="text-align:center;">
+                        <span class="g-val">${g.val}</span>
+                        <span class="g-lab">${g.lab}</span>
+                    </div>`;
+            });
+
+            if (row) row.innerHTML = gaugeHtml;
+
+            // Increment and Loop
+            currentIdx = (currentIdx + 1) % d.length;
+
+        } catch (err) {
+            console.error("Playback Error:", err);
+            clearInterval(livelyTimer); // Stop timer if it hits an error to prevent freezing
         }
-
-        const entry = d[currentIdx];
-        
-        // Show Date with fallback
-        let displayDate = entry.date || entry.Date || "N/A";
-        let gaugeHtml = `<div style="color:var(--green); border:1px solid; padding:2px 8px; border-radius:10px; font-size:0.75rem; font-weight:bold;">DATE: ${displayDate}</div>`;
-        
-        let config = [];
-
-        // 4. ROBUST MAPPING (Handles lowercase/uppercase naming)
-        if (mode === 'tempVsOil') {
-            config = [
-                { lab: 'Oil bar', val: entry.oil || entry.Oil || 0 },
-                { lab: 'RPM', val: entry.rpm || entry.RPM || 0 },
-                { lab: 'Temp °C', val: entry.temp || entry.Temp || 0 }
-            ];
-        } else if (mode === 'hydro_impact') {
-            config = [
-                { lab: 'Impact', val: entry.impact || entry.Impact || 0 },
-                { lab: 'Feed', val: entry.feed || entry.Feed || 0 },
-                { lab: 'Damper', val: entry.damper || entry.Damper || 0 }
-            ];
-        } else if (mode === 'setBit') {
-            config = [
-                { lab: 'Air Set', val: entry.air || entry.Air || 0 },
-                { lab: 'Bit Pr', val: entry.bit || entry.Bit || 0 }
-            ];
-        } else {
-            // Load vs Comp
-            config = [
-                { lab: 'Eng Load', val: entry.load || entry.Load || 0 },
-                { lab: 'Comp %', val: entry.comp || entry.Comp || 0 }
-            ];
-        }
-
-        // 5. INJECT HTML
-        config.forEach(g => {
-            gaugeHtml += `
-                <div style="text-align:center;">
-                    <span class="g-val">${g.val}</span>
-                    <span class="g-lab">${g.lab}</span>
-                </div>`;
-        });
-
-        row.innerHTML = gaugeHtml;
-
-        // 6. INCREMENT
-        currentIdx = (currentIdx + 1) % d.length;
     }, 2000); 
 }
 </script>
 </body>
 </html>
+
 
 
 
