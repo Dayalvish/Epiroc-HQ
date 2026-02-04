@@ -135,6 +135,7 @@
         100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); } 
     }
 
+    <style>
     /* =========================================
        5. MAIN GRID SYSTEM & FIXED SCALING
        ========================================= */
@@ -143,7 +144,7 @@
         grid-template-columns: 260px 1fr 280px; 
         gap: 12px; 
         flex-grow: 1; 
-        height: calc(100vh - 130px); 
+        height: calc(100vh - 140px); /* Locks view to screen height */
         min-height: 0; 
     }
 
@@ -194,8 +195,7 @@
     .summary-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
     .summary-table th { background: #222; color: var(--ey); position: sticky; top: 0; z-index: 10; }
     .summary-table td { padding: 6px; border: 1px solid #333; text-align: center; }
-</style>
-    /* =========================================
+</style>    /* =========================================
        7. OTHER UI ELEMENTS
        ========================================= */
     .sidebar-right-split { display: flex; flex-direction: column; gap: 12px; height: 100%; }
@@ -744,92 +744,52 @@ async function updateRigDropdown() {
         
        // --- GAUGE CONTROLS ---
 // Remove the duplicate declarations you had. Use only these:
-let livelyTimer = null;
-let currentIdx = 0; 
+var livelyTimer = null;
+var currentIdx = 0;
 
 function startLivelyGauges() {
-    // 1. Safety Shutdown: Clear any existing timer first
-    if (livelyTimer) {
-        clearInterval(livelyTimer);
-        livelyTimer = null;
-    }
-
-    // 2. Authorization Check: Don't run if login is still active
-    if (!document.body.classList.contains('authorized')) return;
-
-    // 3. Data Validation: Ensure we have data to play back
-    const d = globalData?.monthlyData || []; 
-    if (d.length === 0) {
-        const row = document.getElementById('gauge-row');
-        if (row) row.innerHTML = '<div style="color:#666; font-size:0.7rem;">Waiting for audit data...</div>';
-        return;
-    }
-
-    currentIdx = 0; // Reset index for new rig selection
-    const mode = document.getElementById('chartMode').value;
+    // 1. Kill old timer to stop freezing
+    if (livelyTimer) clearInterval(livelyTimer);
+    
+    // 2. Data Check
+    const d = globalData?.monthlyData || [];
     const row = document.getElementById('gauge-row');
+    if (!row || d.length === 0) return;
+
+    const mode = document.getElementById('chartMode')?.value || 'tempVsOil';
+    currentIdx = 0;
 
     livelyTimer = setInterval(() => {
-        try {
-            // Safety: Ensure we aren't out of bounds
-            if (!d[currentIdx]) {
-                currentIdx = 0;
-                return;
-            }
+        const entry = d[currentIdx];
+        if (!entry) { currentIdx = 0; return; }
 
-            const entry = d[currentIdx];
-            let displayDate = entry.date || entry.Date || "N/A";
-            
-            let gaugeHtml = `<div style="color:var(--green); border:1px solid; padding:2px 8px; border-radius:10px; font-size:0.75rem; font-weight:bold;">DATE: ${displayDate}</div>`;
-            let config = [];
-
-            // Mapping for all 4 Modes
-            if (mode === 'tempVsOil') {
-                config = [
-                    { lab: 'Oil bar', val: entry.oil || entry.Oil || 0 },
-                    { lab: 'RPM', val: entry.rpm || entry.RPM || 0 },
-                    { lab: 'Temp °C', val: entry.temp || entry.Temp || 0 }
-                ];
-            } else if (mode === 'hydro_impact') {
-                config = [
-                    { lab: 'Impact', val: entry.impact || entry.Impact || entry.imp || 0 },
-                    { lab: 'Feed', val: entry.feed || entry.Feed || entry.fd || 0 },
-                    { lab: 'Damper', val: entry.damper || entry.Damper || entry.dmp || 0 }
-                ];
-            } else if (mode === 'setBit') {
-                config = [
-                    { lab: 'Air Set', val: entry.air || entry.Air || 0 },
-                    { lab: 'Bit Pr', val: entry.bit || entry.Bit || 0 }
-                ];
-            } else {
-                config = [
-                    { lab: 'Eng Load', val: entry.load || entry.Load || 0 },
-                    { lab: 'Comp %', val: entry.comp || entry.Comp || 0 }
-                ];
-            }
-
-            config.forEach(g => {
-                gaugeHtml += `
-                    <div style="text-align:center;">
-                        <span class="g-val">${g.val}</span>
-                        <span class="g-lab">${g.lab}</span>
-                    </div>`;
-            });
-
-            if (row) row.innerHTML = gaugeHtml;
-
-            // Increment and Loop
-            currentIdx = (currentIdx + 1) % d.length;
-
-        } catch (err) {
-            console.error("Playback Error:", err);
-            clearInterval(livelyTimer); // Stop timer if it hits an error to prevent freezing
+        // Use the audit date for the badge
+        let dateStr = entry.date || entry.Date || "N/A";
+        let gaugeHtml = `<div style="color:var(--green); border:1px solid; padding:2px 8px; border-radius:10px; font-size:0.7rem; font-weight:bold;">DATE: ${dateStr}</div>`;
+        
+        let config = [];
+        if (mode === 'tempVsOil') {
+            config = [{ lab: 'Oil bar', val: entry.oil || entry.Oil || 0 }, { lab: 'RPM', val: entry.rpm || entry.RPM || 0 }, { lab: 'Temp °C', val: entry.temp || entry.Temp || 0 }];
+        } else if (mode === 'hydro_impact') {
+            config = [{ lab: 'Impact', val: entry.impact || entry.Impact || 0 }, { lab: 'Feed', val: entry.feed || entry.Feed || 0 }, { lab: 'Damper', val: entry.damper || entry.Damper || 0 }];
+        } else if (mode === 'setBit') {
+            config = [{ lab: 'Air Set', val: entry.air || entry.Air || 0 }, { lab: 'Bit Pr', val: entry.bit || entry.Bit || 0 }];
+        } else {
+            config = [{ lab: 'Eng Load', val: entry.load || entry.Load || 0 }, { lab: 'Comp %', val: entry.comp || entry.Comp || 0 }];
         }
-    }, 2000); 
+
+        config.forEach(g => {
+            gaugeHtml += `<div style="text-align:center;"><span class="g-val">${g.val}</span><span class="g-lab">${g.lab}</span></div>`;
+        });
+
+        row.innerHTML = gaugeHtml;
+        currentIdx = (currentIdx + 1) % d.length;
+    }, 2000); // 2 second cycle
 }
 </script>
 </body>
 </html>
+
 
 
 
