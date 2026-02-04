@@ -137,7 +137,7 @@
     }
 
     /* =========================================
-       5. MAIN GRID SYSTEM (3 COLUMNS)
+       5. MAIN GRID SYSTEM & PARTITIONING
        ========================================= */
     .main-layout { 
         display: grid; 
@@ -147,7 +147,7 @@
         min-height: 0; 
     }
 
-    .sidebar, .chart-area { 
+    .sidebar { 
         background: var(--card); 
         padding: 15px; 
         border-radius: 8px; 
@@ -155,6 +155,63 @@
         overflow-y: auto; 
         height: 100%; 
         box-sizing: border-box; 
+    }
+
+    /* THE PARTITIONED AREA */
+    .chart-area { 
+        background: var(--card); 
+        padding: 15px; 
+        border-radius: 8px; 
+        box-shadow: 0 4px 20px rgba(0,0,0,0.6); 
+        display: flex;             /* Added: Flexbox for vertical stacking */
+        flex-direction: column;    /* Added: Stack children vertically */
+        height: 100%; 
+        box-sizing: border-box; 
+        overflow: hidden; 
+    }
+
+    /* 75% Top Partition (Trend Chart) */
+    #chart-container {
+        flex: 0 0 70%;            /* Adjusted to leave room for headers/tables */
+        position: relative;
+        width: 100%;
+        min-height: 0; 
+    }
+
+    /* 25% Bottom Partition (Lively Gauges) */
+    .gauge-partition {
+        flex: 0 0 25%;
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        background: rgba(0,0,0,0.3);
+        border-top: 1px solid #333;
+        margin-top: 10px;
+        border-radius: 4px;
+        padding: 10px;
+    }
+
+    /* Lively Gauge Components */
+    .gauge-wrapper { text-align: center; flex: 1; }
+    
+    .g-val { 
+        display: block; font-size: 2rem; font-weight: bold; color: var(--ey); 
+        font-family: 'Courier New', monospace; line-height: 1;
+    }
+    
+    .g-lab { 
+        display: block; font-size: 0.65rem; color: #888; 
+        text-transform: uppercase; letter-spacing: 1px; margin-top: 5px;
+    }
+
+    /* Alert Pulse Animation */
+    .g-alert { color: var(--red) !important; animation: g-pulse 0.8s infinite alternate; }
+    @keyframes g-pulse { from { transform: scale(1); } to { transform: scale(1.05); opacity: 0.8; } }
+
+    #playback-badge {
+        background: var(--bg); border: 1px solid var(--green);
+        color: var(--green); padding: 2px 10px; border-radius: 10px;
+        font-size: 0.7rem; font-weight: bold;
     }
 
     /* =========================================
@@ -385,8 +442,21 @@
             <button onclick="exportToExcel()" class="btn-green">📊 EXCEL EXPORT</button>
         </div>
 
-        <div class="chart-area">
-    <div style="height:350px;"><canvas id="mainChart"></canvas></div>
+       <div class="chart-area">
+    <div id="chart-container">
+        <canvas id="mainChart"></canvas>
+    </div>
+
+    <div class="gauge-partition" id="gauge-row">
+        <div id="playback-badge">SEQ: <span id="current-seq">0</span></div>
+        </div>
+
+    <h3 style="color:var(--ey); margin:15px 0 10px 0;">FLEET PERFORMANCE SUMMARY</h3>
+    <div style="overflow-y: auto; flex-grow: 1;">
+        <table class="summary-table" id="summary-tbl">
+            </table>
+    </div>
+</div>
     <h3 style="color:var(--ey); margin:30px 0 10px 0;">FLEET PERFORMANCE SUMMARY</h3>
     <table class="summary-table" id="summary-tbl">
         <thead>
@@ -586,10 +656,15 @@
             }
         }
 
-        // --- 5. FINAL TRIGGERS ---
-        applyGlobalFilters(); 
-        drawChart(); 
-        document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+       // --- 5. FINAL TRIGGERS ---
+applyGlobalFilters(); 
+drawChart(); 
+
+// NEW: Reset and Start the 3-second gauge cycle
+playbackIdx = 0; 
+startLivelyGauges(); 
+
+document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
 
     } catch (criticalError) {
         console.error("Dashboard UI crashed:", criticalError);
@@ -741,6 +816,7 @@ async function updateRigDropdown() {
 </script>
 </body>
 </html>
+
 
 
 
