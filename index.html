@@ -532,13 +532,13 @@
 }
 function applyGlobalFilters() {
     const alertList = document.getElementById('alert-list');
-    if (!alertList || !globalData || !globalData.summary) return;
+    if (!alertList || !globalData || !globalData.monthlyData) return;
 
-    const T_Map = globalData.thresholds || {}; // This is your parameter-to-value map
-    const fleetSummary = globalData.summary; // The list of all rigs and their averages
-    let activeAlerts = [];
+    const T_Map = globalData.thresholds || {}; 
+    const rawEntries = globalData.monthlyData; // Raw data from ParameterDb
+    let activeAlerts = []; 
 
-    // --- PART A: TABLE FILTERING (REGION/MODEL) ---
+    // --- PART A: TABLE FILTERING ---
     const selRegion = document.getElementById('cityFocus')?.value || "All";
     const selModel = document.getElementById('modelSelect')?.value || "";
     const rows = document.querySelectorAll('#fleet-summary-body tr');
@@ -551,40 +551,46 @@ function applyGlobalFilters() {
         row.style.display = (regionMatch && modelMatch) ? "" : "none";
     });
 
-    // --- PART B: FLEET-WIDE SCANNER ---
-    fleetSummary.forEach(rig => {
-        // 1. OIL PRESSURE SCAN (Low Trigger)
-        const oilVal = parseFloat(rig.avgOil || 0);
-        // Link to the "Engine oil pressure_Low" header from your sheet
+    // --- PART B: RAW DATA INCIDENT SCANNER ---
+    // We scan rawEntries (ParameterDb rows) to find specific dates of failure
+    rawEntries.forEach(entry => {
+        const rigName = entry.rigId || globalData.vitals.rigId || "Unknown Rig";
+        const incidentDate = entry.date || "N/A"; // Captures the date from ParameterDb Column G
+
+        // 1. OIL PRESSURE INCIDENT (Low Trigger)
+        const oilVal = parseFloat(entry.oil || 0);
         const oilLimit = parseFloat(T_Map['Engine oil pressure_Low'] || 0);
 
         if (oilLimit > 0 && oilVal > 0 && oilVal <= oilLimit) {
             activeAlerts.push(`
-                <li style="color:var(--red); font-weight:bold; margin-bottom:10px; list-style:none; border-left: 3px solid var(--red); padding-left: 10px;">
-                    <span style="color:#fff;">RIG ${rig.id}:</span> 🚨 LOW OIL PR<br>
-                    <small>Value: ${oilVal} bar | Limit: ${oilLimit}</small>
+                <li style="color:var(--red); font-weight:bold; margin-bottom:12px; list-style:none; border-left: 4px solid var(--red); padding-left: 12px; background: rgba(255,77,77,0.1); padding-top:5px; padding-bottom:5px;">
+                    <div style="color:var(--ey); font-size:0.85rem;">${rigName}</div>
+                    <div style="font-size:0.9rem;">🚨 LOW OIL: ${oilVal.toFixed(1)} bar</div>
+                    <div style="color:#aaa; font-size:0.7rem; font-weight:normal;">DATE: ${incidentDate} | LIMIT: ${oilLimit}</div>
                 </li>`);
         }
 
-        // 2. TEMPERATURE SCAN (High Trigger)
-        const tempVal = parseFloat(rig.avgTemp || 0);
-        const tempLimit = parseFloat(T_Map['Engine Temp_High'] || 999);
+        // 2. TEMPERATURE INCIDENT (High Trigger)
+        const tempVal = parseFloat(entry.temp || 0);
+        const tempLimit = parseFloat(T_Map['Engine Temp_High'] || 0);
 
-        if (tempVal >= tempLimit) {
+        if (tempLimit > 0 && tempVal >= tempLimit) {
             activeAlerts.push(`
-                <li style="color:var(--red); font-weight:bold; margin-bottom:10px; list-style:none; border-left: 3px solid var(--red); padding-left: 10px;">
-                    <span style="color:#fff;">RIG ${rig.id}:</span> 🚨 HIGH TEMP<br>
-                    <small>Value: ${tempVal}°C | Limit: ${tempLimit}</small>
+                <li style="color:var(--red); font-weight:bold; margin-bottom:12px; list-style:none; border-left: 4px solid var(--red); padding-left: 12px; background: rgba(255,77,77,0.1); padding-top:5px; padding-bottom:5px;">
+                    <div style="color:var(--ey); font-size:0.85rem;">${rigName}</div>
+                    <div style="font-size:0.9rem;">🚨 HIGH TEMP: ${tempVal}°C</div>
+                    <div style="color:#aaa; font-size:0.7rem; font-weight:normal;">DATE: ${incidentDate} | LIMIT: ${tempLimit}</div>
                 </li>`);
         }
     });
 
     // --- PART C: RENDER TRIGGER BOX ---
     if (activeAlerts.length > 0) {
-        alertList.innerHTML = `<ul style="list-style:none; padding:0; margin:0; text-align:left;">${activeAlerts.join('')}</ul>`;
+        // Use reverse() so the most recent incidents appear at the top
+        alertList.innerHTML = `<ul style="list-style:none; padding:0; margin:0; text-align:left;">${activeAlerts.reverse().join('')}</ul>`;
     } else {
         alertList.innerHTML = `<div style="color:var(--green); font-weight:bold; padding:10px; text-align:center;">
-            <span class="live-dot"></span> ALL FLEET PARAMETERS NORMAL
+            <span class="live-dot"></span> FLEET STATUS: NORMAL
         </div>`;
     }
 }
@@ -748,6 +754,7 @@ function exportToExcel() {
 </script>
 </body>
 </html>
+
 
 
 
