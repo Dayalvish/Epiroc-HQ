@@ -543,66 +543,55 @@
 // --- 1. DYNAMIC ALERT WINDOW LOGIC (THE FLEET SCANNER) ---
 function applyGlobalFilters() {
     const alertList = document.getElementById('alert-list');
+    const countBadge = document.getElementById('alert-count-badge');
     if (!alertList || !globalData || !globalData.monthlyData) return;
 
-    const T = globalData.thresholds || {}; 
-    const rawEntries = globalData.monthlyData; // Now contains the WHOLE FLEET raw rows
+    const T_Map = globalData.thresholds || {}; 
+    const rawEntries = globalData.monthlyData; 
     let activeAlerts = []; 
 
-    // --- PART A: TABLE FILTERING (REGION/MODEL) ---
-    const selRegion = document.getElementById('cityFocus')?.value || "All";
-    const selModel = document.getElementById('modelSelect')?.value || "";
-    const rows = document.querySelectorAll('#fleet-summary-body tr');
-
-    rows.forEach(row => {
-        const rReg = row.getAttribute('data-region') || "";
-        const rMod = row.getAttribute('data-model') || "";
-        const regionMatch = (selRegion === "All India (National)" || selRegion === "All" || rReg === selRegion);
-        const modelMatch = (selModel === "" || rMod === selModel);
-        row.style.display = (regionMatch && modelMatch) ? "" : "none";
-    });
-
-    // --- PART B: RAW DATA INCIDENT SCANNER (The Fleet Fix) ---
-    // We scan every row in rawEntries to find any machine with a failure
     rawEntries.forEach(entry => {
-        // IMPORTANT: Pull the Rig ID and Date from the row itself
         const rigName = entry.rigId || "Fleet Rig"; 
         const incidentDate = entry.date || "N/A"; 
 
-        // 1. OIL PRESSURE INCIDENT CHECK
+        // 1. OIL PRESSURE SCAN (Col L)
         const oilVal = parseFloat(entry.oil || 0);
-        // Look for the limit in the Sheet Thresholds map
-        const oilLimit = parseFloat(T['Engine oil pressure_Low'] || 3.5);
+        const oilLimit = parseFloat(T_Map['Engine oil pressure_Low'] || 0);
 
-        // If Rig ID exists and pressure (3.1) <= limit (3.5), trigger RED
-        if (oilVal > 0 && oilVal <= oilLimit) {
+        if (oilLimit > 0 && oilVal > 0 && oilVal <= oilLimit) {
             activeAlerts.push(`
-                <li style="color:var(--red); font-weight:bold; margin-bottom:12px; list-style:none; border-left: 4px solid var(--red); padding-left: 12px; background: rgba(255,77,77,0.15); padding:8px 12px; border-radius:0 4px 4px 0;">
+                <li style="color:var(--red); font-weight:bold; margin-bottom:12px; list-style:none; border-left: 4px solid var(--red); padding: 8px; background: rgba(255,77,77,0.15);">
                     <div style="color:var(--ey); font-size:0.85rem; text-transform:uppercase;">${rigName}</div>
                     <div style="font-size:0.95rem;">🚨 LOW OIL: ${oilVal.toFixed(1)} bar</div>
-                    <div style="color:#aaa; font-size:0.75rem; font-weight:normal; margin-top:4px;">DATE: ${incidentDate} | LIMIT: ${oilLimit}</div>
+                    <div style="color:#aaa; font-size:0.7rem; font-weight:normal; margin-top:4px;">DATE: ${incidentDate} | LIMIT: ${oilLimit}</div>
                 </li>`);
         }
 
-        // 2. TEMPERATURE INCIDENT CHECK
+        // 2. TEMP SCAN (Col I)
         const tempVal = parseFloat(entry.temp || 0);
-        const tempLimit = parseFloat(T['Engine Temp_High'] || 98);
+        const tempLimit = parseFloat(T_Map['Engine Temp_High'] || 0);
 
         if (tempLimit > 0 && tempVal >= tempLimit) {
             activeAlerts.push(`
-                <li style="color:var(--red); font-weight:bold; margin-bottom:12px; list-style:none; border-left: 4px solid var(--red); padding-left: 12px; background: rgba(255,77,77,0.15); padding:8px 12px; border-radius:0 4px 4px 0;">
+                <li style="color:var(--red); font-weight:bold; margin-bottom:12px; list-style:none; border-left: 4px solid var(--red); padding: 8px; background: rgba(255,77,77,0.15);">
                     <div style="color:var(--ey); font-size:0.85rem; text-transform:uppercase;">${rigName}</div>
                     <div style="font-size:0.95rem;">🚨 HIGH TEMP: ${tempVal}°C</div>
-                    <div style="color:#aaa; font-size:0.75rem; font-weight:normal; margin-top:4px;">DATE: ${incidentDate} | LIMIT: ${tempLimit}</div>
+                    <div style="color:#aaa; font-size:0.7rem; font-weight:normal; margin-top:4px;">DATE: ${incidentDate} | LIMIT: ${tempLimit}</div>
                 </li>`);
         }
     });
 
-    // --- PART C: RENDER TRIGGER BOX ---
     if (activeAlerts.length > 0) {
-        // Reverse so the newest incidents show at the top
+        if (countBadge) {
+            countBadge.innerText = activeAlerts.length;
+            countBadge.style.background = 'var(--red)';
+        }
         alertList.innerHTML = `<ul style="list-style:none; padding:0; margin:0; text-align:left;">${activeAlerts.reverse().join('')}</ul>`;
     } else {
+        if (countBadge) {
+            countBadge.innerText = "0";
+            countBadge.style.background = '#444';
+        }
         alertList.innerHTML = `<div style="color:var(--green); font-weight:bold; padding:20px; text-align:center; border:1px dashed #333; border-radius:8px;">
             <span class="live-dot"></span> FLEET STATUS: NORMAL
         </div>`;
@@ -749,6 +738,7 @@ function exportToExcel() {
 </script>
 </body>
 </html>
+
 
 
 
