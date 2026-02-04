@@ -530,12 +530,11 @@
         console.error("UI Update Error:", err);
     }
 }
-// --- 1. DYNAMIC ALERT WINDOW LOGIC ---
+// --- 1. DYNAMIC ALERT WINDOW LOGIC (REPAIRED) ---
 function applyGlobalFilters() {
     const alertList = document.getElementById('alert-list');
     if (!alertList) return;
 
-    // 1. Pull dynamic thresholds and latest vitals
     const T = globalData?.thresholds || {};
     const d = globalData?.vitals || {}; 
     let activeAlerts = [];
@@ -553,39 +552,29 @@ function applyGlobalFilters() {
         row.style.display = (regionMatch && modelMatch) ? "" : "none";
     });
 
-   // --- PART B: DYNAMIC TRIGGER LOGIC (THE REPAIR) ---
+    // --- PART B: DYNAMIC TRIGGER LOGIC ---
     
-    // 1. OIL PRESSURE CHECK
+    // 1. OIL PRESSURE (Low Trigger)
     const oilVal = parseFloat(d.oil || 0);
-    
-    // FLEXIBLE LOOKUP: Tries the long name, then the short name from the sheet
+    // Matches Column I in your Sheet
     const oilLimit = parseFloat(T['Engine oil pressure_Low'] || T['Oil bar'] || 0);
     
     if (oilLimit > 0 && oilVal > 0 && oilVal <= oilLimit) {
         activeAlerts.push(`<li style="color:var(--red); font-weight:bold; margin-bottom:8px;">
-            ⚠️ LOW OIL PRESSURE: ${oilVal.toFixed(1)} bar
-            <br><small style="color:#888;">(Sheet Limit: ${oilLimit} bar)</small>
+            ⚠️ LOW OIL PRESSURE: ${oilVal.toFixed(1)} bar 
+            <br><small style="color:#888;">(Limit: ${oilLimit} bar)</small>
         </li>`);
     }
 
-    // 2. ENGINE TEMP CHECK
+    // 2. ENGINE TEMP (High Trigger)
     const tempVal = parseFloat(d.temp || 0);
+    // Matches Column E in your Sheet
     const tempLimit = parseFloat(T['Engine Temp_High'] || T['Temp °C'] || 98);
     
-    if (tempVal >= tempLimit) {
+    if (tempLimit > 0 && tempVal >= tempLimit) {
         activeAlerts.push(`<li style="color:var(--red); font-weight:bold; margin-bottom:8px;">
             ⚠️ HIGH COOLANT TEMP: ${tempVal}°C
-            <br><small style="color:#888;">(Sheet Limit: ${tempLimit}°C)</small>
-        </li>`);
-    }
-
-    // Engine Temp Check (High Trigger)
-    const tempVal = parseFloat(d.temp || 0);
-    const tempLimit = parseFloat(T['Engine Temp_High'] || 98);
-    
-    if (tempVal >= tempLimit) {
-        activeAlerts.push(`<li style="color:var(--red); font-weight:bold; margin-bottom:8px;">
-            ⚠️ HIGH COOLANT TEMP: ${tempVal}°C
+            <br><small style="color:#888;">(Limit: ${tempLimit}°C)</small>
         </li>`);
     }
 
@@ -598,11 +587,12 @@ function applyGlobalFilters() {
         </div>`;
     }
 }
+
 // --- 2. DYNAMIC RADIAL DIAL GAUGE LOGIC ---
 function startLivelyGauges(forceReset = false) {
     if (livelyTimer) clearInterval(livelyTimer);
     const d = globalData?.monthlyData || [];
-    const T = globalData?.thresholds || {}; // Data from your "Threshold" sheet
+    const T = globalData?.thresholds || {}; 
     const row = document.getElementById('gauge-row');
     if (!row || d.length === 0) return;
 
@@ -618,71 +608,25 @@ function startLivelyGauges(forceReset = false) {
 
         if (mode === 'tempVsOil') {
             config = [
-                { 
-                    lab: 'Oil bar', 
-                    val: entry.oil || 0, 
-                    max: 10, 
-                    limit: T['Engine oil pressure_Low'] || 0, 
-                    decimal: true, 
-                    isLow: true 
-                },
-                { 
-                    lab: 'RPM', 
-                    val: entry.rpm || 0, 
-                    max: 3000, 
-                    limit: T['Engine RPM Drilling_High'] || 2500, 
-                    decimal: false, 
-                    isLow: false 
-                },
-                { 
-                    lab: 'Temp °C', 
-                    val: entry.temp || 0, 
-                    max: 130, 
-                    limit: T['Engine Temp_High'] || 110, 
-                    decimal: false, 
-                    isLow: false 
-                }
+                { lab: 'Oil bar', val: entry.oil || 0, max: 10, limit: T['Engine oil pressure_Low'] || T['Oil bar'] || 0, decimal: true, isLow: true },
+                { lab: 'RPM', val: entry.rpm || 0, max: 3000, limit: T['Engine RPM Drilling_High'] || 2500, decimal: false, isLow: false },
+                { lab: 'Temp °C', val: entry.temp || 0, max: 130, limit: T['Engine Temp_High'] || T['Temp °C'] || 110, decimal: false, isLow: false }
             ];
         } else if (mode === 'hydro_impact') {
             config = [
-                { 
-                    lab: 'Impact', 
-                    val: entry.impact || 0, 
-                    max: 300, 
-                    // PULLED FROM SHEET: No longer hardcoded to 220
-                    limit: T['Impact_Pressure_High'] || 250, 
-                    isLow: false 
-                },
-                { 
-                    lab: 'Feed', 
-                    val: entry.feed || 0, 
-                    max: 150, 
-                    // PULLED FROM SHEET: No longer hardcoded to 82
-                    limit: T['Feed_Pressure_High'] || 100, 
-                    isLow: false 
-                },
-                { 
-                    lab: 'Damper', 
-                    val: entry.damper || 0, 
-                    max: 100, 
-                    // PULLED FROM SHEET: No longer hardcoded to 45
-                    limit: T['Damper_Pressure_High'] || 80, 
-                    isLow: false 
-                }
+                { lab: 'Impact', val: entry.impact || 0, max: 300, limit: T['Impact_Pressure_High'] || 250, isLow: false },
+                { lab: 'Feed', val: entry.feed || 0, max: 150, limit: T['Feed_Pressure_High'] || 100, isLow: false },
+                { lab: 'Damper', val: entry.damper || 0, max: 100, limit: T['Damper_Pressure_High'] || 80, isLow: false }
             ];
         }
 
         config.forEach(g => {
-            const percent = Math.min(g.val / g.max, 1);
+            const val = parseFloat(g.val) || 0;
+            const lim = parseFloat(g.limit) || 0;
+            const percent = Math.min(val / g.max, 1);
             const angle = (percent * 180) - 90;
             
-            // DYNAMIC ALERT LOGIC:
-            // For Oil: Red if value <= Sheet Limit
-            // For Others: Red if value >= Sheet Limit
-            const isAlert = g.isLow ? 
-                (parseFloat(g.val) <= parseFloat(g.limit)) : 
-                (parseFloat(g.val) >= parseFloat(g.limit));
-                
+            const isAlert = g.isLow ? (val <= lim && lim > 0) : (val >= lim && lim > 0);
             const color = isAlert ? 'var(--red)' : 'var(--ey)';
 
             html += `
@@ -694,7 +638,7 @@ function startLivelyGauges(forceReset = false) {
                               y2="${50 + 38 * Math.sin((angle - 90) * Math.PI / 180)}" 
                               stroke="${color}" stroke-width="4" stroke-linecap="round" />
                     </svg>
-                    <div class="dial-value" style="color:${color}">${g.decimal ? parseFloat(g.val).toFixed(1) : Math.round(g.val)}</div>
+                    <div class="dial-value" style="color:${color}">${g.decimal ? val.toFixed(1) : Math.round(val)}</div>
                     <span class="dial-label">${g.lab}</span>
                 </div>`;
         });
@@ -804,6 +748,7 @@ function exportToExcel() {
 </script>
 </body>
 </html>
+
 
 
 
