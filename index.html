@@ -593,7 +593,7 @@
         console.error("UI Update Error:", err);
     }
 }
-// --- 1. DYNAMIC ALERT WINDOW LOGIC (THE FLEET SCANNER) ---
+// --- 1. DYNAMIC ALERT WINDOW LOGIC (Correct & Sanitized) ---
 function applyGlobalFilters() {
     const alertList = document.getElementById('alert-list');
     const countBadge = document.getElementById('alert-count-badge');
@@ -607,53 +607,46 @@ function applyGlobalFilters() {
         const rigName = entry.rigId || "Fleet Rig"; 
         const incidentDate = entry.date || "N/A"; 
 
-        // 1. OIL PRESSURE SCAN (Col L)
+        // Oil Pressure logic
         const oilVal = parseFloat(entry.oil || 0);
         const oilLimit = parseFloat(T_Map['Engine oil pressure_Low'] || 0);
-
         if (oilLimit > 0 && oilVal > 0 && oilVal <= oilLimit) {
-            activeAlerts.push(`
-                <li style="color:var(--red); font-weight:bold; margin-bottom:12px; list-style:none; border-left: 4px solid var(--red); padding: 8px; background: rgba(255,77,77,0.15);">
-                    <div style="color:var(--ey); font-size:0.85rem; text-transform:uppercase;">${rigName}</div>
-                    <div style="font-size:0.95rem;">🚨 LOW OIL: ${oilVal.toFixed(1)} bar</div>
-                    <div style="color:#aaa; font-size:0.7rem; font-weight:normal; margin-top:4px;">DATE: ${incidentDate} | LIMIT: ${oilLimit}</div>
-                </li>`);
+            activeAlerts.push(`<li style="color:var(--red); font-weight:bold; margin-bottom:12px; list-style:none; border-left: 4px solid var(--red); padding: 8px; background: rgba(255,77,77,0.15); border-radius:0 4px 4px 0;">
+                <div style="color:var(--ey); font-size:0.85rem; text-transform:uppercase;">${rigName}</div>
+                <div style="font-size:0.95rem;">🚨 LOW OIL: ${oilVal.toFixed(1)} bar</div>
+                <div style="color:#aaa; font-size:0.7rem; font-weight:normal; margin-top:4px;">DATE: ${incidentDate} | LIMIT: ${oilLimit}</div>
+            </li>`);
         }
 
-        // 2. TEMP SCAN (Col I)
+        // Temp logic
         const tempVal = parseFloat(entry.temp || 0);
         const tempLimit = parseFloat(T_Map['Engine Temp_High'] || 0);
-
         if (tempLimit > 0 && tempVal >= tempLimit) {
-            activeAlerts.push(`
-                <li style="color:var(--red); font-weight:bold; margin-bottom:12px; list-style:none; border-left: 4px solid var(--red); padding: 8px; background: rgba(255,77,77,0.15);">
-                    <div style="color:var(--ey); font-size:0.85rem; text-transform:uppercase;">${rigName}</div>
-                    <div style="font-size:0.95rem;">🚨 HIGH TEMP: ${tempVal}°C</div>
-                    <div style="color:#aaa; font-size:0.7rem; font-weight:normal; margin-top:4px;">DATE: ${incidentDate} | LIMIT: ${tempLimit}</div>
-                </li>`);
+            activeAlerts.push(`<li style="color:var(--red); font-weight:bold; margin-bottom:12px; list-style:none; border-left: 4px solid var(--red); padding: 8px; background: rgba(255,77,77,0.15); border-radius:0 4px 4px 0;">
+                <div style="color:var(--ey); font-size:0.85rem; text-transform:uppercase;">${rigName}</div>
+                <div style="font-size:0.95rem;">🚨 HIGH TEMP: ${tempVal}°C</div>
+                <div style="color:#aaa; font-size:0.7rem; font-weight:normal; margin-top:4px;">DATE: ${incidentDate} | LIMIT: ${tempLimit}</div>
+            </li>`);
         }
     });
 
     if (activeAlerts.length > 0) {
-        if (countBadge) {
-            countBadge.innerText = activeAlerts.length;
-            countBadge.style.background = 'var(--red)';
-        }
+        if (countBadge) { countBadge.innerText = activeAlerts.length; countBadge.style.background = 'var(--red)'; }
         alertList.innerHTML = `<ul style="list-style:none; padding:0; margin:0; text-align:left;">${activeAlerts.reverse().join('')}</ul>`;
     } else {
-        if (countBadge) {
-            countBadge.innerText = "0";
-            countBadge.style.background = '#444';
-        }
-        alertList.innerHTML = `<div style="color:var(--green); font-weight:bold; padding:20px; text-align:center; border:1px dashed #333; border-radius:8px;">
-            <span class="live-dot"></span> FLEET STATUS: NORMAL
-        </div>`;
+        if (countBadge) { countBadge.innerText = "0"; countBadge.style.background = '#444'; }
+        alertList.innerHTML = `<div style="color:var(--green); font-weight:bold; padding:20px; text-align:center; border:1px dashed #333; border-radius:8px;">STATUS: NORMAL</div>`;
     }
 }
-// --- 2. DYNAMIC RADIAL DIAL GAUGE LOGIC ---
+
+// --- 2. DYNAMIC RADIAL DIAL GAUGE LOGIC (Fixed to Filter by Rig) ---
 function startLivelyGauges(forceReset = false) {
     if (livelyTimer) clearInterval(livelyTimer);
-    const d = globalData?.monthlyData || [];
+    
+    // FIX: Filter data to only show the selected rig's history in the gauges
+    const selectedRig = document.getElementById('rigSelect')?.value;
+    const d = (globalData?.monthlyData || []).filter(entry => entry.rigId === selectedRig);
+    
     const T = globalData?.thresholds || {}; 
     const row = document.getElementById('gauge-row');
     if (!row || d.length === 0) return;
@@ -666,13 +659,13 @@ function startLivelyGauges(forceReset = false) {
         const entry = d[currentIdx];
         const dateStr = entry.date || "N/A";
         let html = `<div class="date-badge">AUDIT DATE: ${dateStr}</div>`;
+        
         let config = [];
-
         if (mode === 'tempVsOil') {
             config = [
-                { lab: 'Oil bar', val: entry.oil || 0, max: 10, limit: T['Engine oil pressure_Low'] || T['Oil bar'] || 0, decimal: true, isLow: true },
+                { lab: 'Oil bar', val: entry.oil || 0, max: 10, limit: T['Engine oil pressure_Low'] || 0, decimal: true, isLow: true },
                 { lab: 'RPM', val: entry.rpm || 0, max: 3000, limit: T['Engine RPM Drilling_High'] || 2500, decimal: false, isLow: false },
-                { lab: 'Temp °C', val: entry.temp || 0, max: 130, limit: T['Engine Temp_High'] || T['Temp °C'] || 110, decimal: false, isLow: false }
+                { lab: 'Temp °C', val: entry.temp || 0, max: 130, limit: T['Engine Temp_High'] || 110, decimal: false, isLow: false }
             ];
         } else if (mode === 'hydro_impact') {
             config = [
@@ -685,24 +678,18 @@ function startLivelyGauges(forceReset = false) {
         config.forEach(g => {
             const val = parseFloat(g.val) || 0;
             const lim = parseFloat(g.limit) || 0;
-            const percent = Math.min(val / g.max, 1);
-            const angle = (percent * 180) - 90;
-            
+            const angle = (Math.min(val / g.max, 1) * 180) - 90;
             const isAlert = g.isLow ? (val <= lim && lim > 0) : (val >= lim && lim > 0);
             const color = isAlert ? 'var(--red)' : 'var(--ey)';
 
-            html += `
-                <div class="dial-wrapper">
-                    <svg viewBox="0 0 100 65">
-                        <path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="8" stroke-linecap="round" />
-                        <line class="needle" x1="50" y1="50" 
-                              x2="${50 + 38 * Math.cos((angle - 90) * Math.PI / 180)}" 
-                              y2="${50 + 38 * Math.sin((angle - 90) * Math.PI / 180)}" 
-                              stroke="${color}" stroke-width="4" stroke-linecap="round" />
-                    </svg>
-                    <div class="dial-value" style="color:${color}">${g.decimal ? val.toFixed(1) : Math.round(val)}</div>
-                    <span class="dial-label">${g.lab}</span>
-                </div>`;
+            html += `<div class="dial-wrapper">
+                <svg viewBox="0 0 100 65">
+                    <path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="8" stroke-linecap="round" />
+                    <line x1="50" y1="50" x2="${50 + 38 * Math.cos((angle - 90) * Math.PI / 180)}" y2="${50 + 38 * Math.sin((angle - 90) * Math.PI / 180)}" stroke="${color}" stroke-width="4" stroke-linecap="round" />
+                </svg>
+                <div class="dial-value" style="color:${color}">${g.decimal ? val.toFixed(1) : Math.round(val)}</div>
+                <span class="dial-label">${g.lab}</span>
+            </div>`;
         });
         row.innerHTML = html;
         currentIdx = (currentIdx + 1) % d.length;
@@ -791,6 +778,7 @@ function exportToExcel() {
 </script>
 </body>
 </html>
+
 
 
 
