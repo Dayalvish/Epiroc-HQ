@@ -500,46 +500,111 @@
         document.getElementById('v-fleet-load').innerText = visibleCount > 0 ? (totalLoad / visibleCount).toFixed(1) + "%" : "0%";
     }
 
-    function startLivelyGauges() {
-        if (livelyTimer) clearInterval(livelyTimer);
-        const d = globalData?.monthlyData || [];
-        const row = document.getElementById('gauge-row');
-        if (!row || d.length === 0) return;
-        currentIdx = 0;
-        livelyTimer = setInterval(() => {
-            const entry = d[currentIdx];
-            if (!entry) { currentIdx = 0; return; }
-            const mode = document.getElementById('chartMode').value;
-            let dateStr = entry.date || "N/A";
-            let html = `<div style="color:var(--green); border:1px solid; padding:2px 8px; border-radius:10px; font-size:0.7rem; font-weight:bold;">DATE: ${dateStr}</div>`;
-            let config = [];
-            if (mode === 'tempVsOil') { config = [{ lab: 'Oil bar', val: entry.oil }, { lab: 'RPM', val: entry.rpm }, { lab: 'Temp °C', val: entry.temp }]; }
-            else if (mode === 'hydro_impact') { config = [{ lab: 'Impact', val: entry.impact }, { lab: 'Feed', val: entry.feed }, { lab: 'Damper', val: entry.damper }]; }
-            else if (mode === 'setBit') { config = [{ lab: 'Air Set', val: entry.air }, { lab: 'Bit Pr', val: entry.bit }]; }
-            else { config = [{ lab: 'Eng Load', val: entry.load }, { lab: 'Comp %', val: entry.comp }]; }
-            config.forEach(g => { html += `<div style="text-align:center;"><span class="g-val">${g.val || 0}</span><span class="g-lab">${g.lab}</span></div>`; });
-            row.innerHTML = html;
-            currentIdx = (currentIdx + 1) % d.length;
-        }, 2000);
-    }
+    // --- STABILIZED DATA MAPPING ---
+function startLivelyGauges() {
+    if (livelyTimer) clearInterval(livelyTimer); // Prevents duplicate timers
+    
+    const d = globalData?.monthlyData || [];
+    const row = document.getElementById('gauge-row');
+    if (!row || d.length === 0) return;
+
+    const mode = document.getElementById('chartMode').value;
+    currentIdx = 0;
+
+    livelyTimer = setInterval(() => {
+        const entry = d[currentIdx];
+        if (!entry) { currentIdx = 0; return; }
+
+        // Use Date for clarity instead of SEQ
+        let html = `<div class="date-badge">DATE: ${entry.date || 'N/A'}</div>`;
+        let config = [];
+
+        // Dynamic Mode Mapping to fix missing values
+        if (mode === 'tempVsOil') {
+            config = [{ lab: 'Oil bar', val: entry.oil }, { lab: 'RPM', val: entry.rpm }, { lab: 'Temp °C', val: entry.temp }];
+        } else if (mode === 'hydro_impact') {
+            config = [{ lab: 'Impact', val: entry.impact || 0 }, { lab: 'Feed', val: entry.feed || 0 }, { lab: 'Damper', val: entry.damper || 0 }];
+        } else if (mode === 'setBit') {
+            config = [{ lab: 'Air Set', val: entry.air || 0 }, { lab: 'Bit Pr', val: entry.bit || 0 }];
+        } else {
+            config = [{ lab: 'Eng Load', val: entry.load || 0 }, { lab: 'Comp %', val: entry.comp || 0 }];
+        }
+
+        config.forEach(g => {
+            html += `<div class="gauge-box"><span class="g-val">${g.val || 0}</span><span class="g-lab">${g.lab}</span></div>`;
+        });
+
+        row.innerHTML = html;
+        currentIdx = (currentIdx + 1) % d.length;
+    }, 2000); // 2-second heartbeat
+}
 
     function drawChart() {
-        if (!globalData || !globalData.monthlyData) return;
-        const ctx = document.getElementById('mainChart').getContext('2d');
+    if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
         if (chart) chart.destroy();
-        const d = globalData.monthlyData;
-        const mode = document.getElementById('chartMode').value;
-        let datasets = [];
-        if (mode === 'tempVsOil') {
-            datasets = [
-                { label: 'Oil', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'y' },
-                { label: 'Temp', data: d.map(x => x.temp), borderColor: '#ff4d4d', yAxisID: 'y1' }
-            ];
-        } else {
-            datasets = [{ label: 'Value', data: d.map(x => x.load || x.impact || x.air), borderColor: '#f1c40f' }];
-        }
-        chart = new Chart(ctx, { type: 'line', data: { labels: d.map(x => x.date), datasets }, options: { responsive: true, maintainAspectRatio: false } });
+        return;
     }
+
+    const ctx = document.getElementById('mainChart').getContext('2d');
+    if (chart) chart.destroy();
+
+    const mode = document.getElementById('chartMode').value;
+    const d = globalData.monthlyData;
+    const labels = d.map(x => x.date || x.Date);
+
+    let datasets = [];
+    let scales = {
+        x: { grid: { color: '#333' }, ticks: { color: '#888' } },
+        y: { grid: { color: '#333' }, ticks: { color: '#fff' }, title: { display: true, text: 'Value', color: '#fff' } }
+    };
+
+    if (mode === 'tempVsOil') {
+        // Mode 1: Engine Vitals (Triple Axis)
+        datasets = [
+            { label: 'Oil (bar)', data: d.map(x => x.oil || x.Oil || 0), borderColor: '#2ecc71', yAxisID: 'y', tension: 0.3 },
+            { label: 'Temp (°C)', data: d.map(x => x.temp || x.Temp || 0), borderColor: '#ff4d4d', yAxisID: 'y1', tension: 0.3 },
+            { label: 'RPM', data: d.map(x => x.rpm || x.RPM || 0), borderColor: '#3498db', yAxisID: 'y2', borderDash: [5, 5], tension: 0.3 }
+        ];
+        // Custom Scales for Engine
+        scales.y1 = { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#ff4d4d' } };
+        scales.y2 = { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#3498db' }, min: 500, max: 2500 };
+
+    } else if (mode === 'loadVsComp') {
+        // Mode 2: Engine vs Compressor
+        datasets = [
+            { label: 'Eng Load %', data: d.map(x => x.load || x.Load || 0), borderColor: '#f1c40f', tension: 0.3 },
+            { label: 'Compressor %', data: d.map(x => x.comp || x.Comp || 0), borderColor: '#3498db', tension: 0.3 }
+        ];
+
+    } else if (mode === 'setBit') {
+        // Mode 3: Air Pressures
+        datasets = [
+            { label: 'Air Set (bar)', data: d.map(x => x.air || x.Air || 0), borderColor: '#2ecc71', tension: 0.3 },
+            { label: 'Bit Pr (bar)', data: d.map(x => x.bit || x.Bit || 0), borderColor: '#f39c12', tension: 0.3 }
+        ];
+
+    } else if (mode === 'hydro_impact') {
+        // Mode 4: Hydraulic Vitals (All 3 lines)
+        datasets = [
+            { label: 'Impact (bar)', data: d.map(x => x.impact || x.Impact || 0), borderColor: '#f1c40f', tension: 0.3 },
+            { label: 'Feed (bar)', data: d.map(x => x.feed || x.Feed || 0), borderColor: '#e67e22', tension: 0.3 },
+            { label: 'Damper (bar)', data: d.map(x => x.damper || x.Damper || 0), borderColor: '#3498db', tension: 0.3 }
+        ];
+    }
+
+    chart = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top', labels: { color: '#fff', boxWidth: 12, font: { size: 10 } } }
+            },
+            scales: scales
+        }
+    });
+}
 
     function exportToExcel() {
         let table = document.getElementById("summary-tbl");
@@ -549,3 +614,4 @@
 </script>
 </body>
 </html>
+
