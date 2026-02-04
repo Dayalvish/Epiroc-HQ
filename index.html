@@ -136,14 +136,15 @@
     }
 
     /* =========================================
-       5. MAIN GRID SYSTEM & 75/25 PARTITIONING
+       5. MAIN GRID SYSTEM & FIXED SCALING
        ========================================= */
     .main-layout { 
         display: grid; 
         grid-template-columns: 260px 1fr 280px; 
         gap: 12px; 
         flex-grow: 1; 
-        height: calc(100vh - 120px); /* Keeps everything on screen */
+        /* Locks the dashboard to the screen height to prevent 40% zoom issue */
+        height: calc(100vh - 120px); 
         min-height: 0; 
     }
 
@@ -157,118 +158,77 @@
         box-sizing: border-box; 
     }
 
-    /* MIDDLE COLUMN: FLEX CONTAINER FOR PARTITION */
+    /* MIDDLE COLUMN: PARTITIONED 75/25 */
     .chart-area { 
         background: var(--card); 
         padding: 15px; 
         border-radius: 8px; 
-        box-shadow: 0 4px 20px rgba(0,0,0,0.6); 
-        display: flex;             /* VERTICAL STACKING */
+        display: flex;             
         flex-direction: column;    
         height: 100%; 
         box-sizing: border-box; 
         overflow: hidden; 
     }
 
-    /* 75% Top Partition (Trend Chart) */
     #chart-container {
-        flex: 0 0 70%;             /* Adjusts height for chart area */
+        flex: 0 0 55%;             /* Reduced to 55% to give table more breathing room */
         position: relative;
         width: 100%;
-        min-height: 0; 
+        min-height: 0;
     }
 
-    /* 25% Bottom Partition (Lively Gauges) */
     .gauge-partition {
-        flex: 0 0 25%;
+        flex: 0 0 15%;             /* Compact 15% strip for digital numbers */
         display: flex;
         justify-content: space-around;
         align-items: center;
-        background: rgba(0,0,0,0.4);
-        border-top: 1px solid #333;
-        margin-top: 10px;
+        background: rgba(0,0,0,0.5);
+        border: 1px solid #333;
+        margin: 5px 0;
         border-radius: 4px;
-        padding: 10px;
-        position: relative;
+        padding: 5px;
     }
 
-    /* Gauge Digital Components */
-    .gauge-wrapper { text-align: center; flex: 1; }
-    
+    /* Digital Gauge Styling */
     .g-val { 
-        display: block; font-size: 2.2rem; font-weight: bold; color: var(--ey); 
+        display: block; font-size: 2rem; font-weight: bold; color: var(--ey); 
         font-family: 'Courier New', monospace; line-height: 1;
     }
-    
-    .g-lab { 
-        display: block; font-size: 0.65rem; color: #888; 
-        text-transform: uppercase; letter-spacing: 1px; margin-top: 5px;
+    .g-lab { display: block; font-size: 0.6rem; color: #888; text-transform: uppercase; margin-top: 4px; }
+
+    /* =========================================
+       6. SUMMARY TABLE (SCROLLABLE FIX)
+       ========================================= */
+    .table-scroll-container {
+        flex-grow: 1;
+        overflow-y: auto;          /* Internal scrollbar for the table */
+        margin-top: 5px;
+        border: 1px solid #333;
+        background: #111;
     }
 
-    /* Alert Pulse Animation for Gauges */
+    .summary-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
+    .summary-table th { background: #222; color: var(--ey); position: sticky; top: 0; z-index: 5; }
+    .summary-table td { padding: 6px; border: 1px solid #333; text-align: center; }
+
+    /* =========================================
+       7. OTHER UI ELEMENTS
+       ========================================= */
+    .sidebar-right-split { display: flex; flex-direction: column; gap: 12px; height: 100%; }
+    .alert-box { flex: 1.6; background: var(--card); padding: 15px; border-radius: 8px; overflow-y: auto; }
+    .vitals-box { flex: 1; background: var(--card); padding: 15px; border-radius: 8px; }
+
+    .mini-stats { margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .mini-card { background: #222; padding: 10px; border-radius: 4px; text-align: center; border: 1px solid #333; }
+    
+    select, input { width: 100%; padding: 8px; margin-top: 6px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; }
+    
     .alert-trigger { color: var(--red) !important; animation: pulse-red 0.8s infinite alternate; }
-    @keyframes pulse-red { 
-        from { transform: scale(1); opacity: 1; } 
-        to { transform: scale(1.05); opacity: 0.7; } 
-    }
+    @keyframes pulse-red { from { opacity: 1; } to { opacity: 0.5; } }
 
-    /* =========================================
-       6. RIGHT SIDEBAR PARTITION (60/40)
-       ========================================= */
-    .sidebar-right-split { 
-        display: flex; 
-        flex-direction: column; 
-        gap: 12px; 
-        height: 100%; 
-    }
-    
-    .alert-box { 
-        flex: 1.6; 
-        background: var(--card); 
-        padding: 15px; 
-        border-radius: 8px; 
-        border: 1px solid #333; 
-        overflow-y: auto; 
-        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-    }
-    
-    .vitals-box { 
-        flex: 1; 
-        background: var(--card); 
-        padding: 15px; 
-        border-radius: 8px; 
-        border: 1px solid #333; 
-        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-    }
-
-    /* =========================================
-       7. HEADERS & COMPONENT TEXT
-       ========================================= */
-    h3 { 
-        font-size: 0.85rem; 
-        margin: 10px 0; 
-        border-bottom: 1px solid #333; 
-        padding-bottom: 5px; 
-        color: #fff;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-    
-    .vital-table { width: 100%; border-collapse: collapse; margin-top: 5px; background: #111; }
-    .vital-table td { padding: 8px; border-bottom: 1px solid #222; font-size: 0.9rem; } 
-    
-    .v-label { color: #888; text-transform: uppercase; font-size: 0.6rem; }
-    .v-value { text-align: right; color: var(--ey); font-weight: bold; font-size: 1.05rem; }
-    
-    .timestamp { 
-        font-size: 0.65rem; 
-        color: #777; 
-        font-style: italic; 
-        text-align: left; 
-        margin-top: 10px; 
-        display: block; 
-    }
-
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-thumb { background: #444; border-radius: 10px; }
+</style>
     /* =========================================
        8. SUMMARY TABLE & CHARTS
        ========================================= */
@@ -443,29 +403,22 @@
     </div>
 
     <div class="gauge-partition" id="gauge-row">
+        <div style="color:var(--green); border:1px solid; padding:2px 8px; border-radius:10px; font-size:0.65rem;">
+            SEQ: <span id="current-seq">0</span>
+        </div>
         </div>
 
-    <h3 style="color:var(--ey);">FLEET PERFORMANCE SUMMARY</h3>
-    <div style="overflow-y: auto; flex-grow: 1;">
+    <h3 style="color:var(--ey); margin: 5px 0;">FLEET PERFORMANCE SUMMARY</h3>
+    
+    <div class="table-scroll-container">
         <table class="summary-table" id="summary-tbl">
-           </table>
+            <thead>
+                <tr><th rowspan="2">Rig ID</th><th rowspan="2">Audits</th><th colspan="4">Engine Health</th><th colspan="3">Productivity</th></tr>
+                <tr><th>Load %</th><th>Temp °C</th><th>Oil bar</th><th>Fuel bar</th><th>Air Set</th><th>Bit Pr</th><th>Impact</th></tr>
+            </thead>
+            <tbody id="fleet-summary-body"></tbody>
+        </table>
     </div>
-</div>
-
-    <h3 style="color:var(--ey); margin:15px 0 10px 0;">FLEET PERFORMANCE SUMMARY</h3>
-    <div style="overflow-y: auto; flex-grow: 1;">
-        <table class="summary-table" id="summary-tbl">
-            </table>
-    </div>
-</div>
-    <h3 style="color:var(--ey); margin:30px 0 10px 0;">FLEET PERFORMANCE SUMMARY</h3>
-    <table class="summary-table" id="summary-tbl">
-        <thead>
-            <tr><th rowspan="2">Rig ID</th><th rowspan="2">Audits</th><th colspan="4">Engine Health</th><th colspan="3">Productivity</th></tr>
-            <tr><th>Load %</th><th>Temp °C</th><th>Oil bar</th><th>Fuel bar</th><th>Air Set</th><th>Bit Pr</th><th>Impact</th></tr>
-        </thead>
-        <tbody id="fleet-summary-body"></tbody>
-    </table>
 </div>
 
 <div class="sidebar-right-split">
@@ -859,6 +812,7 @@ function startLivelyGauges() {
 </script>
 </body>
 </html>
+
 
 
 
