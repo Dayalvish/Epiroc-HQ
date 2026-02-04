@@ -540,7 +540,7 @@ function applyGlobalFilters() {
     const d = globalData?.vitals || {}; 
     let activeAlerts = [];
 
-    // --- TABLE FILTERING (Existing Logic) ---
+    // --- PART A: TABLE FILTERING ---
     const selRegion = document.getElementById('cityFocus')?.value || "All";
     const selModel = document.getElementById('modelSelect')?.value || "";
     const rows = document.querySelectorAll('#fleet-summary-body tr');
@@ -553,19 +553,12 @@ function applyGlobalFilters() {
         row.style.display = (regionMatch && modelMatch) ? "" : "none";
     });
 
-    // --- DYNAMIC TRIGGER LOGIC (FINAL SPREADSHEET SYNC) ---
-function applyGlobalFilters() {
-    const alertList = document.getElementById('alert-list');
-    const T = globalData?.thresholds || {};
-    const d = globalData?.vitals || {}; 
-    let activeAlerts = [];
-
-    // 1. OIL PRESSURE (Matches Header in Column I)
+    // --- PART B: DYNAMIC TRIGGER LOGIC (THE 3.1 BAR FIX) ---
+    
+    // Oil Pressure Check (Low Trigger)
     const oilVal = parseFloat(d.oil || 0);
-    // Exact match for: "Engine oil pressure_Low"
     const oilLimit = parseFloat(T['Engine oil pressure_Low'] || 0);
-
-    // If live value (3.1) <= spreadsheet limit (3.5), trigger RED
+    
     if (oilLimit > 0 && oilVal > 0 && oilVal <= oilLimit) {
         activeAlerts.push(`<li style="color:var(--red); font-weight:bold; margin-bottom:8px;">
             ⚠️ LOW OIL PRESSURE: ${oilVal.toFixed(1)} bar
@@ -573,18 +566,17 @@ function applyGlobalFilters() {
         </li>`);
     }
 
-    // 2. ENGINE TEMP (Matches Header in Column E)
+    // Engine Temp Check (High Trigger)
     const tempVal = parseFloat(d.temp || 0);
-    // Exact match for: "Engine Temp_High"
     const tempLimit = parseFloat(T['Engine Temp_High'] || 98);
-
+    
     if (tempVal >= tempLimit) {
         activeAlerts.push(`<li style="color:var(--red); font-weight:bold; margin-bottom:8px;">
             ⚠️ HIGH COOLANT TEMP: ${tempVal}°C
         </li>`);
     }
 
-    // --- RENDER TRIGGER BOX ---
+    // --- PART C: RENDER TRIGGER BOX ---
     if (activeAlerts.length > 0) {
         alertList.innerHTML = `<ul style="list-style:none; padding:0; margin:0; text-align:left;">${activeAlerts.join('')}</ul>`;
     } else {
@@ -799,6 +791,7 @@ function exportToExcel() {
 </script>
 </body>
 </html>
+
 
 
 
