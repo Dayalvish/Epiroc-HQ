@@ -137,16 +137,18 @@
     }
 
     /* =========================================
-       5. MAIN GRID SYSTEM & PARTITIONING
+       5. MAIN GRID SYSTEM & FIXED PARTITIONING
        ========================================= */
     .main-layout { 
         display: grid; 
         grid-template-columns: 260px 1fr 280px; 
         gap: 12px; 
         flex-grow: 1; 
+        height: calc(100vh - 100px); /* Ensures it fits the screen */
         min-height: 0; 
     }
 
+    /* Sidebar stays scrollable and fixed width */
     .sidebar { 
         background: var(--card); 
         padding: 15px; 
@@ -157,62 +159,49 @@
         box-sizing: border-box; 
     }
 
-    /* THE PARTITIONED AREA */
+    /* Chart Area Partitioned 75/25 */
     .chart-area { 
         background: var(--card); 
         padding: 15px; 
         border-radius: 8px; 
-        box-shadow: 0 4px 20px rgba(0,0,0,0.6); 
-        display: flex;             /* Added: Flexbox for vertical stacking */
-        flex-direction: column;    /* Added: Stack children vertically */
+        display: flex;             
+        flex-direction: column;    
         height: 100%; 
         box-sizing: border-box; 
-        overflow: hidden; 
+        overflow: hidden; /* Critical to prevent layout "awry" */
     }
 
-    /* 75% Top Partition (Trend Chart) */
+    /* 75% Top: Trend Section */
     #chart-container {
-        flex: 0 0 70%;            /* Adjusted to leave room for headers/tables */
+        flex: 0 0 75%; 
         position: relative;
         width: 100%;
         min-height: 0; 
     }
 
-    /* 25% Bottom Partition (Lively Gauges) */
+    /* 25% Bottom: Lively Gauge Section */
     .gauge-partition {
         flex: 0 0 25%;
         display: flex;
         justify-content: space-around;
         align-items: center;
-        background: rgba(0,0,0,0.3);
+        background: rgba(0,0,0,0.4);
         border-top: 1px solid #333;
         margin-top: 10px;
         border-radius: 4px;
         padding: 10px;
     }
 
-    /* Lively Gauge Components */
-    .gauge-wrapper { text-align: center; flex: 1; }
-    
+    /* Gauge Digital Look */
     .g-val { 
-        display: block; font-size: 2rem; font-weight: bold; color: var(--ey); 
+        display: block; font-size: 2.2rem; font-weight: bold; color: var(--ey); 
         font-family: 'Courier New', monospace; line-height: 1;
     }
-    
-    .g-lab { 
-        display: block; font-size: 0.65rem; color: #888; 
-        text-transform: uppercase; letter-spacing: 1px; margin-top: 5px;
-    }
+    .g-lab { display: block; font-size: 0.65rem; color: #888; text-transform: uppercase; margin-top: 5px; }
 
-    /* Alert Pulse Animation */
-    .g-alert { color: var(--red) !important; animation: g-pulse 0.8s infinite alternate; }
-    @keyframes g-pulse { from { transform: scale(1); } to { transform: scale(1.05); opacity: 0.8; } }
-
-    #playback-badge {
-        background: var(--bg); border: 1px solid var(--green);
-        color: var(--green); padding: 2px 10px; border-radius: 10px;
-        font-size: 0.7rem; font-weight: bold;
-    }
+    /* Red Alert Pulse */
+    .alert-trigger { color: var(--red) !important; animation: pulse-red 0.8s infinite alternate; }
+    @keyframes pulse-red { from { transform: scale(1); } to { transform: scale(1.05); opacity: 0.8; } }
 
     /* =========================================
        6. RIGHT SIDEBAR PARTITION (60/40)
@@ -813,9 +802,52 @@ async function updateRigDropdown() {
         refresh();
     } catch (e) { console.error("Rig sync failed", e); }
 }
+    let playbackTimer = null;
+let currentIdx = 0;
+
+function startLivelyGauges() {
+    const d = globalData?.monthlyData || []; 
+    if (d.length === 0) return;
+
+    const mode = document.getElementById('chartMode').value;
+    const row = document.getElementById('gauge-row');
+    if (playbackTimer) clearInterval(playbackTimer);
+
+    playbackTimer = setInterval(() => {
+        const entry = d[currentIdx];
+        let html = `<div style="color:var(--green); font-size:0.7rem; border:1px solid; padding:2px 8px; border-radius:10px;">SEQ: ${currentIdx + 1}/${d.length}</div>`;
+        let config = [];
+
+        // Logic for Dynamic Gauges (3 for Vitals/Impact, 2 for others)
+        if (mode === 'tempVsOil') {
+            config = [
+                { label: 'Oil Pr', val: entry.oil, limit: 5.5 },
+                { label: 'RPM', val: entry.rpm, limit: 2000 },
+                { label: 'Temp °C', val: entry.temp, limit: 105 }
+            ];
+        } else if (mode === 'hydro_impact') {
+            config = [
+                { label: 'Impact', val: entry.impact || entry.imp, limit: 150 },
+                { label: 'Feed', val: entry.feed || entry.fd, limit: 85 },
+                { label: 'Damper', val: entry.damper || entry.dmp, limit: 35 }
+            ];
+        } else {
+            config = [{ label: 'Primary', val: entry.load || entry.air, limit: 95 }, { label: 'Secondary', val: entry.comp || entry.bit, limit: 90 }];
+        }
+
+        config.forEach(g => {
+            const isAlert = parseFloat(g.val) > g.limit;
+            html += `<div style="text-align:center;"><span class="g-val ${isAlert ? 'alert-trigger' : ''}">${g.val || 0}</span><span class="g-lab">${g.label}</span></div>`;
+        });
+
+        row.innerHTML = html;
+        currentIdx = (currentIdx + 1) % d.length;
+    }, 3000); 
+}
 </script>
 </body>
 </html>
+
 
 
 
