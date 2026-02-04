@@ -505,118 +505,152 @@ try {
     applyGlobalFilters();
     drawChart(); 
 
-    // FINAL UI REFRESH
-        applyGlobalFilters(); 
-        drawChart(); 
-        
-        // Safety Trigger for Gauges
-        if (document.body.classList.contains('authorized')) {
-            startLivelyGauges(true); // Always start fresh when data updates
-        }
+    // --- 5. FINAL TRIGGERS (REFINED) ---
+try {
+    // 1. First run filtering and populate the Trigger Window
+    applyGlobalFilters();
+    
+    // 2. Refresh the Trend Chart
+    drawChart(); 
 
-        document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+    // 3. Safety Trigger for Gauges: Only starts if the user is authorized
+    if (document.body.classList.contains('authorized')) {
+        // Always start fresh when data updates to ensure sync
+        startLivelyGauges(true); 
+    }
+
+    // 4. Update the timestamp
+    document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+    
+} catch (err) {
+    console.error("UI Update Crashed:", err);
+}
+
+// --- APPLY GLOBAL FILTERS & DYNAMIC ALERTS ---
+function applyGlobalFilters() {
+    const selRegion = document.getElementById('cityFocus')?.value || "All";
+    const selModel = document.getElementById('modelSelect').value;
+    const rows = document.querySelectorAll('#fleet-summary-body tr');
+    const alertList = document.getElementById('alert-list');
+    
+    // Access the dynamic thresholds from the sheet and latest vitals
+    const T = globalData?.thresholds || {};
+    const d = globalData?.vitals || {}; 
+    
+    let visibleCount = 0; 
+    let totalLoad = 0;
+    let activeAlerts = [];
+
+    // --- PART A: TABLE FILTERING ---
+    rows.forEach(row => {
+        const rReg = row.getAttribute('data-region') || "";
+        const rMod = row.getAttribute('data-model') || "";
+        const regionMatch = (selRegion === "All India (National)" || selRegion === "All" || rReg === selRegion);
+        const modelMatch = (selModel === "" || rMod === selModel);
         
-        // IMPORTANT: Clear the alert scanning status
-        const alertList = document.getElementById('alert-list');
-        if (!data.vitals?.alerts || data.vitals.alerts.length === 0) {
-            alertList.innerHTML = `<div style="color:var(--green); font-weight:bold; padding:10px; text-align:center;"><span class="live-dot"></span> ALL PARAMETERS NORMAL</div>`;
+        if (regionMatch && modelMatch) {
+            row.style.display = ""; 
+            visibleCount++;
+            totalLoad += parseFloat(row.cells[2].innerText) || 0;
+        } else { 
+            row.style.display = "none"; 
         }
-        
-    } catch (err) {
-        console.error("UI Update Crashed:", err);
+    });
+
+    document.getElementById('v-active-rigs').innerText = visibleCount;
+    document.getElementById('v-fleet-load').innerText = visibleCount > 0 ? (totalLoad / visibleCount).toFixed(1) + "%" : "0%";
+
+    // --- PART B: DYNAMIC ALERT TRIGGER (THE FIX) ---
+    // Oil Pressure Check (Low Trigger: Red if value <= Threshold)
+    const oilVal = parseFloat(d.oil || 0);
+    const oilLimit = parseFloat(T['Engine oil pressure_Low'] || 3.5);
+    
+    if (oilVal > 0 && oilVal <= oilLimit) {
+        activeAlerts.push(`<li style="color:var(--red); font-weight:bold; margin-bottom:5px;">⚠️ LOW OIL PRESSURE: ${oilVal.toFixed(1)} bar</li>`);
+    }
+
+    // Coolant Temp Check (High Trigger: Red if value >= Threshold)
+    const tempVal = parseFloat(d.temp || 0);
+    const tempLimit = parseFloat(T['Engine coolant temp_High'] || 105);
+    
+    if (tempVal >= tempLimit) {
+        activeAlerts.push(`<li style="color:var(--red); font-weight:bold; margin-bottom:5px;">⚠️ HIGH COOLANT TEMP: ${tempVal}°C</li>`);
+    }
+
+    // --- PART C: RENDER TRIGGER WINDOW ---
+    if (activeAlerts.length > 0) {
+        alertList.innerHTML = `<ul style="list-style:none; padding:0; margin:0; text-align:left;">${activeAlerts.join('')}</ul>`;
+    } else {
+        alertList.innerHTML = `<div style="color:var(--green); font-weight:bold; padding:10px; text-align:center;"><span class="live-dot"></span> ALL PARAMETERS NORMAL</div>`;
     }
 }
 
-    function applyGlobalFilters() {
-        const selRegion = document.getElementById('cityFocus')?.value || "All";
-        const selModel = document.getElementById('modelSelect').value;
-        const rows = document.querySelectorAll('#fleet-summary-body tr');
-        let visibleCount = 0; let totalLoad = 0;
-
-        rows.forEach(row => {
-            const rReg = row.getAttribute('data-region') || "";
-            const rMod = row.getAttribute('data-model') || "";
-            const regionMatch = (selRegion === "All India (National)" || selRegion === "All" || rReg === selRegion);
-            const modelMatch = (selModel === "" || rMod === selModel);
-            if (regionMatch && modelMatch) {
-                row.style.display = ""; visibleCount++;
-                totalLoad += parseFloat(row.cells[2].innerText) || 0;
-            } else { row.style.display = "none"; }
-        });
-        document.getElementById('v-active-rigs').innerText = visibleCount;
-        document.getElementById('v-fleet-load').innerText = visibleCount > 0 ? (totalLoad / visibleCount).toFixed(1) + "%" : "0%";
-    }
-
-   var livelyTimer = null;
+// --- RADIAL DIAL GAUGE LOGIC ---
+var livelyTimer = null;
 var currentIdx = 0;
 
 function startLivelyGauges(forceReset = false) {
-    // 1. CLEAR: Stop any existing timer to prevent freezing or overlapping
-    if (livelyTimer) {
-        clearInterval(livelyTimer);
-        livelyTimer = null;
-    }
-
-    // 2. DATA CHECK: Ensure globalData and monthlyData exist
+    if (livelyTimer) clearInterval(livelyTimer);
+    
     const d = globalData?.monthlyData || [];
+    const T = globalData?.thresholds || {};
     const row = document.getElementById('gauge-row');
     if (!row || d.length === 0) return;
 
-    // 3. RESET: Restart at index 0 if rig or mode changed
     if (forceReset) currentIdx = 0;
-    
     const mode = document.getElementById('chartMode')?.value || 'tempVsOil';
 
     livelyTimer = setInterval(() => {
-        if (!d[currentIdx]) {
-            currentIdx = 0;
-            return;
-        }
+        if (!d[currentIdx]) { currentIdx = 0; return; }
 
         const entry = d[currentIdx];
         const dateStr = entry.date || entry.Date || "N/A";
         
-        // Date Badge for clarity
         let html = `<div class="date-badge">AUDIT DATE: ${dateStr}</div>`;
         let config = [];
 
-       // 4. DYNAMIC CONFIGURATION (Now picking from Threshold Sheet)
-// We use a fallback (e.g., || 8) just in case the sheet value is missing.
-const T = globalData?.thresholds || {};
+        if (mode === 'tempVsOil') {
+            config = [
+                { 
+                    lab: 'Oil bar', 
+                    val: entry.oil || 0, 
+                    max: T.oil_max || 8, 
+                    limit: T['Engine oil pressure_Low'] || 3.5, 
+                    decimal: true, 
+                    isLowAlarm: true 
+                },
+                { 
+                    lab: 'RPM', 
+                    val: entry.rpm || 0, 
+                    max: T.rpm_max || 2500, 
+                    limit: 2300, 
+                    decimal: false, 
+                    isLowAlarm: false 
+                },
+                { 
+                    lab: 'Temp °C', 
+                    val: entry.temp || 0, 
+                    max: T.temp_max || 120, 
+                    limit: T['Engine coolant temp_High'] || 105, 
+                    decimal: false, 
+                    isLowAlarm: false 
+                }
+            ];
+        } else if (mode === 'hydro_impact') {
+            config = [
+                { lab: 'Impact', val: entry.impact || 0, max: T.impact_max || 250, limit: 220, isLowAlarm: false },
+                { lab: 'Feed', val: entry.feed || 0, max: T.feed_max || 100, limit: 90, isLowAlarm: false },
+                { lab: 'Damper', val: entry.damper || 0, max: T.damper_max || 50, limit: 45, isLowAlarm: false }
+            ];
+        }
 
-if (mode === 'tempVsOil') {
-    config = [
-        { lab: 'Oil bar', val: entry.oil || 0, max: T.oil_max || 8, decimal: true },
-        { lab: 'RPM', val: entry.rpm || 0, max: T.rpm_max || 2500, decimal: false },
-        { lab: 'Temp °C', val: entry.temp || 0, max: T.temp_max || 120, decimal: false }
-    ];
-} else if (mode === 'hydro_impact') {
-    config = [
-        { lab: 'Impact', val: entry.impact || 0, max: T.impact_max || 250, decimal: false },
-        { lab: 'Feed', val: entry.feed || 0, max: T.feed_max || 100, decimal: false },
-        { lab: 'Damper', val: entry.damper || 0, max: T.damper_max || 50, decimal: false }
-    ];
-} else if (mode === 'setBit') {
-    config = [
-        { lab: 'Air Set', val: entry.air || 0, max: T.air_max || 30, decimal: true },
-        { lab: 'Bit Pr', val: entry.bit || 0, max: T.bit_max || 30, decimal: true }
-    ];
-} else {
-    config = [
-        { lab: 'Eng Load %', val: entry.load || 0, max: 100, decimal: false },
-        { lab: 'Comp %', val: entry.comp || 0, max: 100, decimal: false }
-    ];
-}
-
-        // 5. GENERATE RADIAL DIALS
         config.forEach(g => {
             const percent = Math.min(g.val / g.max, 1);
-            const angle = (percent * 180) - 90; // Calculate -90deg to +90deg
+            const angle = (percent * 180) - 90;
             
-            // Critical alert color (90% threshold)
-            const color = percent > 0.9 ? 'var(--red)' : 'var(--ey)';
-
-            // DECIMAL LOGIC: Force 0.0 format if 'decimal' flag is true
+            // DYNAMIC COLOR LOGIC: Check if value hits the limit
+            const isAlert = g.isLowAlarm ? (parseFloat(g.val) <= parseFloat(g.limit)) : (parseFloat(g.val) >= parseFloat(g.limit));
+            const color = isAlert ? 'var(--red)' : 'var(--ey)';
             const displayVal = g.decimal ? parseFloat(g.val).toFixed(1) : Math.round(g.val);
 
             html += `
@@ -624,11 +658,9 @@ if (mode === 'tempVsOil') {
                     <svg viewBox="0 0 100 65">
                         <path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="8" stroke-linecap="round" />
                         
-                        <path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="${percent * 126}, 126" stroke-linecap="round" />
-
-                        <line class="needle" x1="50" y1="50" x2="50" y2="12" 
-                              stroke="${color}" stroke-width="4" stroke-linecap="round"
-                              style="transform: rotate(${angle}deg); transform-origin: 50px 50px;" />
+                        <line class="needle" x1="50" y1="50" x2="${50 + 38 * Math.cos((angle - 90) * Math.PI / 180)}" 
+                              y2="${50 + 38 * Math.sin((angle - 90) * Math.PI / 180)}" 
+                              stroke="${color}" stroke-width="4" stroke-linecap="round" />
                         
                         <circle cx="50" cy="50" r="4" fill="#333" stroke="#666" stroke-width="1" />
                     </svg>
@@ -638,8 +670,8 @@ if (mode === 'tempVsOil') {
         });
 
         row.innerHTML = html;
-        currentIdx = (currentIdx + 1) % d.length; // Loop to start after last audit
-    }, 2000); // 2-second heartbeat
+        currentIdx = (currentIdx + 1) % d.length;
+    }, 2000);
 }    function drawChart() {
     if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
         if (chart) chart.destroy();
@@ -715,6 +747,7 @@ if (mode === 'tempVsOil') {
 </script>
 </body>
 </html>
+
 
 
 
