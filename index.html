@@ -500,49 +500,45 @@
             document.getElementById('v-temp').innerText = (data.vitals.hyd || "0") + "°C";
         }
 
-      // --- 5. FINAL TRIGGERS (CRASH-PROOF VERSION) ---
-try {
-    // Safety check: Don't do anything if globalData is missing
-    if (!globalData || !globalData.vitals) {
-        console.warn("Waiting for data...");
-        return;
-    }
+     // --- 5. FINAL TRIGGERS (CONSOLIDATED & ERROR-FREE) ---
+function updateUI(data) {
+    if (!data) return;
+    globalData = data;
 
-    // 1. First run filtering and alerts
-    applyGlobalFilters();
-    
-    // 2. Refresh the Trend Chart (Only if the function exists)
-    if (typeof drawChart === 'function') {
-        drawChart(); 
-    }
-
-    // 3. Safety Trigger for Gauges
-    if (document.body.classList.contains('authorized')) {
-        // Only start gauges if we have monthly data
-        if (globalData.monthlyData && globalData.monthlyData.length > 0) {
-            startLivelyGauges(true); 
+    try {
+        // 1. Data Refresh
+        applyGlobalFilters();
+        
+        // 2. Chart Refresh (Safety Check)
+        if (typeof drawChart === 'function') {
+            drawChart();
         }
-    }
 
-    // 4. Update the timestamp
-    const syncTime = document.getElementById('last-sync');
-    if (syncTime) syncTime.innerText = new Date().toLocaleTimeString();
-    
-} catch (err) {
-    console.error("UI Update Crashed:", err);
+        // 3. Gauge Restart
+        if (document.body.classList.contains('authorized')) {
+            if (globalData.monthlyData && globalData.monthlyData.length > 0) {
+                startLivelyGauges(true);
+            }
+        }
+
+        const syncEl = document.getElementById('last-sync');
+        if (syncEl) syncEl.innerText = new Date().toLocaleTimeString();
+
+    } catch (err) {
+        console.error("UI Update Crashed:", err);
+    }
 }
 
+// --- APPLY GLOBAL FILTERS & DYNAMIC ALERTS ---
 function applyGlobalFilters() {
     const alertList = document.getElementById('alert-list');
-    if (!alertList) return; // Prevent crash if element is missing
+    if (!alertList) return;
 
-    // Safety access to data
     const T = globalData?.thresholds || {};
-    const d = globalData?.vitals || {}; 
-    
+    const d = globalData?.vitals || {};
     let activeAlerts = [];
 
-    // --- TABLE FILTERING LOGIC ---
+    // Filter Table
     const selRegion = document.getElementById('cityFocus')?.value || "All";
     const selModel = document.getElementById('modelSelect')?.value || "";
     const rows = document.querySelectorAll('#fleet-summary-body tr');
@@ -555,35 +551,33 @@ function applyGlobalFilters() {
         row.style.display = (regionMatch && modelMatch) ? "" : "none";
     });
 
-    // --- DYNAMIC ALERT LOGIC (THE 3.1 BAR FIX) ---
+    // Alert Logic: Oil Pressure (3.1 vs 3.5 trigger)
     const oilVal = parseFloat(d.oil || 0);
     const oilLimit = parseFloat(T['Engine oil pressure_Low'] || 3.5);
-    
-    // Check if 3.1 is less than 3.5
     if (oilVal > 0 && oilVal <= oilLimit) {
-        activeAlerts.push(`<li style="color:var(--red); font-weight:bold; margin-bottom:5px;">⚠️ LOW OIL PRESSURE: ${oilVal.toFixed(1)} bar</li>`);
+        activeAlerts.push(`<li style="color:var(--red); font-weight:bold;">⚠️ LOW OIL PRESSURE: ${oilVal.toFixed(1)} bar</li>`);
     }
 
     const tempVal = parseFloat(d.temp || 0);
     const tempLimit = parseFloat(T['Engine coolant temp_High'] || 105);
     if (tempVal >= tempLimit) {
-        activeAlerts.push(`<li style="color:var(--red); font-weight:bold; margin-bottom:5px;">⚠️ HIGH COOLANT TEMP: ${tempVal}°C</li>`);
+        activeAlerts.push(`<li style="color:var(--red); font-weight:bold;">⚠️ HIGH COOLANT TEMP: ${tempVal}°C</li>`);
     }
 
-    // --- RENDER ---
+    // Render Window
     if (activeAlerts.length > 0) {
-        alertList.innerHTML = `<ul style="list-style:none; padding:0; margin:0; text-align:left;">${activeAlerts.join('')}</ul>`;
+        alertList.innerHTML = `<ul style="list-style:none; padding:0; margin:0;">${activeAlerts.join('')}</ul>`;
     } else {
         alertList.innerHTML = `<div style="color:var(--green); font-weight:bold; padding:10px; text-align:center;"><span class="live-dot"></span> ALL PARAMETERS NORMAL</div>`;
     }
 }
+
 // --- RADIAL DIAL GAUGE LOGIC ---
 var livelyTimer = null;
 var currentIdx = 0;
 
 function startLivelyGauges(forceReset = false) {
     if (livelyTimer) clearInterval(livelyTimer);
-    
     const d = globalData?.monthlyData || [];
     const T = globalData?.thresholds || {};
     const row = document.getElementById('gauge-row');
@@ -594,73 +588,44 @@ function startLivelyGauges(forceReset = false) {
 
     livelyTimer = setInterval(() => {
         if (!d[currentIdx]) { currentIdx = 0; return; }
-
         const entry = d[currentIdx];
-        const dateStr = entry.date || entry.Date || "N/A";
-        
+        const dateStr = entry.date || "N/A";
         let html = `<div class="date-badge">AUDIT DATE: ${dateStr}</div>`;
         let config = [];
 
         if (mode === 'tempVsOil') {
             config = [
-                { 
-                    lab: 'Oil bar', 
-                    val: entry.oil || 0, 
-                    max: T.oil_max || 8, 
-                    limit: T['Engine oil pressure_Low'] || 3.5, 
-                    decimal: true, 
-                    isLowAlarm: true 
-                },
-                { 
-                    lab: 'RPM', 
-                    val: entry.rpm || 0, 
-                    max: T.rpm_max || 2500, 
-                    limit: 2300, 
-                    decimal: false, 
-                    isLowAlarm: false 
-                },
-                { 
-                    lab: 'Temp °C', 
-                    val: entry.temp || 0, 
-                    max: T.temp_max || 120, 
-                    limit: T['Engine coolant temp_High'] || 105, 
-                    decimal: false, 
-                    isLowAlarm: false 
-                }
+                { lab: 'Oil bar', val: entry.oil || 0, max: T.oil_max || 8, limit: T['Engine oil pressure_Low'] || 3.5, decimal: true, isLow: true },
+                { lab: 'RPM', val: entry.rpm || 0, max: T.rpm_max || 2500, limit: 2300, decimal: false, isLow: false },
+                { lab: 'Temp °C', val: entry.temp || 0, max: T.temp_max || 120, limit: T['Engine coolant temp_High'] || 105, decimal: false, isLow: false }
             ];
         } else if (mode === 'hydro_impact') {
             config = [
-                { lab: 'Impact', val: entry.impact || 0, max: T.impact_max || 250, limit: 220, isLowAlarm: false },
-                { lab: 'Feed', val: entry.feed || 0, max: T.feed_max || 100, limit: 90, isLowAlarm: false },
-                { lab: 'Damper', val: entry.damper || 0, max: T.damper_max || 50, limit: 45, isLowAlarm: false }
+                { lab: 'Impact', val: entry.impact || 0, max: T.impact_max || 250, limit: 220, isLow: false },
+                { lab: 'Feed', val: entry.feed || 0, max: T.feed_max || 100, limit: 90, isLow: false },
+                { lab: 'Damper', val: entry.damper || 0, max: T.damper_max || 50, limit: 45, isLow: false }
             ];
         }
 
         config.forEach(g => {
             const percent = Math.min(g.val / g.max, 1);
             const angle = (percent * 180) - 90;
-            
-            // DYNAMIC COLOR LOGIC: Check if value hits the limit
-            const isAlert = g.isLowAlarm ? (parseFloat(g.val) <= parseFloat(g.limit)) : (parseFloat(g.val) >= parseFloat(g.limit));
+            const isAlert = g.isLow ? (g.val <= g.limit) : (g.val >= (g.limit || g.max * 0.9));
             const color = isAlert ? 'var(--red)' : 'var(--ey)';
-            const displayVal = g.decimal ? parseFloat(g.val).toFixed(1) : Math.round(g.val);
 
             html += `
                 <div class="dial-wrapper">
                     <svg viewBox="0 0 100 65">
                         <path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="8" stroke-linecap="round" />
-                        
-                        <line class="needle" x1="50" y1="50" x2="${50 + 38 * Math.cos((angle - 90) * Math.PI / 180)}" 
+                        <line class="needle" x1="50" y1="50" 
+                              x2="${50 + 38 * Math.cos((angle - 90) * Math.PI / 180)}" 
                               y2="${50 + 38 * Math.sin((angle - 90) * Math.PI / 180)}" 
                               stroke="${color}" stroke-width="4" stroke-linecap="round" />
-                        
-                        <circle cx="50" cy="50" r="4" fill="#333" stroke="#666" stroke-width="1" />
                     </svg>
-                    <div class="dial-value" style="color:${color}">${displayVal}</div>
+                    <div class="dial-value" style="color:${color}">${g.decimal ? parseFloat(g.val).toFixed(1) : Math.round(g.val)}</div>
                     <span class="dial-label">${g.lab}</span>
                 </div>`;
         });
-
         row.innerHTML = html;
         currentIdx = (currentIdx + 1) % d.length;
     }, 2000);
@@ -739,6 +704,7 @@ function startLivelyGauges(forceReset = false) {
 </script>
 </body>
 </html>
+
 
 
 
