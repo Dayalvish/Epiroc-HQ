@@ -132,29 +132,29 @@
             100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); } 
         }
 
-        /* =========================================
-           5. MAIN GRID SYSTEM & FIXED SCALING
-           ========================================= */
-        .main-layout { 
-            display: grid; 
-            grid-template-columns: 260px 1fr 280px; 
-            gap: 12px; 
-            flex-grow: 1; 
-            height: calc(100vh - 140px); 
-            min-height: 0; 
-        }
+       /* =========================================
+   5. MAIN GRID SYSTEM & FIXED SCALING
+   ========================================= */
+.main-layout { 
+    display: grid; 
+    grid-template-columns: 260px 1fr 280px; 
+    gap: 12px; 
+    flex-grow: 1; 
+    height: calc(100vh - 140px); 
+    min-height: 0; 
+}
 
-        .sidebar {
-            background: var(--card); 
-            padding: 15px; 
-            border-radius: 8px; 
-            box-shadow: 0 4px 20px rgba(0,0,0,0.6); 
-            overflow-y: auto; 
-            height: 100%; 
-            box-sizing: border-box; 
-        }
+.sidebar {
+    background: var(--card); 
+    padding: 15px; 
+    border-radius: 8px; 
+    box-shadow: 0 4px 20px rgba(0,0,0,0.6); 
+    overflow-y: auto; 
+    height: 100%; 
+    box-sizing: border-box; 
+}
 
-        /* 1. The Main Container */
+/* --- CHART & TABLE AREA --- */
 .chart-area { 
     background: var(--card); 
     padding: 10px; 
@@ -163,24 +163,57 @@
     flex-direction: column;     
     height: 100%; 
     box-sizing: border-box; 
-    overflow: hidden; /* This stays hidden to keep the scrollbar INSIDE the table only */
+    overflow: hidden; 
 }
 
-/* 2. The Chart (Fixed at 40% height) */
 #chart-container {
-    flex: 0 0 40%; /* Reduced slightly from 50% to give table more room */
+    flex: 0 0 40%; /* Fixed height for chart to allow table space */
     position: relative;
     width: 100%;
     min-height: 0;
 }
 
-/* 3. The Table Container (THIS IS THE FIX) */
 .table-scroll-container {
-    flex: 1 1 auto;   /* This tells the table: "Take all the leftover space" */
-    overflow-y: auto; /* Enable vertical scroll */
-    min-height: 0;    /* Critical for Flexbox scrolling */
+    flex: 1 1 auto;   /* Fills the remaining bottom space */
+    overflow-y: auto; /* Enables the vertical scrollbar */
+    min-height: 0;    /* Critical for flex-scrolling to work */
     margin-top: 10px;
     border: 1px solid #333;
+}
+
+/* --- ALERT BOX & SCROLLBAR FIXES --- */
+.sidebar-right-split { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 12px; 
+    height: 100%; 
+}
+
+.alert-box {
+    display: flex;
+    flex-direction: column;
+    background: var(--card);
+    padding: 15px;
+    border-radius: 8px;
+    height: 480px; /* Locked height: Prevents chart distortion */
+    overflow: hidden; 
+}
+
+#alert-list {
+    flex-grow: 1;
+    overflow-y: auto; 
+    padding-right: 5px;
+}
+
+/* Custom Red Scrollbar for Alerts */
+#alert-list::-webkit-scrollbar { width: 4px; }
+#alert-list::-webkit-scrollbar-thumb { background: var(--red); border-radius: 10px; }
+
+.vitals-box { 
+    flex: 1; 
+    background: var(--card); 
+    padding: 15px; 
+    border-radius: 8px; 
 }
       /* =========================================
        BOLDER RADIAL DIAL GAUGE STYLING
@@ -758,6 +791,7 @@ function exportToExcel() {
 </script>
 </body>
 </html>
+
 
 
 
