@@ -629,7 +629,10 @@ function startLivelyGauges(forceReset = false) {
         row.innerHTML = html;
         currentIdx = (currentIdx + 1) % d.length;
     }, 2000);
-}    function drawChart() {
+}   
+       // --- CHARTING LOGIC ---
+function drawChart() {
+    // 1. Safety Check: Don't draw if data is missing or empty
     if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
         if (chart) chart.destroy();
         return;
@@ -645,40 +648,57 @@ function startLivelyGauges(forceReset = false) {
     let datasets = [];
     let scales = {
         x: { grid: { color: '#333' }, ticks: { color: '#888' } },
-        y: { grid: { color: '#333' }, ticks: { color: '#fff' }, title: { display: true, text: 'Value', color: '#fff' } }
+        y: { 
+            grid: { color: '#333' }, 
+            ticks: { color: '#fff' }, 
+            title: { display: true, text: 'Pressure / Load', color: '#fff' } 
+        }
     };
 
     if (mode === 'tempVsOil') {
-        // Mode 1: Engine Vitals (Triple Axis)
+        // --- MODE 1: TRIPLE AXIS (Oil, Temp, RPM) ---
         datasets = [
-            { label: 'Oil (bar)', data: d.map(x => x.oil || x.Oil || 0), borderColor: '#2ecc71', yAxisID: 'y', tension: 0.3 },
-            { label: 'Temp (°C)', data: d.map(x => x.temp || x.Temp || 0), borderColor: '#ff4d4d', yAxisID: 'y1', tension: 0.3 },
-            { label: 'RPM', data: d.map(x => x.rpm || x.RPM || 0), borderColor: '#3498db', yAxisID: 'y2', borderDash: [5, 5], tension: 0.3 }
+            { label: 'Oil (bar)', data: d.map(x => x.oil || 0), borderColor: '#2ecc71', yAxisID: 'y', tension: 0.3, fill: false },
+            { label: 'Temp (°C)', data: d.map(x => x.temp || 0), borderColor: '#ff4d4d', yAxisID: 'y1', tension: 0.3, fill: false },
+            { label: 'RPM', data: d.map(x => x.rpm || 0), borderColor: '#3498db', yAxisID: 'y2', borderDash: [5, 5], tension: 0.3, fill: false }
         ];
-        // Custom Scales for Engine
-        scales.y1 = { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#ff4d4d' } };
-        scales.y2 = { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#3498db' }, min: 500, max: 2500 };
+
+        // Define the extra axes
+        scales.y1 = { 
+            position: 'right', 
+            grid: { drawOnChartArea: false }, 
+            ticks: { color: '#ff4d4d' },
+            title: { display: true, text: 'Temperature', color: '#ff4d4d' }
+        };
+        scales.y2 = { 
+            position: 'right', 
+            grid: { drawOnChartArea: false }, 
+            ticks: { color: '#3498db' },
+            min: 0,
+            max: 3000,
+            title: { display: true, text: 'Engine RPM', color: '#3498db' }
+        };
 
     } else if (mode === 'loadVsComp') {
-        // Mode 2: Engine vs Compressor
+        // --- MODE 2: ENGINE VS COMPRESSOR ---
         datasets = [
-            { label: 'Eng Load %', data: d.map(x => x.load || x.Load || 0), borderColor: '#f1c40f', tension: 0.3 },
-            { label: 'Compressor %', data: d.map(x => x.comp || x.Comp || 0), borderColor: '#3498db', tension: 0.3 }
+            { label: 'Eng Load %', data: d.map(x => x.load || 0), borderColor: '#f1c40f', tension: 0.3 },
+            { label: 'Compressor %', data: d.map(x => x.comp || 0), borderColor: '#3498db', tension: 0.3 }
         ];
 
     } else if (mode === 'setBit') {
-        // Mode 3: Air Pressures
+        // --- MODE 3: AIR PRESSURES ---
         datasets = [
-            { label: 'Air Set (bar)', data: d.map(x => x.air || x.Air || 0), borderColor: '#2ecc71', tension: 0.3 },
-            { label: 'Bit Pr (bar)', data: d.map(x => x.bit || x.Bit || 0), borderColor: '#f39c12', tension: 0.3 }
+            { label: 'Air Set (bar)', data: d.map(x => x.air || 0), borderColor: '#2ecc71', tension: 0.3 },
+            { label: 'Bit Pr (bar)', data: d.map(x => x.bit || 0), borderColor: '#f39c12', tension: 0.3 }
         ];
 
     } else if (mode === 'hydro_impact') {
-        // Mode 4: Hydraulic Vitals (All 3 lines)
+        // --- MODE 4: HYDRAULIC VITALS (Impact, Feed, Damper) ---
         datasets = [
-            { label: 'Impact (bar)', data: d.map(x => x.impact || x.Impact || 0), borderColor: '#f1c40f', tension: 0.3 },
-            { label: 'Feed (bar)', data: d.map(x => x.feed || x.Feed || 0), borderColor: '#e67e22', tension: 0.3 },
-            { label: 'Damper (bar)', data: d.map(x => x.damper || x.Damper || 0), borderColor: '#3498db', tension: 0.3 }
+            { label: 'Impact (bar)', data: d.map(x => x.impact || 0), borderColor: '#f1c40f', tension: 0.3 },
+            { label: 'Feed (bar)', data: d.map(x => x.feed || 0), borderColor: '#e67e22', tension: 0.3 },
+            { label: 'Damper (bar)', data: d.map(x => x.damper || 0), borderColor: '#3498db', tension: 0.3 }
         ];
     }
 
@@ -688,22 +708,31 @@ function startLivelyGauges(forceReset = false) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
             plugins: {
-                legend: { position: 'top', labels: { color: '#fff', boxWidth: 12, font: { size: 10 } } }
+                legend: { 
+                    position: 'top', 
+                    labels: { color: '#fff', boxWidth: 12, font: { size: 11 } } 
+                }
             },
             scales: scales
         }
     });
 }
 
-    function exportToExcel() {
-        let table = document.getElementById("summary-tbl");
-        let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
-        let link = document.createElement('a'); link.download = "Report.xls"; link.href = url; link.click();
-    }
+function exportToExcel() {
+    let table = document.getElementById("summary-tbl");
+    if (!table) return;
+    let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
+    let link = document.createElement('a');
+    link.download = "Rig_Audit_Report.xls";
+    link.href = url;
+    link.click();
+}
 </script>
 </body>
 </html>
+
 
 
 
