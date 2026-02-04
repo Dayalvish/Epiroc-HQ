@@ -668,7 +668,7 @@ function startLivelyGauges(forceReset = false) {
 }
        // --- CHARTING LOGIC ---
 function drawChart() {
-    // 1. Safety Check: Don't draw if data is missing or empty
+    // 1. Safety Check
     if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
         if (chart) chart.destroy();
         return;
@@ -677,60 +677,43 @@ function drawChart() {
     const ctx = document.getElementById('mainChart').getContext('2d');
     if (chart) chart.destroy();
 
+    // 2. FILTER: Only get data for the Rig currently selected in the dropdown
+    const selectedRig = document.getElementById('rigSelect').value;
     const mode = document.getElementById('chartMode').value;
-    const d = globalData.monthlyData;
-    const labels = d.map(x => x.date || x.Date);
+    
+    // This is the "Magic Link": It filters the fleet data for just this machine
+    const d = globalData.monthlyData.filter(entry => entry.rigId === selectedRig);
+    
+    if (d.length === 0) return; // Don't draw if no data for this specific rig
 
+    const labels = d.map(x => x.date);
     let datasets = [];
     let scales = {
-        x: { grid: { color: '#333' }, ticks: { color: '#888' } },
-        y: { 
-            grid: { color: '#333' }, 
-            ticks: { color: '#fff' }, 
-            title: { display: true, text: 'Pressure / Load', color: '#fff' } 
-        }
+        x: { grid: { color: '#333' }, ticks: { color: '#888', font: { size: 10 } } },
+        y: { grid: { color: '#333' }, ticks: { color: '#fff' } }
     };
 
     if (mode === 'tempVsOil') {
-        // --- MODE 1: TRIPLE AXIS (Oil, Temp, RPM) ---
         datasets = [
             { label: 'Oil (bar)', data: d.map(x => x.oil || 0), borderColor: '#2ecc71', yAxisID: 'y', tension: 0.3, fill: false },
             { label: 'Temp (°C)', data: d.map(x => x.temp || 0), borderColor: '#ff4d4d', yAxisID: 'y1', tension: 0.3, fill: false },
             { label: 'RPM', data: d.map(x => x.rpm || 0), borderColor: '#3498db', yAxisID: 'y2', borderDash: [5, 5], tension: 0.3, fill: false }
         ];
 
-        // Define the extra axes
-        scales.y1 = { 
-            position: 'right', 
-            grid: { drawOnChartArea: false }, 
-            ticks: { color: '#ff4d4d' },
-            title: { display: true, text: 'Temperature', color: '#ff4d4d' }
-        };
-        scales.y2 = { 
-            position: 'right', 
-            grid: { drawOnChartArea: false }, 
-            ticks: { color: '#3498db' },
-            min: 0,
-            max: 3000,
-            title: { display: true, text: 'Engine RPM', color: '#3498db' }
-        };
+        scales.y1 = { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#ff4d4d' } };
+        scales.y2 = { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#3498db' }, min: 0, max: 3000 };
 
     } else if (mode === 'loadVsComp') {
-        // --- MODE 2: ENGINE VS COMPRESSOR ---
         datasets = [
             { label: 'Eng Load %', data: d.map(x => x.load || 0), borderColor: '#f1c40f', tension: 0.3 },
             { label: 'Compressor %', data: d.map(x => x.comp || 0), borderColor: '#3498db', tension: 0.3 }
         ];
-
     } else if (mode === 'setBit') {
-        // --- MODE 3: AIR PRESSURES ---
         datasets = [
             { label: 'Air Set (bar)', data: d.map(x => x.air || 0), borderColor: '#2ecc71', tension: 0.3 },
             { label: 'Bit Pr (bar)', data: d.map(x => x.bit || 0), borderColor: '#f39c12', tension: 0.3 }
         ];
-
     } else if (mode === 'hydro_impact') {
-        // --- MODE 4: HYDRAULIC VITALS (Impact, Feed, Damper) ---
         datasets = [
             { label: 'Impact (bar)', data: d.map(x => x.impact || 0), borderColor: '#f1c40f', tension: 0.3 },
             { label: 'Feed (bar)', data: d.map(x => x.feed || 0), borderColor: '#e67e22', tension: 0.3 },
@@ -746,16 +729,14 @@ function drawChart() {
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
             plugins: {
-                legend: { 
-                    position: 'top', 
-                    labels: { color: '#fff', boxWidth: 12, font: { size: 11 } } 
-                }
+                legend: { position: 'top', labels: { color: '#fff', boxWidth: 12, font: { size: 11 } } },
+                title: { display: true, text: `Trend Analysis: ${selectedRig}`, color: 'var(--ey)' }
             },
             scales: scales
         }
     });
 }
-
+🏁 Why this w
 function exportToExcel() {
     let table = document.getElementById("summary-tbl");
     if (!table) return;
@@ -768,6 +749,7 @@ function exportToExcel() {
 </script>
 </body>
 </html>
+
 
 
 
