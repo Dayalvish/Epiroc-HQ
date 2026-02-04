@@ -553,16 +553,29 @@ function applyGlobalFilters() {
         row.style.display = (regionMatch && modelMatch) ? "" : "none";
     });
 
-    // --- PART B: DYNAMIC TRIGGER LOGIC (THE 3.1 BAR FIX) ---
+   // --- PART B: DYNAMIC TRIGGER LOGIC (THE REPAIR) ---
     
-    // Oil Pressure Check (Low Trigger)
+    // 1. OIL PRESSURE CHECK
     const oilVal = parseFloat(d.oil || 0);
-    const oilLimit = parseFloat(T['Engine oil pressure_Low'] || 0);
+    
+    // FLEXIBLE LOOKUP: Tries the long name, then the short name from the sheet
+    const oilLimit = parseFloat(T['Engine oil pressure_Low'] || T['Oil bar'] || 0);
     
     if (oilLimit > 0 && oilVal > 0 && oilVal <= oilLimit) {
         activeAlerts.push(`<li style="color:var(--red); font-weight:bold; margin-bottom:8px;">
             ⚠️ LOW OIL PRESSURE: ${oilVal.toFixed(1)} bar
-            <br><small style="color:#888;">(Limit: ${oilLimit} bar per Sheet)</small>
+            <br><small style="color:#888;">(Sheet Limit: ${oilLimit} bar)</small>
+        </li>`);
+    }
+
+    // 2. ENGINE TEMP CHECK
+    const tempVal = parseFloat(d.temp || 0);
+    const tempLimit = parseFloat(T['Engine Temp_High'] || T['Temp °C'] || 98);
+    
+    if (tempVal >= tempLimit) {
+        activeAlerts.push(`<li style="color:var(--red); font-weight:bold; margin-bottom:8px;">
+            ⚠️ HIGH COOLANT TEMP: ${tempVal}°C
+            <br><small style="color:#888;">(Sheet Limit: ${tempLimit}°C)</small>
         </li>`);
     }
 
@@ -791,6 +804,7 @@ function exportToExcel() {
 </script>
 </body>
 </html>
+
 
 
 
