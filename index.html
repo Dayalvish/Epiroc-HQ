@@ -679,9 +679,10 @@ function startLivelyGauges(forceReset = false) {
        // --- MODE 1: TEMP / OIL / RPM ---
 if (mode === 'tempVsOil') {
     config = [
-        { lab: 'Oil bar', val: entry.oil, max: 10, limit: T['Engine oil pressure_Low'], isLow: true },
-        { lab: 'RPM', val: entry.rpm, max: 3000, limit: 2500, isLow: false }, // Use a safe default for RPM
-        { lab: 'Temp °C', val: entry.temp, max: 130, limit: T['Engine Temp_High'], isLow: false }
+        // Ensure decimal: true is set for the oil pressure
+        { lab: 'Oil bar', val: entry.oil, max: 10, limit: T['Engine oil pressure_Low'], isLow: true, decimal: true },
+        { lab: 'RPM', val: entry.rpm, max: 3000, limit: T['Engine RPM Drilling_High'] || 2200, isLow: false, decimal: false },
+        { lab: 'Temp °C', val: entry.temp, max: 130, limit: T['Engine Temp_High'], isLow: false, decimal: false }
     ];
 } 
 // --- MODE 2: LOAD vs COMPRESSOR ---
@@ -701,24 +702,23 @@ else if (mode === 'hydro_impact') {
         }
 
         // Build the SVG HTML
-        config.forEach(g => {
-            const val = parseFloat(g.val || 0);
-            const lim = parseFloat(g.limit || 0);
-            const angle = (Math.min(val / g.max, 1) * 180) - 90;
-            
-            const isAlert = g.isLow ? (val <= lim && lim > 0) : (val >= lim && lim > 0);
-            const color = isAlert ? 'var(--red)' : 'var(--ey)';
+        // Build the SVG and Value display
+config.forEach(g => {
+    const val = parseFloat(g.val || 0);
+    const lim = parseFloat(g.limit || 0);
+    const angle = (Math.min(val / g.max, 1) * 180) - 90;
+    const isAlert = g.isLow ? (val <= lim && lim > 0) : (val >= lim && lim > 0);
+    const color = isAlert ? 'var(--red)' : 'var(--ey)';
 
-            // This changes the dark outer border to a clearly visible soft white
-html += `<div class="dial-wrapper">
-    <svg viewBox="0 0 100 65">
-        <path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="8" stroke-linecap="round" />
-        <line class="needle" x1="50" y1="50" x2="${50 + 38 * Math.cos((angle - 90) * Math.PI / 180)}" y2="${50 + 38 * Math.sin((angle - 90) * Math.PI / 180)}" stroke="${color}" stroke-width="4" stroke-linecap="round" />
-    </svg>
-    <div class="dial-value" style="color:${color}">${g.decimal ? val.toFixed(1) : Math.round(val)}</div>
-    <span class="dial-label">${g.lab}</span>
-</div>`;
-        });
+    html += `<div class="dial-wrapper">
+        <svg viewBox="0 0 100 65">
+            <path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="8" stroke-linecap="round" />
+            <line class="needle" x1="50" y1="50" x2="${50 + 38 * Math.cos((angle - 90) * Math.PI / 180)}" y2="${50 + 38 * Math.sin((angle - 90) * Math.PI / 180)}" stroke="${color}" stroke-width="4" stroke-linecap="round" />
+        </svg>
+        <div class="dial-value" style="color:${color}">${g.decimal ? val.toFixed(1) : Math.round(val)}</div>
+        <span class="dial-label">${g.lab}</span>
+    </div>`;
+});
         
         row.innerHTML = html;
 
@@ -812,6 +812,7 @@ html += `<div class="dial-wrapper">
 </script>
 </body>
 </html>
+
 
 
 
