@@ -523,88 +523,84 @@
         } catch (err) { console.error("Refresh Error:", err); }
     }
 
-    function updateUI(data) {
-        if (!data) return;
-        globalData = data;
-        const summaryBody = document.getElementById('fleet-summary-body');
-        const selectedRigId = document.getElementById('rigSelect').value;
+   function updateUI(data) {
+    if (!data) return;
+    globalData = data;
+    const summaryBody = document.getElementById('fleet-summary-body');
+    const selectedRigId = document.getElementById('rigSelect').value;
 
-        // 1. UPDATE TABLE & COUNTERS
-        if (data.summary) {
-            summaryBody.innerHTML = data.summary.map(r => `
-                <tr data-region="${r.region || ''}" data-model="${r.model || ''}">
-                    <td><b>${r.id}</b></td>
-                    <td>${r.audits || 0}</td>
-                    <td>${r.avgLoad || 0}%</td>
-                    <td>${r.avgTemp || 0}</td>
-                    <td>${r.avgOil || 0}</td>
-                    <td>${r.avgFuel || 0}</td>
-                    <td>${r.avgAir || 0}</td>
-                    <td>${r.avgBit || 0}</td>
-                    <td>${r.avgImpact || 0}</td>
-                </tr>`).join('');
-            
-            document.getElementById('v-active-rigs').innerText = data.summary.length;
-            const avgLoad = (data.summary.reduce((acc, r) => acc + parseFloat(r.avgLoad || 0), 0) / data.summary.length).toFixed(1);
-            document.getElementById('v-fleet-load').innerText = avgLoad + "%";
-        }
-
-       // 2. UPDATE SIDE VITALS (Specific Machine)
-        const rigEntries = (data.monthlyData || []).filter(e => e.rigId === selectedRigId);
-        const last = rigEntries[rigEntries.length - 1]; // This gets the most recent audit
+    // 1. UPDATE TABLE & COUNTERS
+    if (data.summary) {
+        summaryBody.innerHTML = data.summary.map(r => `
+            <tr data-region="${r.region || ''}" data-model="${r.model || ''}">
+                <td><b>${r.id}</b></td>
+                <td>${r.audits || 0}</td>
+                <td>${r.avgLoad || 0}%</td>
+                <td>${r.avgTemp || 0}</td>
+                <td>${r.avgOil || 0}</td>
+                <td>${r.avgFuel || 0}</td>
+                <td>${r.avgAir || 0}</td>
+                <td>${r.avgBit || 0}</td>
+                <td>${r.avgImpact || 0}</td>
+            </tr>`).join('');
         
-        if (last) {
-            // We use multiple names to make sure we catch the data
-            document.getElementById('v-boost').innerText = last.boost || last.boostPressure || "0";
-            document.getElementById('v-fuel').innerText = last.fuel || last.fuelPressure || "0";
-            document.getElementById('v-receiver').innerText = last.receiver || last.receiverPr || "0";
-            document.getElementById('v-temp').innerText = (last.hydTemp || last.hydOilTemp || "0") + "°C";
-            document.getElementById('vitals-date-stamp').innerText = "Last Audit: " + (last.date || "N/A");
-        } else {
-            // Reset if no data found for this rig
-            ["v-boost", "v-fuel", "v-receiver", "v-temp"].forEach(id => document.getElementById(id).innerText = "--");
-            document.getElementById('vitals-date-stamp').innerText = "No data for this machine";
-        }
-        applyGlobalFilters(); 
-        drawChart();
-        startLivelyGauges(true);
-        document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+        document.getElementById('v-active-rigs').innerText = data.summary.length;
+        const avgLoad = (data.summary.reduce((acc, r) => acc + parseFloat(r.avgLoad || 0), 0) / data.summary.length).toFixed(1);
+        document.getElementById('v-fleet-load').innerText = avgLoad + "%";
     }
 
-    function applyGlobalFilters() {
+    // 2. UPDATE SIDE VITALS
+    const rigEntries = (data.monthlyData || []).filter(e => e.rigId === selectedRigId);
+    const last = rigEntries[rigEntries.length - 1];
+    
+    if (last) {
+        document.getElementById('v-boost').innerText = last.boost || last.boostPressure || "0";
+        document.getElementById('v-fuel').innerText = last.fuel || last.fuelPressure || "0";
+        document.getElementById('v-receiver').innerText = last.receiver || last.receiverPr || "0";
+        document.getElementById('v-temp').innerText = (last.hydTemp || last.hydOilTemp || "0") + "°C";
+        document.getElementById('vitals-date-stamp').innerText = "Last Audit: " + (last.date || "N/A");
+    } else {
+        ["v-boost", "v-fuel", "v-receiver", "v-temp"].forEach(id => document.getElementById(id).innerText = "--");
+        document.getElementById('vitals-date-stamp').innerText = "No data for this machine";
+    }
+
+    applyGlobalFilters(); 
+    drawChart();
+    startLivelyGauges(true);
+    document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+}
+
+function applyGlobalFilters() {
     const selRegion = document.getElementById('cityFocus').value;
     const selModel = document.getElementById('modelSelect').value;
     const rows = document.querySelectorAll('#fleet-summary-body tr');
 
+    // Filter Table Rows
     rows.forEach(row => {
         const rReg = row.getAttribute('data-region') || "";
         const rMod = row.getAttribute('data-model') || "";
-        
-        // Match BOTH Region and Model. "All" or empty string acts as "Show Everything"
         const regionMatch = (selRegion === "All India (National)" || selRegion === "All" || rReg === selRegion);
         const modelMatch = (selModel === "" || rMod === selModel);
-        
         row.style.display = (regionMatch && modelMatch) ? "" : "none";
     });
-}
 
-        // --- TRIGGER ALERTS SCAN ---
-        const alertList = document.getElementById('alert-list');
-        const badge = document.getElementById('alert-count-badge');
-        const T = globalData.thresholds || {};
-        let alerts = [];
+    // --- TRIGGER ALERTS SCAN (Now properly inside the function) ---
+    const alertList = document.getElementById('alert-list');
+    const badge = document.getElementById('alert-count-badge');
+    const T = globalData.thresholds || {};
+    let alerts = [];
 
-        (globalData.monthlyData || []).forEach(e => {
-            const oilLim = parseFloat(T['Engine oil pressure_Low'] || 0);
-            if (oilLim > 0 && parseFloat(e.oil) <= oilLim) {
-                alerts.push(`<li style="border-left:4px solid var(--red); padding:5px; margin-bottom:5px; background:rgba(255,0,0,0.1); list-style:none;">
-                    <b>${e.rigId}</b>: Low Oil ${e.oil} bar (Date: ${e.date})</li>`);
-            }
-        });
+    (globalData.monthlyData || []).forEach(e => {
+        const oilLim = parseFloat(T['Engine oil pressure_Low'] || 0);
+        if (oilLim > 0 && parseFloat(e.oil) <= oilLim) {
+            alerts.push(`<li style="border-left:4px solid var(--red); padding:5px; margin-bottom:5px; background:rgba(255,0,0,0.1); list-style:none;">
+                <b>${e.rigId}</b>: Low Oil ${e.oil} bar (Date: ${e.date})</li>`);
+        }
+    });
 
-        if (badge) badge.innerText = alerts.length;
-        alertList.innerHTML = alerts.length ? `<ul style="padding:0;">${alerts.reverse().join('')}</ul>` : `<div style="color:var(--green); text-align:center;">STATUS: NORMAL</div>`;
-    }
+    if (badge) badge.innerText = alerts.length;
+    alertList.innerHTML = alerts.length ? `<ul style="padding:0; margin:0;">${alerts.reverse().join('')}</ul>` : `<div style="color:var(--green); text-align:center; padding:10px;">STATUS: NORMAL</div>`;
+} // This was the missing/misplaced bracket!
 
     function startLivelyGauges(forceReset = false) {
         if (livelyTimer) clearInterval(livelyTimer);
@@ -746,5 +742,6 @@
 </script>
 </body>
 </html>
+
 
 
