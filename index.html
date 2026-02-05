@@ -648,63 +648,98 @@ function applyGlobalFilters() {
             <span class="live-dot"></span> FLEET STATUS: NORMAL
         </div>`;
 }
-    function startLivelyGauges(forceReset = false) {
-        if (livelyTimer) clearInterval(livelyTimer);
-        const selectedRig = document.getElementById('rigSelect').value;
-        const d = (globalData?.monthlyData || []).filter(e => e.rigId === selectedRig);
-        const T = globalData?.thresholds || {};
-        const row = document.getElementById('gauge-row');
-        if (!row || d.length === 0) return;
-        if (forceReset) currentIdx = 0;
+    // --- 2. DYNAMIC RADIAL DIAL GAUGE LOGIC (Optimized & Protected) ---
+function startLivelyGauges(forceReset = false) {
+    // 1. Clear and Nullify the timer to prevent overlapping intervals
+    if (livelyTimer) {
+        clearInterval(livelyTimer);
+        livelyTimer = null;
+    }
+    
+    const rigEl = document.getElementById('rigSelect');
+    const row = document.getElementById('gauge-row');
+    if (!rigEl || !row) return; // Exit if UI elements are missing
 
-        livelyTimer = setInterval(() => {
-            if (!d[currentIdx]) { currentIdx = 0; return; }
-            const entry = d[currentIdx];
-            const mode = document.getElementById('chartMode').value;
-            let html = `<div class="date-badge" style="position:absolute; top: 15px; left: 20px; font-size: 0.9rem; font-weight: bold; color: var(--ey); background: rgba(0,0,0,0.5); padding: 5px 12px; border-left: 4px solid var(--ey); z-index: 10;">AUDIT: ${entry.date}</div>`;
-            let config = [];
+    const selectedRig = rigEl.value;
+    // Filter data - using optional chaining for safety
+    const d = (globalData?.monthlyData || []).filter(entry => entry.rigId === selectedRig);
+    
+    if (d.length === 0) {
+        row.innerHTML = `<div style="color:#666; padding:20px; text-align:center; width:100%;">NO DATA FOR SELECTED RIG</div>`;
+        return;
+    }
 
-            if (mode === 'tempVsOil') {
-                config = [
-                    { lab: 'Oil bar', val: entry.oil, max: 10, limit: T['Engine oil pressure_Low'], isLow: true },
-                    { lab: 'RPM', val: entry.rpm, max: 3000, limit: 2500, isLow: false },
-                    { lab: 'Temp °C', val: entry.temp, max: 130, limit: T['Engine Temp_High'], isLow: false }
-                ];
-            } else if (mode === 'loadVsComp') {
-                config = [
-                    { lab: 'Eng Load %', val: entry.load || 0, max: 100, limit: 95, isLow: false },
-                    { lab: 'Comp %', val: entry.comp || 0, max: 100, limit: 90, isLow: false }
-                ];
-            } else if (mode === 'setBit') {
-                config = [
-                    { lab: 'Air Set', val: entry.air || 0, max: 35, limit: 30, isLow: false },
-                    { lab: 'Bit Pr', val: entry.bit || 0, max: 35, limit: 30, isLow: false }
-                ];
-            } else if (mode === 'hydro_impact') {
-                config = [
-                    { lab: 'Impact', val: entry.impact, max: 300, limit: 250, isLow: false },
-                    { lab: 'Feed', val: entry.feed, max: 150, limit: 120, isLow: false },
-                    { lab: 'Damper', val: entry.damper, max: 100, limit: 80, isLow: false }
-                ];
-            }
+    const T = globalData?.thresholds || {}; 
+    if (forceReset) currentIdx = 0;
+    const mode = document.getElementById('chartMode')?.value || 'tempVsOil';
 
-            config.forEach(g => {
-                const val = parseFloat(g.val || 0);
-                const lim = parseFloat(g.limit || 0);
-                const angle = (Math.min(val / g.max, 1) * 180) - 90;
-                const isAlert = g.isLow ? (val <= lim && lim > 0) : (val >= lim && lim > 0);
-                const color = isAlert ? 'var(--red)' : 'var(--ey)';
-                html += `<div class="dial-wrapper">
-                    <svg viewBox="0 0 100 65"><path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="#333" stroke-width="8"/><line x1="50" y1="50" x2="${50 + 38 * Math.cos((angle - 90) * Math.PI / 180)}" y2="${50 + 38 * Math.sin((angle - 90) * Math.PI / 180)}" stroke="${color}" stroke-width="4"/></svg>
-                    <div class="dial-value" style="color:${color}">${val.toFixed(1)}</div>
+    livelyTimer = setInterval(() => {
+        if (!d[currentIdx]) { currentIdx = 0; }
+        
+        const entry = d[currentIdx];
+        const dateStr = entry.date || "N/A";
+        
+        // Setup the Date Badge
+        let html = `<div class="date-badge">AUDIT DATE: ${dateStr}</div>`;
+        let config = [];
+
+        // Define Mode Configurations
+        if (mode === 'tempVsOil') {
+            config = [
+                { lab: 'Oil bar', val: entry.oil, max: 10, limit: T['Engine oil pressure_Low'], decimal: true, isLow: true },
+                { lab: 'RPM', val: entry.rpm, max: 3000, limit: T['Engine RPM Drilling_High'] || 2200, decimal: false, isLow: false },
+                { lab: 'Temp °C', val: entry.temp, max: 130, limit: T['Engine Temp_High'] || 105, decimal: false, isLow: false }
+            ];
+        } else if (mode === 'loadVsComp') {
+            config = [
+                { lab: 'Eng Load %', val: entry.load, max: 100, limit: 95, decimal: false, isLow: false },
+                { lab: 'Compressor %', val: entry.comp, max: 100, limit: 90, decimal: false, isLow: false }
+            ];
+        } else if (mode === 'setBit') {
+            config = [
+                { lab: 'Air Set bar', val: entry.air, max: 35, limit: 30, decimal: true, isLow: false },
+                { lab: 'Bit Pr bar', val: entry.bit, max: 35, limit: T['Bit_Pressure_High'] || 30, decimal: true, isLow: false }
+            ];
+        } else if (mode === 'hydro_impact') {
+            config = [
+                { lab: 'Impact', val: entry.impact, max: 300, limit: T['Impact_Pressure_High'] || 250, isLow: false },
+                { lab: 'Feed', val: entry.feed, max: 150, limit: T['Feed_Pressure_High'] || 100, isLow: false },
+                { lab: 'Damper', val: entry.damper, max: 100, limit: T['Damper_Pressure_High'] || 80, isLow: false }
+            ];
+        }
+
+        // Build the SVG HTML
+        config.forEach(g => {
+            const val = parseFloat(g.val || 0);
+            const lim = parseFloat(g.limit || 0);
+            const angle = (Math.min(val / g.max, 1) * 180) - 90;
+            
+            const isAlert = g.isLow ? (val <= lim && lim > 0) : (val >= lim && lim > 0);
+            const color = isAlert ? 'var(--red)' : 'var(--ey)';
+
+            html += `
+                <div class="dial-wrapper">
+                    <svg viewBox="0 0 100 65">
+                        <path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="8" stroke-linecap="round" />
+                        <line class="needle" x1="50" y1="50" 
+                              x2="${50 + 38 * Math.cos((angle - 90) * Math.PI / 180)}" 
+                              y2="${50 + 38 * Math.sin((angle - 90) * Math.PI / 180)}" 
+                              stroke="${color}" stroke-width="4" stroke-linecap="round" />
+                    </svg>
+                    <div class="dial-value" style="color:${color}">${g.decimal ? val.toFixed(1) : Math.round(val)}</div>
                     <span class="dial-label">${g.lab}</span>
                 </div>`;
-            });
-            row.innerHTML = html;
-            document.getElementById('current-seq').innerText = currentIdx + 1;
-            currentIdx = (currentIdx + 1) % d.length;
-        }, 2000);
-    }
+        });
+        
+        row.innerHTML = html;
+
+        // Safety check for sequence badge
+        const seqBadge = document.getElementById('current-seq');
+        if (seqBadge) seqBadge.innerText = currentIdx + 1;
+
+        currentIdx = (currentIdx + 1) % d.length;
+    }, 2000);
+}
 
     function drawChart() {
     // 1. Safety Check
@@ -788,6 +823,7 @@ function applyGlobalFilters() {
 </script>
 </body>
 </html>
+
 
 
 
