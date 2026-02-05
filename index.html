@@ -224,17 +224,20 @@
        BOLDER RADIAL DIAL GAUGE STYLING
        ========================================= */
     .gauge-partition {
-        flex: 0 0 25%; /* Slightly more height for bigger dials */
-        display: flex;
-        justify-content: space-around;
-        align-items: center;
-        background: rgba(0,0,0,0.8);
-        border: 1px solid #444;
-        margin: 5px 0;
-        border-radius: 4px;
-        padding: 15px 10px;
-        position: relative;
-    }
+    position: relative;
+    padding-top: 30px; /* Creates space for the date badge */
+}
+
+.date-badge {
+    position: absolute;
+    top: 50%;
+    left: 20px;
+    transform: translateY(-50%); /* Centers vertically */
+    font-weight: bold;
+    color: var(--ey);
+    border-left: 3px solid var(--ey);
+    padding-left: 10px;
+}
 
     .dial-wrapper {
         position: relative;
@@ -546,17 +549,22 @@
             document.getElementById('v-fleet-load').innerText = avgLoad + "%";
         }
 
-        // 2. UPDATE SIDE VITALS (Specific Machine)
+       // 2. UPDATE SIDE VITALS (Specific Machine)
         const rigEntries = (data.monthlyData || []).filter(e => e.rigId === selectedRigId);
-        const last = rigEntries[rigEntries.length - 1];
+        const last = rigEntries[rigEntries.length - 1]; // This gets the most recent audit
+        
         if (last) {
-            document.getElementById('v-boost').innerText = last.boost || "0";
-            document.getElementById('v-fuel').innerText = last.fuel || "0";
-            document.getElementById('v-receiver').innerText = last.receiver || "0";
-            document.getElementById('v-temp').innerText = (last.hydTemp || "0") + "°C";
-            document.getElementById('vitals-date-stamp').innerText = "Last Audit: " + last.date;
+            // We use multiple names to make sure we catch the data
+            document.getElementById('v-boost').innerText = last.boost || last.boostPressure || "0";
+            document.getElementById('v-fuel').innerText = last.fuel || last.fuelPressure || "0";
+            document.getElementById('v-receiver').innerText = last.receiver || last.receiverPr || "0";
+            document.getElementById('v-temp').innerText = (last.hydTemp || last.hydOilTemp || "0") + "°C";
+            document.getElementById('vitals-date-stamp').innerText = "Last Audit: " + (last.date || "N/A");
+        } else {
+            // Reset if no data found for this rig
+            ["v-boost", "v-fuel", "v-receiver", "v-temp"].forEach(id => document.getElementById(id).innerText = "--");
+            document.getElementById('vitals-date-stamp').innerText = "No data for this machine";
         }
-
         applyGlobalFilters(); 
         drawChart();
         startLivelyGauges(true);
@@ -564,17 +572,21 @@
     }
 
     function applyGlobalFilters() {
-        const selRegion = document.getElementById('cityFocus').value;
-        const rows = document.querySelectorAll('#fleet-summary-body tr');
-        let activeCount = 0;
+    const selRegion = document.getElementById('cityFocus').value;
+    const selModel = document.getElementById('modelSelect').value;
+    const rows = document.querySelectorAll('#fleet-summary-body tr');
 
-        // --- REGION FILTER LOGIC ---
-        rows.forEach(row => {
-            const rReg = row.getAttribute('data-region');
-            const match = (selRegion === "All" || rReg === selRegion);
-            row.style.display = match ? "" : "none";
-            if (match) activeCount++;
-        });
+    rows.forEach(row => {
+        const rReg = row.getAttribute('data-region') || "";
+        const rMod = row.getAttribute('data-model') || "";
+        
+        // Match BOTH Region and Model. "All" or empty string acts as "Show Everything"
+        const regionMatch = (selRegion === "All India (National)" || selRegion === "All" || rReg === selRegion);
+        const modelMatch = (selModel === "" || rMod === selModel);
+        
+        row.style.display = (regionMatch && modelMatch) ? "" : "none";
+    });
+}
 
         // --- TRIGGER ALERTS SCAN ---
         const alertList = document.getElementById('alert-list');
@@ -607,7 +619,7 @@
             if (!d[currentIdx]) { currentIdx = 0; return; }
             const entry = d[currentIdx];
             const mode = document.getElementById('chartMode').value;
-            let html = `<div class="date-badge" style="position:absolute; top:-10px; left:10px; font-size:0.7rem; background:var(--card); padding:2px 8px; border:1px solid #444;">AUDIT: ${entry.date}</div>`;
+            let html = `<div class="date-badge" style="position:absolute; top: 15px; left: 20px; font-size: 0.9rem; font-weight: bold; color: var(--ey); background: rgba(0,0,0,0.5); padding: 5px 12px; border-left: 4px solid var(--ey); z-index: 10;">AUDIT: ${entry.date}</div>`;
             let config = [];
 
             if (mode === 'tempVsOil') {
@@ -734,4 +746,5 @@
 </script>
 </body>
 </html>
+
 
