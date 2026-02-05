@@ -296,7 +296,6 @@
 </div>
 
     <div class="vitals-box">
-        <h3 style="color:var(--ey); margin:0; border-bottom: 1px solid #333; padding-bottom: 10px;">📊 MACHINE VITALS</h3>
         <table class="vital-table" style="width:100%; margin-top:10px;">
             <tr><td class="v-label">Boost Pressure</td><td class="v-value" id="v-boost">0</td></tr>
             <tr><td class="v-label">Fuel Pressure</td><td class="v-value" id="v-fuel">0</td></tr>
@@ -542,18 +541,18 @@
         } catch (err) { console.error("Refresh Error:", err); }
     }
 
-   function updateUI(data) {
+  function updateUI(data) {
     if (!data) return;
-    globalData = data; // Set global context for other functions
+    globalData = data; 
 
     const summaryBody = document.getElementById('fleet-summary-body');
     const warningBox = document.getElementById('auditWarning');
+    const selectedRigId = document.getElementById('rigSelect').value;
 
     try {
         // --- 1. AUDIT COMPLIANCE WARNING ---
-        const selectedRigId = document.getElementById('rigSelect').value.toUpperCase();
         if (data.summary) {
-            const selectedRigData = data.summary.find(r => String(r.id).toUpperCase() === selectedRigId);
+            const selectedRigData = data.summary.find(r => String(r.id).toUpperCase() === selectedRigId.toUpperCase());
             const today = new Date().getDate();
             const requiredAudits = Math.max(0, today - 1);
 
@@ -579,38 +578,34 @@
                 </tr>`).join('');
         }
 
-       // --- UPDATE TOP VITALS (Ensure these match your .gs property names) ---
-if (data.vitals) {
-    // We use || "0" to ensure we don't display "undefined"
-    document.getElementById('v-boost').innerText = data.vitals.boost || data.vitals.boostPressure || "0";
-    document.getElementById('v-fuel').innerText = data.vitals.fuel || data.vitals.fuelPressure || "0";
-    document.getElementById('v-receiver').innerText = data.vitals.rec || data.vitals.receiverPr || "0";
-    document.getElementById('v-temp').innerText = (data.vitals.hyd || data.vitals.hydOilTemp || "0") + "°C";
-}
+        // --- 3. UPDATE MACHINE VITALS (FILTERED BY SELECTED RIG) ---
+        // We find the latest entry for the specific selected rig to show in the vitals box
+        const latestRigEntry = (data.monthlyData || [])
+            .filter(e => e.rigId === selectedRigId)
+            .pop(); // Get the most recent row
 
-// --- UPDATE MINI STATS (Fleet Avg / Active Assets) ---
-if (data.summary) {
-    const activeCount = data.summary.length;
-    const avgLoad = (data.summary.reduce((acc, r) => acc + parseFloat(r.avgLoad || 0), 0) / activeCount).toFixed(1);
-    
-    document.getElementById('v-active-rigs').innerText = activeCount;
-    document.getElementById('v-fleet-load').innerText = avgLoad + "%";
-}
+        if (latestRigEntry) {
+            document.getElementById('v-boost').innerText = latestRigEntry.boost || "0";
+            document.getElementById('v-fuel').innerText = latestRigEntry.fuel || "0";
+            document.getElementById('v-receiver').innerText = latestRigEntry.receiver || "0";
+            document.getElementById('v-temp').innerText = (latestRigEntry.hydTemp || "0") + "°C";
+            document.getElementById('vitals-date-stamp').innerText = "Data as of: " + latestRigEntry.date;
+        } else {
+            // Reset if no data for this rig this month
+            document.getElementById('v-boost').innerText = "--";
+            document.getElementById('v-fuel').innerText = "--";
+            document.getElementById('v-receiver').innerText = "--";
+            document.getElementById('v-temp').innerText = "--";
+        }
 
         // --- 4. RUN FILTERS & DYNAMIC ALERTS ---
         applyGlobalFilters(); 
         
         // --- 5. REFRESH CHARTS ---
-        if (typeof drawChart === 'function') {
-            drawChart();
-        }
+        drawChart();
 
-        // --- 6. RESTART RADIAL GAUGE LOOP ---
-        if (document.body.classList.contains('authorized')) {
-            if (globalData.monthlyData && globalData.monthlyData.length > 0) {
-                startLivelyGauges(true);
-            }
-        }
+        // --- 6. RESTART RADIAL GAUGE LOOP (FORCED RESET) ---
+        startLivelyGauges(true);
 
         const syncEl = document.getElementById('last-sync');
         if (syncEl) syncEl.innerText = new Date().toLocaleTimeString();
@@ -825,6 +820,7 @@ function exportToExcel() {
 </script>
 </body>
 </html>
+
 
 
 
