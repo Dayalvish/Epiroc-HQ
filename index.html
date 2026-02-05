@@ -459,10 +459,8 @@
         const u = document.getElementById('userIn').value;
         const p = document.getElementById('passIn').value;
         const msg = document.getElementById('login-msg');
-        
         if (!u || !p) { msg.innerText = "Please enter credentials."; return; }
         msg.innerText = "Authenticating...";
-        
         try {
             const resp = await fetch(`${API}?get=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`);
             const data = await resp.json();
@@ -472,11 +470,7 @@
                 sessionStorage.setItem('user', u);
                 sessionStorage.setItem('logger', data.logger);
                 document.getElementById('id-badge').innerText = `${u}-${data.logger}`;
-                
-                if(data.role === 'mgmt') { 
-                    document.getElementById('mgmt-city-box').style.display = 'block'; 
-                }
-                
+                if(data.role === 'mgmt') document.getElementById('mgmt-city-box').style.display = 'block'; 
                 document.body.classList.add('authorized');
                 init(); 
             } else { msg.innerText = "Invalid Login."; }
@@ -509,12 +503,8 @@
             const res = await fetch(getFullUrl(`get=list&model=${encodeURIComponent(model)}`));
             const rigs = await res.json();
             if (rigs && rigs.length > 0) {
-                rigSelect.innerHTML = rigs.map((id, index) => 
-                    `<option value="${id}" ${index === 0 ? 'selected' : ''}>${id}</option>`
-                ).join('');
-            } else {
-                rigSelect.innerHTML = '<option value="">No Rigs Found</option>';
-            }
+                rigSelect.innerHTML = rigs.map((id, index) => `<option value="${id}" ${index === 0 ? 'selected' : ''}>${id}</option>`).join('');
+            } else { rigSelect.innerHTML = '<option value="">No Rigs Found</option>'; }
             refresh();
         } catch (e) { console.error("Rig list sync failed:", e); }
     }
@@ -526,34 +516,18 @@
         try {
             const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}&mode=${mode}`));
             const data = await res.json();
-            globalData = data; 
             updateUI(data);
         } catch (err) { console.error("Refresh Error:", err); }
     }
 
-   function updateUI(data) {
-    if (!data) return;
-    globalData = data; // Set global context for other functions
+    function updateUI(data) {
+        if (!data) return;
+        globalData = data;
+        const summaryBody = document.getElementById('fleet-summary-body');
+        const selectedRigId = document.getElementById('rigSelect').value;
 
-    const summaryBody = document.getElementById('fleet-summary-body');
-    const warningBox = document.getElementById('auditWarning');
-
-    try {
-        // --- 1. AUDIT COMPLIANCE WARNING ---
-        const selectedRigId = document.getElementById('rigSelect').value.toUpperCase();
+        // 1. UPDATE TABLE & COUNTERS
         if (data.summary) {
-            const selectedRigData = data.summary.find(r => String(r.id).toUpperCase() === selectedRigId);
-            const today = new Date().getDate();
-            const requiredAudits = Math.max(0, today - 1);
-
-            if (selectedRigData && parseInt(selectedRigData.audits || 0) < requiredAudits) {
-                warningBox.style.display = 'block';
-                warningBox.innerHTML = `⚠️ RIG ${selectedRigId}: ONLY ${selectedRigData.audits}/${today} AUDITS DONE`;
-            } else {
-                warningBox.style.display = 'none';
-            }
-
-            // --- 2. UPDATE FLEET SUMMARY TABLE ---
             summaryBody.innerHTML = data.summary.map(r => `
                 <tr data-region="${r.region || ''}" data-model="${r.model || ''}">
                     <td><b>${r.id}</b></td>
@@ -566,142 +540,119 @@
                     <td>${r.avgBit || 0}</td>
                     <td>${r.avgImpact || 0}</td>
                 </tr>`).join('');
+            
+            document.getElementById('v-active-rigs').innerText = data.summary.length;
+            const avgLoad = (data.summary.reduce((acc, r) => acc + parseFloat(r.avgLoad || 0), 0) / data.summary.length).toFixed(1);
+            document.getElementById('v-fleet-load').innerText = avgLoad + "%";
         }
 
-        // --- 3. UPDATE TOP VITALS ---
-        if (data.vitals) {
-            document.getElementById('v-boost').innerText = data.vitals.boost || "0";
-            document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
-            document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
-            document.getElementById('v-temp').innerText = (data.vitals.hyd || "0") + "°C";
+        // 2. UPDATE SIDE VITALS (Specific Machine)
+        const rigEntries = (data.monthlyData || []).filter(e => e.rigId === selectedRigId);
+        const last = rigEntries[rigEntries.length - 1];
+        if (last) {
+            document.getElementById('v-boost').innerText = last.boost || "0";
+            document.getElementById('v-fuel').innerText = last.fuel || "0";
+            document.getElementById('v-receiver').innerText = last.receiver || "0";
+            document.getElementById('v-temp').innerText = (last.hydTemp || "0") + "°C";
+            document.getElementById('vitals-date-stamp').innerText = "Last Audit: " + last.date;
         }
 
-        // --- 4. RUN FILTERS & DYNAMIC ALERTS ---
         applyGlobalFilters(); 
-        
-        // --- 5. REFRESH CHARTS ---
-        if (typeof drawChart === 'function') {
-            drawChart();
-        }
-
-        // --- 6. RESTART RADIAL GAUGE LOOP ---
-        if (document.body.classList.contains('authorized')) {
-            if (globalData.monthlyData && globalData.monthlyData.length > 0) {
-                startLivelyGauges(true);
-            }
-        }
-
-        const syncEl = document.getElementById('last-sync');
-        if (syncEl) syncEl.innerText = new Date().toLocaleTimeString();
-
-    } catch (err) {
-        console.error("UI Update Error:", err);
+        drawChart();
+        startLivelyGauges(true);
+        document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
     }
-}
-// --- 1. DYNAMIC ALERT WINDOW LOGIC (Correct & Sanitized) ---
-function applyGlobalFilters() {
-    const alertList = document.getElementById('alert-list');
-    const countBadge = document.getElementById('alert-count-badge');
-    if (!alertList || !globalData || !globalData.monthlyData) return;
 
-    const T_Map = globalData.thresholds || {}; 
-    const rawEntries = globalData.monthlyData; 
-    let activeAlerts = []; 
+    function applyGlobalFilters() {
+        const selRegion = document.getElementById('cityFocus').value;
+        const rows = document.querySelectorAll('#fleet-summary-body tr');
+        let activeCount = 0;
 
-    rawEntries.forEach(entry => {
-        const rigName = entry.rigId || "Fleet Rig"; 
-        const incidentDate = entry.date || "N/A"; 
-
-        // Oil Pressure logic
-        const oilVal = parseFloat(entry.oil || 0);
-        const oilLimit = parseFloat(T_Map['Engine oil pressure_Low'] || 0);
-        if (oilLimit > 0 && oilVal > 0 && oilVal <= oilLimit) {
-            activeAlerts.push(`<li style="color:var(--red); font-weight:bold; margin-bottom:12px; list-style:none; border-left: 4px solid var(--red); padding: 8px; background: rgba(255,77,77,0.15); border-radius:0 4px 4px 0;">
-                <div style="color:var(--ey); font-size:0.85rem; text-transform:uppercase;">${rigName}</div>
-                <div style="font-size:0.95rem;">🚨 LOW OIL: ${oilVal.toFixed(1)} bar</div>
-                <div style="color:#aaa; font-size:0.7rem; font-weight:normal; margin-top:4px;">DATE: ${incidentDate} | LIMIT: ${oilLimit}</div>
-            </li>`);
-        }
-
-        // Temp logic
-        const tempVal = parseFloat(entry.temp || 0);
-        const tempLimit = parseFloat(T_Map['Engine Temp_High'] || 0);
-        if (tempLimit > 0 && tempVal >= tempLimit) {
-            activeAlerts.push(`<li style="color:var(--red); font-weight:bold; margin-bottom:12px; list-style:none; border-left: 4px solid var(--red); padding: 8px; background: rgba(255,77,77,0.15); border-radius:0 4px 4px 0;">
-                <div style="color:var(--ey); font-size:0.85rem; text-transform:uppercase;">${rigName}</div>
-                <div style="font-size:0.95rem;">🚨 HIGH TEMP: ${tempVal}°C</div>
-                <div style="color:#aaa; font-size:0.7rem; font-weight:normal; margin-top:4px;">DATE: ${incidentDate} | LIMIT: ${tempLimit}</div>
-            </li>`);
-        }
-    });
-
-    if (activeAlerts.length > 0) {
-        if (countBadge) { countBadge.innerText = activeAlerts.length; countBadge.style.background = 'var(--red)'; }
-        alertList.innerHTML = `<ul style="list-style:none; padding:0; margin:0; text-align:left;">${activeAlerts.reverse().join('')}</ul>`;
-    } else {
-        if (countBadge) { countBadge.innerText = "0"; countBadge.style.background = '#444'; }
-        alertList.innerHTML = `<div style="color:var(--green); font-weight:bold; padding:20px; text-align:center; border:1px dashed #333; border-radius:8px;">STATUS: NORMAL</div>`;
-    }
-}
-
-// --- 2. DYNAMIC RADIAL DIAL GAUGE LOGIC (Fixed to Filter by Rig) ---
-function startLivelyGauges(forceReset = false) {
-    if (livelyTimer) clearInterval(livelyTimer);
-    
-    // FIX: Filter data to only show the selected rig's history in the gauges
-    const selectedRig = document.getElementById('rigSelect')?.value;
-    const d = (globalData?.monthlyData || []).filter(entry => entry.rigId === selectedRig);
-    
-    const T = globalData?.thresholds || {}; 
-    const row = document.getElementById('gauge-row');
-    if (!row || d.length === 0) return;
-
-    if (forceReset) currentIdx = 0;
-    const mode = document.getElementById('chartMode')?.value || 'tempVsOil';
-
-    livelyTimer = setInterval(() => {
-        if (!d[currentIdx]) { currentIdx = 0; return; }
-        const entry = d[currentIdx];
-        const dateStr = entry.date || "N/A";
-        let html = `<div class="date-badge">AUDIT DATE: ${dateStr}</div>`;
-        
-        let config = [];
-        if (mode === 'tempVsOil') {
-            config = [
-                { lab: 'Oil bar', val: entry.oil || 0, max: 10, limit: T['Engine oil pressure_Low'] || 0, decimal: true, isLow: true },
-                { lab: 'RPM', val: entry.rpm || 0, max: 3000, limit: T['Engine RPM Drilling_High'] || 2500, decimal: false, isLow: false },
-                { lab: 'Temp °C', val: entry.temp || 0, max: 130, limit: T['Engine Temp_High'] || 110, decimal: false, isLow: false }
-            ];
-        } else if (mode === 'hydro_impact') {
-            config = [
-                { lab: 'Impact', val: entry.impact || 0, max: 300, limit: T['Impact_Pressure_High'] || 250, isLow: false },
-                { lab: 'Feed', val: entry.feed || 0, max: 150, limit: T['Feed_Pressure_High'] || 100, isLow: false },
-                { lab: 'Damper', val: entry.damper || 0, max: 100, limit: T['Damper_Pressure_High'] || 80, isLow: false }
-            ];
-        }
-
-        config.forEach(g => {
-            const val = parseFloat(g.val) || 0;
-            const lim = parseFloat(g.limit) || 0;
-            const angle = (Math.min(val / g.max, 1) * 180) - 90;
-            const isAlert = g.isLow ? (val <= lim && lim > 0) : (val >= lim && lim > 0);
-            const color = isAlert ? 'var(--red)' : 'var(--ey)';
-
-            html += `<div class="dial-wrapper">
-                <svg viewBox="0 0 100 65">
-                    <path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="8" stroke-linecap="round" />
-                    <line x1="50" y1="50" x2="${50 + 38 * Math.cos((angle - 90) * Math.PI / 180)}" y2="${50 + 38 * Math.sin((angle - 90) * Math.PI / 180)}" stroke="${color}" stroke-width="4" stroke-linecap="round" />
-                </svg>
-                <div class="dial-value" style="color:${color}">${g.decimal ? val.toFixed(1) : Math.round(val)}</div>
-                <span class="dial-label">${g.lab}</span>
-            </div>`;
+        // --- REGION FILTER LOGIC ---
+        rows.forEach(row => {
+            const rReg = row.getAttribute('data-region');
+            const match = (selRegion === "All" || rReg === selRegion);
+            row.style.display = match ? "" : "none";
+            if (match) activeCount++;
         });
-        row.innerHTML = html;
-        currentIdx = (currentIdx + 1) % d.length;
-    }, 2000);
-}
-       // --- CHARTING LOGIC ---
-function drawChart() {
+
+        // --- TRIGGER ALERTS SCAN ---
+        const alertList = document.getElementById('alert-list');
+        const badge = document.getElementById('alert-count-badge');
+        const T = globalData.thresholds || {};
+        let alerts = [];
+
+        (globalData.monthlyData || []).forEach(e => {
+            const oilLim = parseFloat(T['Engine oil pressure_Low'] || 0);
+            if (oilLim > 0 && parseFloat(e.oil) <= oilLim) {
+                alerts.push(`<li style="border-left:4px solid var(--red); padding:5px; margin-bottom:5px; background:rgba(255,0,0,0.1); list-style:none;">
+                    <b>${e.rigId}</b>: Low Oil ${e.oil} bar (Date: ${e.date})</li>`);
+            }
+        });
+
+        if (badge) badge.innerText = alerts.length;
+        alertList.innerHTML = alerts.length ? `<ul style="padding:0;">${alerts.reverse().join('')}</ul>` : `<div style="color:var(--green); text-align:center;">STATUS: NORMAL</div>`;
+    }
+
+    function startLivelyGauges(forceReset = false) {
+        if (livelyTimer) clearInterval(livelyTimer);
+        const selectedRig = document.getElementById('rigSelect').value;
+        const d = (globalData?.monthlyData || []).filter(e => e.rigId === selectedRig);
+        const T = globalData?.thresholds || {};
+        const row = document.getElementById('gauge-row');
+        if (!row || d.length === 0) return;
+        if (forceReset) currentIdx = 0;
+
+        livelyTimer = setInterval(() => {
+            if (!d[currentIdx]) { currentIdx = 0; return; }
+            const entry = d[currentIdx];
+            const mode = document.getElementById('chartMode').value;
+            let html = `<div class="date-badge" style="position:absolute; top:-10px; left:10px; font-size:0.7rem; background:var(--card); padding:2px 8px; border:1px solid #444;">AUDIT: ${entry.date}</div>`;
+            let config = [];
+
+            if (mode === 'tempVsOil') {
+                config = [
+                    { lab: 'Oil bar', val: entry.oil, max: 10, limit: T['Engine oil pressure_Low'], isLow: true },
+                    { lab: 'RPM', val: entry.rpm, max: 3000, limit: 2500, isLow: false },
+                    { lab: 'Temp °C', val: entry.temp, max: 130, limit: T['Engine Temp_High'], isLow: false }
+                ];
+            } else if (mode === 'loadVsComp') {
+                config = [
+                    { lab: 'Eng Load %', val: entry.load || 0, max: 100, limit: 95, isLow: false },
+                    { lab: 'Comp %', val: entry.comp || 0, max: 100, limit: 90, isLow: false }
+                ];
+            } else if (mode === 'setBit') {
+                config = [
+                    { lab: 'Air Set', val: entry.air || 0, max: 35, limit: 30, isLow: false },
+                    { lab: 'Bit Pr', val: entry.bit || 0, max: 35, limit: 30, isLow: false }
+                ];
+            } else if (mode === 'hydro_impact') {
+                config = [
+                    { lab: 'Impact', val: entry.impact, max: 300, limit: 250, isLow: false },
+                    { lab: 'Feed', val: entry.feed, max: 150, limit: 120, isLow: false },
+                    { lab: 'Damper', val: entry.damper, max: 100, limit: 80, isLow: false }
+                ];
+            }
+
+            config.forEach(g => {
+                const val = parseFloat(g.val || 0);
+                const lim = parseFloat(g.limit || 0);
+                const angle = (Math.min(val / g.max, 1) * 180) - 90;
+                const isAlert = g.isLow ? (val <= lim && lim > 0) : (val >= lim && lim > 0);
+                const color = isAlert ? 'var(--red)' : 'var(--ey)';
+                html += `<div class="dial-wrapper">
+                    <svg viewBox="0 0 100 65"><path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="#333" stroke-width="8"/><line x1="50" y1="50" x2="${50 + 38 * Math.cos((angle - 90) * Math.PI / 180)}" y2="${50 + 38 * Math.sin((angle - 90) * Math.PI / 180)}" stroke="${color}" stroke-width="4"/></svg>
+                    <div class="dial-value" style="color:${color}">${val.toFixed(1)}</div>
+                    <span class="dial-label">${g.lab}</span>
+                </div>`;
+            });
+            row.innerHTML = html;
+            document.getElementById('current-seq').innerText = currentIdx + 1;
+            currentIdx = (currentIdx + 1) % d.length;
+        }, 2000);
+    }
+
+    function drawChart() {
     // 1. Safety Check
     if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
         if (chart) chart.destroy();
@@ -770,15 +721,17 @@ function drawChart() {
         }
     });
 }
-function exportToExcel() {
-    let table = document.getElementById("summary-tbl");
-    if (!table) return;
-    let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
-    let link = document.createElement('a');
-    link.download = "Rig_Audit_Report.xls";
-    link.href = url;
-    link.click();
-}
+
+
+    function exportToExcel() {
+        let table = document.getElementById("summary-tbl");
+        let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
+        let link = document.createElement('a');
+        link.download = "Rig_Report.xls";
+        link.href = url;
+        link.click();
+    }
 </script>
 </body>
 </html>
+
