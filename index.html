@@ -683,24 +683,23 @@ function startLivelyGauges(forceReset = false) {
         let html = `<div class="date-badge">AUDIT DATE: ${dateStr}</div>`;
         let config = [];
 
-        // Define Mode Configurations
-        if (mode === 'tempVsOil') {
-            config = [
-                { lab: 'Oil bar', val: entry.oil, max: 10, limit: T['Engine oil pressure_Low'], decimal: true, isLow: true },
-                { lab: 'RPM', val: entry.rpm, max: 3000, limit: T['Engine RPM Drilling_High'] || 2200, decimal: false, isLow: false },
-                { lab: 'Temp °C', val: entry.temp, max: 130, limit: T['Engine Temp_High'] || 105, decimal: false, isLow: false }
-            ];
-        } else if (mode === 'loadVsComp') {
-            config = [
-                { lab: 'Eng Load %', val: entry.load, max: 100, limit: 95, decimal: false, isLow: false },
-                { lab: 'Compressor %', val: entry.comp, max: 100, limit: 90, decimal: false, isLow: false }
-            ];
-        } else if (mode === 'setBit') {
-            config = [
-                { lab: 'Air Set bar', val: entry.air, max: 35, limit: 30, decimal: true, isLow: false },
-                { lab: 'Bit Pr bar', val: entry.bit, max: 35, limit: T['Bit_Pressure_High'] || 30, decimal: true, isLow: false }
-            ];
-        } else if (mode === 'hydro_impact') {
+       // --- MODE 1: TEMP / OIL / RPM ---
+if (mode === 'tempVsOil') {
+    config = [
+        { lab: 'Oil bar', val: entry.oil, max: 10, limit: T['Engine oil pressure_Low'], isLow: true },
+        { lab: 'RPM', val: entry.rpm, max: 3000, limit: 2500, isLow: false }, // Use a safe default for RPM
+        { lab: 'Temp °C', val: entry.temp, max: 130, limit: T['Engine Temp_High'], isLow: false }
+    ];
+} 
+// --- MODE 2: LOAD vs COMPRESSOR ---
+else if (mode === 'loadVsComp') {
+    config = [
+        { lab: 'Eng Load %', val: entry.load || 0, max: 100, limit: T['Engine load Drilling_High'] || 95, isLow: false },
+        { lab: 'Comp %', val: entry.comp || 0, max: 100, limit: T['Compressor Load (Smartroc & PV)_High'] || 90, isLow: false }
+    ];
+}
+// --- MODE 4: HYDRAULIC / COMP TEMP ---
+else if (mode === 'hydro_impact') {
             config = [
                 { lab: 'Impact', val: entry.impact, max: 300, limit: T['Impact_Pressure_High'] || 250, isLow: false },
                 { lab: 'Feed', val: entry.feed, max: 150, limit: T['Feed_Pressure_High'] || 100, isLow: false },
@@ -717,18 +716,15 @@ function startLivelyGauges(forceReset = false) {
             const isAlert = g.isLow ? (val <= lim && lim > 0) : (val >= lim && lim > 0);
             const color = isAlert ? 'var(--red)' : 'var(--ey)';
 
-            html += `
-                <div class="dial-wrapper">
-                    <svg viewBox="0 0 100 65">
-                        <path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="8" stroke-linecap="round" />
-                        <line class="needle" x1="50" y1="50" 
-                              x2="${50 + 38 * Math.cos((angle - 90) * Math.PI / 180)}" 
-                              y2="${50 + 38 * Math.sin((angle - 90) * Math.PI / 180)}" 
-                              stroke="${color}" stroke-width="4" stroke-linecap="round" />
-                    </svg>
-                    <div class="dial-value" style="color:${color}">${g.decimal ? val.toFixed(1) : Math.round(val)}</div>
-                    <span class="dial-label">${g.lab}</span>
-                </div>`;
+            // This changes the dark outer border to a clearly visible soft white
+html += `<div class="dial-wrapper">
+    <svg viewBox="0 0 100 65">
+        <path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="8" stroke-linecap="round" />
+        <line class="needle" x1="50" y1="50" x2="${50 + 38 * Math.cos((angle - 90) * Math.PI / 180)}" y2="${50 + 38 * Math.sin((angle - 90) * Math.PI / 180)}" stroke="${color}" stroke-width="4" stroke-linecap="round" />
+    </svg>
+    <div class="dial-value" style="color:${color}">${g.decimal ? val.toFixed(1) : Math.round(val)}</div>
+    <span class="dial-label">${g.lab}</span>
+</div>`;
         });
         
         row.innerHTML = html;
@@ -823,6 +819,7 @@ function startLivelyGauges(forceReset = false) {
 </script>
 </body>
 </html>
+
 
 
 
