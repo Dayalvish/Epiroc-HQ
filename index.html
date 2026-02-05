@@ -563,84 +563,70 @@
             document.getElementById('v-fleet-load').innerText = avgLoad + "%";
         }
 
-        // --- 2. UPDATE MACHINE VITALS (LINKED TO SELECTION) ---
-        const rigEntries = (data.monthlyData || []).filter(e => e.rigId === selectedRigId);
-        const latest = rigEntries[rigEntries.length - 1]; 
+       // --- 2. MACHINE VITALS (Linked to Rig Selection) ---
+const selectedRigId = document.getElementById('rigSelect').value;
+const rigEntries = (data.monthlyData || []).filter(e => e.rigId === selectedRigId);
+const latest = rigEntries[rigEntries.length - 1]; 
 
-        if (latest) {
-            document.getElementById('v-boost').innerText = latest.boost || latest.boostPressure || "0";
-            document.getElementById('v-fuel').innerText = latest.fuel || latest.fuelPressure || "0";
-            document.getElementById('v-receiver').innerText = latest.receiver || latest.receiverPr || "0";
-            document.getElementById('v-temp').innerText = (latest.hydTemp || latest.hydOilTemp || "0") + "°C";
-            document.getElementById('vitals-date-stamp').innerText = "Last Audit: " + (latest.date || "N/A");
-        } else {
-            ["v-boost", "v-fuel", "v-receiver", "v-temp"].forEach(id => document.getElementById(id).innerText = "--");
-            document.getElementById('vitals-date-stamp').innerText = "No data found";
-        }
+if (latest) {
+    // Mapping Spreadsheet columns to HTML IDs
+    const vBoost = document.getElementById('v-boost');
+    const vFuel = document.getElementById('v-fuel');
+    const vRec = document.getElementById('v-receiver');
+    const vTemp = document.getElementById('v-temp');
+    const vDate = document.getElementById('vitals-date-stamp');
 
-        // --- 3. REFRESH COMPONENTS ---
-        applyGlobalFilters(); 
-        drawChart();
-        startLivelyGauges(true);
-        document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
-
-    } catch (err) {
-        console.error("UI Update Error:", err);
-    }
+    if (vBoost) vBoost.innerText = latest.boost || latest.boostPressure || "0";
+    if (vFuel)  vFuel.innerText = latest.fuel || latest.fuelPressure || "0";
+    if (vRec)   vRec.innerText = latest.receiver || latest.receiverPr || "0";
+    if (vTemp)  vTemp.innerText = (latest.hydTemp || latest.hydOilTemp || "0") + "°C";
+    if (vDate)  vDate.innerText = "Data as of: " + (latest.date || "--");
+} else {
+    // Clear boxes if no data found
+    ["v-boost", "v-fuel", "v-receiver", "v-temp"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = "--";
+    });
 }
-function applyGlobalFilters() {
-    const selRegion = document.getElementById('cityFocus').value;
-    const selModel = document.getElementById('modelSelect').value;
-    const rows = document.querySelectorAll('#fleet-summary-body tr');
 
-    // --- A. VISUAL TABLE FILTERING ---
-    rows.forEach(row => {
-        const rReg = row.getAttribute('data-region') || "";
-        const rMod = row.getAttribute('data-model') || "";
-        const regionMatch = (selRegion === "All India (National)" || selRegion === "All" || rReg === selRegion);
-        const modelMatch = (selModel === "" || rMod === selModel);
-        row.style.display = (regionMatch && modelMatch) ? "" : "none";
-    });
+// --- 3. TRIGGER ALERTS SIDEBAR (Threshold-Driven) ---
+const alertList = document.getElementById('alert-list');
+const badge = document.getElementById('alert-count-badge');
+const T = globalData.thresholds || {}; 
+let activeAlerts = [];
 
-    // --- B. TRIGGER PANEL SCAN (THRESHOLD LOGIC) ---
-    const alertList = document.getElementById('alert-list');
-    const badge = document.getElementById('alert-count-badge');
-    const T = globalData.thresholds || {}; 
-    let activeAlerts = [];
-
-    (globalData.monthlyData || []).forEach(e => {
-        // 1. Oil Pressure Scan (Decimal Logic)
-        const oilVal = parseFloat(e.oil || 0);
-        const oilLim = parseFloat(T['Engine oil pressure_Low'] || 0);
-        if (oilLim > 0 && oilVal > 0 && oilVal <= oilLim) {
-            activeAlerts.push(`<li style="border-left:4px solid var(--red); padding:8px; margin-bottom:8px; background:rgba(255,77,77,0.1); list-style:none; border-radius:0 4px 4px 0;">
-                <div style="color:var(--ey); font-weight:bold; font-size:0.85rem;">${e.rigId}</div>
-                <div style="font-weight:bold; color:#fff;">🚨 LOW OIL: ${oilVal.toFixed(1)} bar</div>
-                <div style="font-size:0.7rem; color:#888;">Threshold: ${oilLim}</div>
-            </li>`);
-        }
-
-        // 2. Comp Temp Scan
-        const compTVal = parseFloat(e.compTemp || 0);
-        const compTLim = parseFloat(T['Compressor Temp (H) (DTH)_High'] || 0);
-        if (compTLim > 0 && compTVal >= compTLim) {
-            activeAlerts.push(`<li style="border-left:4px solid var(--red); padding:8px; margin-bottom:8px; background:rgba(255,77,77,0.1); list-style:none; border-radius:0 4px 4px 0;">
-                <div style="color:var(--ey); font-weight:bold; font-size:0.85rem;">${e.rigId}</div>
-                <div style="font-weight:bold; color:#fff;">🚨 HIGH COMP TEMP: ${compTVal}°C</div>
-                <div style="font-size:0.7rem; color:#888;">Threshold: ${compTLim}</div>
-            </li>`);
-        }
-    });
-
-    // Update the UI Elements
-    if (badge) {
-        badge.innerText = activeAlerts.length;
-        badge.style.background = activeAlerts.length > 0 ? 'var(--red)' : '#444';
+(data.monthlyData || []).forEach(e => {
+    // Oil Check (Decimal Precision)
+    const oilVal = parseFloat(e.oil || 0);
+    const oilLim = parseFloat(T['Engine oil pressure_Low'] || 0);
+    if (oilLim > 0 && oilVal > 0 && oilVal <= oilLim) {
+        activeAlerts.push(`
+            <div class="alert-card" style="border-left:4px solid var(--red); background:rgba(255,77,77,0.1); padding:8px; margin-bottom:8px; border-radius:4px;">
+                <b style="color:var(--ey); font-size:0.7rem;">UNIT: ${e.rigId}</b><br>
+                <b style="color:var(--red); font-size:0.8rem;">🚨 LOW OIL: ${oilVal.toFixed(1)} bar</b>
+            </div>`);
     }
 
+    // Comp Temp Check
+    const compTVal = parseFloat(e.compTemp || 0);
+    const compTLim = parseFloat(T['Compressor Temp (H) (DTH)_High'] || 0);
+    if (compTLim > 0 && compTVal >= compTLim) {
+        activeAlerts.push(`
+            <div class="alert-card" style="border-left:4px solid var(--red); background:rgba(255,77,77,0.1); padding:8px; margin-bottom:8px; border-radius:4px;">
+                <b style="color:var(--ey); font-size:0.7rem;">UNIT: ${e.rigId}</b><br>
+                <b style="color:var(--red); font-size:0.8rem;">🚨 HIGH COMP TEMP: ${compTVal}°C</b>
+            </div>`);
+    }
+});
+
+// Update UI for Alerts
+if (badge) badge.innerText = activeAlerts.length;
+if (alertList) {
     alertList.innerHTML = activeAlerts.length ? 
-        `<ul style="padding:0; margin:0;">${activeAlerts.reverse().join('')}</ul>` : 
-        `<div style="color:var(--green); text-align:center; padding:20px; border:1px dashed #333; border-radius:8px;">STATUS: NORMAL</div>`;
+        activeAlerts.reverse().join('') : 
+        `<div style="text-align:center; padding:15px; color:var(--green); font-weight:bold;">
+            <span class="live-dot"></span> ALL PARAMETERS NORMAL
+         </div>`;
 }
     // --- 2. DYNAMIC RADIAL DIAL GAUGE LOGIC (Optimized & Protected) ---
 function startLivelyGauges(forceReset = false) {
@@ -813,6 +799,7 @@ config.forEach(g => {
 </script>
 </body>
 </html>
+
 
 
 
