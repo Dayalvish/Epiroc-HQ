@@ -588,17 +588,13 @@
                 <td>${r.avgImpact || 0}</td>
             </tr>`).join('');
 
-        function applyGlobalFilters() {
-    const alertList = document.getElementById('alert-list');
-    const countBadge = document.getElementById('alert-count-badge');
-    
-    // Safety: Clear old alerts before starting a new scan
-    alertList.innerHTML = "Scanning..."; 
-    if (countBadge) countBadge.innerText = "0";
+        applyGlobalFilters(); 
+        drawChart();
+        startLivelyGauges(true); // Forces the Gauges to unfreeze and show new month data
 
-    if (!globalData || !globalData.monthlyData) return;
-    
-    // ... (rest of your PART B scanning logic remains the same)
+    } catch (err) {
+        console.error("UI Update Error:", err);
+    }
 }
 // --- 1. DYNAMIC ALERT WINDOW LOGIC (Correct & Sanitized) ---
 function applyGlobalFilters() {
@@ -806,4 +802,5 @@ function exportToExcel() {
 </script>
 </body>
 </html>
+
 
