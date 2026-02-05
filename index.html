@@ -220,34 +220,46 @@
     padding: 15px; 
     border-radius: 8px; 
 }
-      /* =========================================
-       BOLDER RADIAL DIAL GAUGE STYLING
-       ========================================= */
-    .gauge-partition {
+     /* =========================================
+   BOLDER RADIAL DIAL GAUGE STYLING
+   ========================================= */
+.gauge-partition {
     position: relative;
-    padding-top: 30px; /* Creates space for the date badge */
+    display: flex;           /* FORCES HORIZONTAL */
+    flex-direction: row;     /* FORCES HORIZONTAL */
+    justify-content: space-around; 
+    align-items: center;
+    background: rgba(0,0,0,0.8);
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 20px 10px;
+    margin: 5px 0;
+    min-height: 160px;       /* Keeps the box stable */
+    overflow: hidden;        /* Prevents content spill */
 }
 
 .date-badge {
     position: absolute;
     top: 50%;
-    left: 20px;
-    transform: translateY(-50%); /* Centers vertically */
+    left: 15px;
+    transform: translateY(-50%);
     font-weight: bold;
+    font-size: 0.8rem;
     color: var(--ey);
     border-left: 3px solid var(--ey);
     padding-left: 10px;
+    z-index: 10;
+    background: rgba(13, 13, 13, 0.7); /* Background so it doesn't overlap text */
 }
 
-    .dial-wrapper {
-        position: relative;
-        width: 160px; /* Bigger dial footprint */
-        text-align: center;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-    }
-
+.dial-wrapper {
+    position: relative;
+    width: 130px;            /* Narrowed slightly to fit 3 in a row */
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
     /* Bolder Needle */
     .needle {
         transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
@@ -549,20 +561,17 @@
         document.getElementById('v-fleet-load').innerText = avgLoad + "%";
     }
 
-    // 2. UPDATE SIDE VITALS
-    const rigEntries = (data.monthlyData || []).filter(e => e.rigId === selectedRigId);
-    const last = rigEntries[rigEntries.length - 1];
-    
-    if (last) {
-        document.getElementById('v-boost').innerText = last.boost || last.boostPressure || "0";
-        document.getElementById('v-fuel').innerText = last.fuel || last.fuelPressure || "0";
-        document.getElementById('v-receiver').innerText = last.receiver || last.receiverPr || "0";
-        document.getElementById('v-temp').innerText = (last.hydTemp || last.hydOilTemp || "0") + "°C";
-        document.getElementById('vitals-date-stamp').innerText = "Last Audit: " + (last.date || "N/A");
-    } else {
-        ["v-boost", "v-fuel", "v-receiver", "v-temp"].forEach(id => document.getElementById(id).innerText = "--");
-        document.getElementById('vitals-date-stamp').innerText = "No data for this machine";
-    }
+    // --- UPDATE SIDE VITALS (Machine Link) ---
+const rigEntries = (data.monthlyData || []).filter(e => e.rigId === selectedRigId);
+const latest = rigEntries[rigEntries.length - 1]; 
+
+if (latest) {
+    document.getElementById('v-boost').innerText = latest.boost || latest.boostPressure || "0";
+    document.getElementById('v-fuel').innerText = latest.fuel || latest.fuelPressure || "0";
+    document.getElementById('v-receiver').innerText = latest.receiver || latest.receiverPr || "0";
+    document.getElementById('v-temp').innerText = (latest.hydTemp || latest.hydOilTemp || "0") + "°C";
+    document.getElementById('vitals-date-stamp').innerText = "Last Audit: " + (latest.date || "N/A");
+}
 
     applyGlobalFilters(); 
     drawChart();
@@ -742,6 +751,7 @@ function applyGlobalFilters() {
 </script>
 </body>
 </html>
+
 
 
 
