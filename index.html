@@ -550,69 +550,55 @@
     const selectedRigId = document.getElementById('rigSelect').value;
 
     try {
-        // --- 1. AUDIT COMPLIANCE WARNING ---
-        if (data.summary) {
-            const selectedRigData = data.summary.find(r => String(r.id).toUpperCase() === selectedRigId.toUpperCase());
-            const today = new Date().getDate();
-            const requiredAudits = Math.max(0, today - 1);
-
-            if (selectedRigData && parseInt(selectedRigData.audits || 0) < requiredAudits) {
-                warningBox.style.display = 'block';
-                warningBox.innerHTML = `⚠️ RIG ${selectedRigId}: ONLY ${selectedRigData.audits}/${today} AUDITS DONE`;
-            } else {
-                warningBox.style.display = 'none';
-            }
-
-            // --- 2. UPDATE FLEET SUMMARY TABLE ---
-            summaryBody.innerHTML = data.summary.map(r => `
-                <tr data-region="${r.region || ''}" data-model="${r.model || ''}">
-                    <td><b>${r.id}</b></td>
-                    <td>${r.audits || 0}</td>
-                    <td>${r.avgLoad || 0}%</td>
-                    <td>${r.avgTemp || 0}</td>
-                    <td>${r.avgOil || 0}</td>
-                    <td>${r.avgFuel || 0}</td>
-                    <td>${r.avgAir || 0}</td>
-                    <td>${r.avgBit || 0}</td>
-                    <td>${r.avgImpact || 0}</td>
-                </tr>`).join('');
+        // --- 1. UPDATE THE SIDEBAR COUNTERS (Avg Load / Active Assets) ---
+        if (data.summary && data.summary.length > 0) {
+            const activeCount = data.summary.length;
+            // This calculates the average load across the whole fleet
+            const totalLoad = data.summary.reduce((acc, r) => acc + parseFloat(r.avgLoad || 0), 0);
+            const fleetAvg = (totalLoad / activeCount).toFixed(1);
+            
+            document.getElementById('v-active-rigs').innerText = activeCount;
+            document.getElementById('v-fleet-load').innerText = fleetAvg + "%";
         }
 
-        // --- 3. UPDATE MACHINE VITALS (FILTERED BY SELECTED RIG) ---
-        // We find the latest entry for the specific selected rig to show in the vitals box
-        const latestRigEntry = (data.monthlyData || [])
-            .filter(e => e.rigId === selectedRigId)
-            .pop(); // Get the most recent row
+        // --- 2. UPDATE MACHINE VITALS (FILTERED FOR THE SELECTED RIG) ---
+        // Find all rows for the selected rig and take the last one (most recent)
+        const machineData = (data.monthlyData || []).filter(e => e.rigId === selectedRigId);
+        const latestEntry = machineData[machineData.length - 1]; 
 
-        if (latestRigEntry) {
-            document.getElementById('v-boost').innerText = latestRigEntry.boost || "0";
-            document.getElementById('v-fuel').innerText = latestRigEntry.fuel || "0";
-            document.getElementById('v-receiver').innerText = latestRigEntry.receiver || "0";
-            document.getElementById('v-temp').innerText = (latestRigEntry.hydTemp || "0") + "°C";
-            document.getElementById('vitals-date-stamp').innerText = "Data as of: " + latestRigEntry.date;
-        } else {
-            // Reset if no data for this rig this month
-            document.getElementById('v-boost').innerText = "--";
-            document.getElementById('v-fuel').innerText = "--";
-            document.getElementById('v-receiver').innerText = "--";
-            document.getElementById('v-temp').innerText = "--";
+        if (latestEntry) {
+            document.getElementById('v-boost').innerText = latestEntry.boost || "0";
+            document.getElementById('v-fuel').innerText = latestEntry.fuel || "0";
+            document.getElementById('v-receiver').innerText = latestEntry.receiver || "0";
+            document.getElementById('v-temp').innerText = (latestEntry.hydTemp || "0") + "°C";
+            document.getElementById('vitals-date-stamp').innerText = "Data as of: " + latestEntry.date;
         }
 
-        // --- 4. RUN FILTERS & DYNAMIC ALERTS ---
-        applyGlobalFilters(); 
-        
-        // --- 5. REFRESH CHARTS ---
-        drawChart();
+        // --- 3. REFRESH EVERYTHING ELSE ---
+        summaryBody.innerHTML = data.summary.map(r => `
+            <tr>
+                <td><b>${r.id}</b></td>
+                <td>${r.audits || 0}</td>
+                <td>${r.avgLoad || 0}%</td>
+                <td>${r.avgTemp || 0}</td>
+                <td>${r.avgOil || 0}</td>
+                <td>${r.avgFuel || 0}</td>
+                <td>${r.avgAir || 0}</td>
+                <td>${r.avgBit || 0}</td>
+                <td>${r.avgImpact || 0}</td>
+            </tr>`).join('');
 
-        // --- 6. RESTART RADIAL GAUGE LOOP (FORCED RESET) ---
-        startLivelyGauges(true);
+        function applyGlobalFilters() {
+    const alertList = document.getElementById('alert-list');
+    const countBadge = document.getElementById('alert-count-badge');
+    
+    // Safety: Clear old alerts before starting a new scan
+    alertList.innerHTML = "Scanning..."; 
+    if (countBadge) countBadge.innerText = "0";
 
-        const syncEl = document.getElementById('last-sync');
-        if (syncEl) syncEl.innerText = new Date().toLocaleTimeString();
-
-    } catch (err) {
-        console.error("UI Update Error:", err);
-    }
+    if (!globalData || !globalData.monthlyData) return;
+    
+    // ... (rest of your PART B scanning logic remains the same)
 }
 // --- 1. DYNAMIC ALERT WINDOW LOGIC (Correct & Sanitized) ---
 function applyGlobalFilters() {
@@ -820,3 +806,4 @@ function exportToExcel() {
 </script>
 </body>
 </html>
+
