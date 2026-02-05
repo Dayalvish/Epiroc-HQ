@@ -593,7 +593,7 @@ function applyGlobalFilters() {
     const selModel = document.getElementById('modelSelect').value;
     const rows = document.querySelectorAll('#fleet-summary-body tr');
 
-    // --- A. FILTER TABLE ROWS ---
+    // --- A. VISUAL TABLE FILTERING ---
     rows.forEach(row => {
         const rReg = row.getAttribute('data-region') || "";
         const rMod = row.getAttribute('data-model') || "";
@@ -602,43 +602,44 @@ function applyGlobalFilters() {
         row.style.display = (regionMatch && modelMatch) ? "" : "none";
     });
 
-    // --- B. TRIGGER ALERTS SCAN (THRESHOLD LINK) ---
+    // --- B. TRIGGER PANEL SCAN (THRESHOLD LOGIC) ---
     const alertList = document.getElementById('alert-list');
     const badge = document.getElementById('alert-count-badge');
     const T = globalData.thresholds || {}; 
-    let alerts = [];
+    let activeAlerts = [];
 
     (globalData.monthlyData || []).forEach(e => {
-        // Oil Pressure Check (Using exact column name)
+        // 1. Oil Pressure Scan (Decimal Logic)
         const oilVal = parseFloat(e.oil || 0);
         const oilLim = parseFloat(T['Engine oil pressure_Low'] || 0);
         if (oilLim > 0 && oilVal > 0 && oilVal <= oilLim) {
-            alerts.push(`<li style="border-left:4px solid var(--red); padding:8px; margin-bottom:8px; background:rgba(255,77,77,0.1); list-style:none;">
-                <div style="color:var(--ey); font-size:0.8rem; font-weight:bold;">${e.rigId}</div>
-                <div style="font-weight:bold;">🚨 LOW OIL: ${oilVal.toFixed(1)} bar</div>
+            activeAlerts.push(`<li style="border-left:4px solid var(--red); padding:8px; margin-bottom:8px; background:rgba(255,77,77,0.1); list-style:none; border-radius:0 4px 4px 0;">
+                <div style="color:var(--ey); font-weight:bold; font-size:0.85rem;">${e.rigId}</div>
+                <div style="font-weight:bold; color:#fff;">🚨 LOW OIL: ${oilVal.toFixed(1)} bar</div>
+                <div style="font-size:0.7rem; color:#888;">Threshold: ${oilLim}</div>
             </li>`);
         }
 
-        // Compressor Temp Check (Using exact column name)
+        // 2. Comp Temp Scan
         const compTVal = parseFloat(e.compTemp || 0);
         const compTLim = parseFloat(T['Compressor Temp (H) (DTH)_High'] || 0);
         if (compTLim > 0 && compTVal >= compTLim) {
-            alerts.push(`<li style="border-left:4px solid var(--red); padding:8px; margin-bottom:8px; background:rgba(255,77,77,0.1); list-style:none;">
-                <div style="color:var(--ey); font-size:0.8rem; font-weight:bold;">${e.rigId}</div>
-                <div style="font-weight:bold;">🚨 HIGH COMP TEMP: ${compTVal}°C</div>
+            activeAlerts.push(`<li style="border-left:4px solid var(--red); padding:8px; margin-bottom:8px; background:rgba(255,77,77,0.1); list-style:none; border-radius:0 4px 4px 0;">
+                <div style="color:var(--ey); font-weight:bold; font-size:0.85rem;">${e.rigId}</div>
+                <div style="font-weight:bold; color:#fff;">🚨 HIGH COMP TEMP: ${compTVal}°C</div>
+                <div style="font-size:0.7rem; color:#888;">Threshold: ${compTLim}</div>
             </li>`);
         }
     });
 
-    // Update Badge Count
+    // Update the UI Elements
     if (badge) {
-        badge.innerText = alerts.length;
-        badge.style.background = alerts.length > 0 ? 'var(--red)' : '#444';
+        badge.innerText = activeAlerts.length;
+        badge.style.background = activeAlerts.length > 0 ? 'var(--red)' : '#444';
     }
 
-    // Render List
-    alertList.innerHTML = alerts.length ? 
-        `<ul style="padding:0; margin:0;">${alerts.reverse().join('')}</ul>` : 
+    alertList.innerHTML = activeAlerts.length ? 
+        `<ul style="padding:0; margin:0;">${activeAlerts.reverse().join('')}</ul>` : 
         `<div style="color:var(--green); text-align:center; padding:20px; border:1px dashed #333; border-radius:8px;">STATUS: NORMAL</div>`;
 }
     // --- 2. DYNAMIC RADIAL DIAL GAUGE LOGIC (Optimized & Protected) ---
@@ -812,6 +813,7 @@ config.forEach(g => {
 </script>
 </body>
 </html>
+
 
 
 
