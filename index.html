@@ -273,7 +273,7 @@
         .summary-table th { background: #222; color: var(--ey); position: sticky; top: 0; z-index: 10; }
         .summary-table td { padding: 6px; border: 1px solid #333; text-align: center; }
 
-        <div class="sidebar-right-split">
+       <div class="sidebar-right-split">
     <div class="alert-box">
         <h3 style="color:var(--red); margin:0; border-bottom: 1px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
             <span>⚠️ FLEET ALERTS</span>
@@ -283,6 +283,17 @@
             Scanning...
         </div>
     </div>
+
+    <div class="vitals-box">
+        <h3 style="color:var(--ey); margin:0; border-bottom: 1px solid #333; padding-bottom: 10px;">📊 MACHINE VITALS</h3>
+        <table class="vital-table" style="width:100%; margin-top:10px;">
+            <tr><td class="v-label">Boost Pressure</td><td class="v-value" id="v-boost">0</td></tr>
+            <tr><td class="v-label">Fuel Pressure</td><td class="v-value" id="v-fuel">0</td></tr>
+            <tr><td class="v-label">Receiver PR</td><td class="v-value" id="v-receiver">0</td></tr>
+            <tr><td class="v-label">Hyd-Oil Temp</td><td class="v-value" id="v-temp">0°C</td></tr>
+        </table>
+    </div>
+</div>
 
     <div class="vitals-box">
         <h3 style="color:var(--ey); margin:0; border-bottom: 1px solid #333; padding-bottom: 10px;">📊 MACHINE VITALS</h3>
@@ -568,13 +579,23 @@
                 </tr>`).join('');
         }
 
-        // --- 3. UPDATE TOP VITALS ---
-        if (data.vitals) {
-            document.getElementById('v-boost').innerText = data.vitals.boost || "0";
-            document.getElementById('v-fuel').innerText = data.vitals.fuel || "0";
-            document.getElementById('v-receiver').innerText = data.vitals.rec || "0";
-            document.getElementById('v-temp').innerText = (data.vitals.hyd || "0") + "°C";
-        }
+       // --- UPDATE TOP VITALS (Ensure these match your .gs property names) ---
+if (data.vitals) {
+    // We use || "0" to ensure we don't display "undefined"
+    document.getElementById('v-boost').innerText = data.vitals.boost || data.vitals.boostPressure || "0";
+    document.getElementById('v-fuel').innerText = data.vitals.fuel || data.vitals.fuelPressure || "0";
+    document.getElementById('v-receiver').innerText = data.vitals.rec || data.vitals.receiverPr || "0";
+    document.getElementById('v-temp').innerText = (data.vitals.hyd || data.vitals.hydOilTemp || "0") + "°C";
+}
+
+// --- UPDATE MINI STATS (Fleet Avg / Active Assets) ---
+if (data.summary) {
+    const activeCount = data.summary.length;
+    const avgLoad = (data.summary.reduce((acc, r) => acc + parseFloat(r.avgLoad || 0), 0) / activeCount).toFixed(1);
+    
+    document.getElementById('v-active-rigs').innerText = activeCount;
+    document.getElementById('v-fleet-load').innerText = avgLoad + "%";
+}
 
         // --- 4. RUN FILTERS & DYNAMIC ALERTS ---
         applyGlobalFilters(); 
@@ -648,7 +669,6 @@ function applyGlobalFilters() {
 function startLivelyGauges(forceReset = false) {
     if (livelyTimer) clearInterval(livelyTimer);
     
-    // FIX: Filter data to only show the selected rig's history in the gauges
     const selectedRig = document.getElementById('rigSelect')?.value;
     const d = (globalData?.monthlyData || []).filter(entry => entry.rigId === selectedRig);
     
@@ -666,13 +686,31 @@ function startLivelyGauges(forceReset = false) {
         let html = `<div class="date-badge">AUDIT DATE: ${dateStr}</div>`;
         
         let config = [];
+
+        // --- MODE 1: TEMP / OIL / RPM ---
         if (mode === 'tempVsOil') {
             config = [
                 { lab: 'Oil bar', val: entry.oil || 0, max: 10, limit: T['Engine oil pressure_Low'] || 0, decimal: true, isLow: true },
-                { lab: 'RPM', val: entry.rpm || 0, max: 3000, limit: T['Engine RPM Drilling_High'] || 2500, decimal: false, isLow: false },
-                { lab: 'Temp °C', val: entry.temp || 0, max: 130, limit: T['Engine Temp_High'] || 110, decimal: false, isLow: false }
+                { lab: 'RPM', val: entry.rpm || 0, max: 3000, limit: T['Engine RPM Drilling_High'] || 2200, decimal: false, isLow: false },
+                { lab: 'Temp °C', val: entry.temp || 0, max: 130, limit: T['Engine Temp_High'] || 105, decimal: false, isLow: false }
             ];
-        } else if (mode === 'hydro_impact') {
+        } 
+        // --- MODE 2: LOAD vs COMPRESSOR (The Missing Piece) ---
+        else if (mode === 'loadVsComp') {
+            config = [
+                { lab: 'Eng Load %', val: entry.load || 0, max: 100, limit: 95, decimal: false, isLow: false },
+                { lab: 'Compressor %', val: entry.comp || 0, max: 100, limit: 90, decimal: false, isLow: false }
+            ];
+        }
+        // --- MODE 3: SET vs BIT PRESSURE (The Missing Piece) ---
+        else if (mode === 'setBit') {
+            config = [
+                { lab: 'Air Set bar', val: entry.air || 0, max: 35, limit: 30, decimal: true, isLow: false },
+                { lab: 'Bit Pr bar', val: entry.bit || 0, max: 35, limit: T['Bit_Pressure_High'] || 30, decimal: true, isLow: false }
+            ];
+        }
+        // --- MODE 4: HYDRAULIC ---
+        else if (mode === 'hydro_impact') {
             config = [
                 { lab: 'Impact', val: entry.impact || 0, max: 300, limit: T['Impact_Pressure_High'] || 250, isLow: false },
                 { lab: 'Feed', val: entry.feed || 0, max: 150, limit: T['Feed_Pressure_High'] || 100, isLow: false },
@@ -684,19 +722,24 @@ function startLivelyGauges(forceReset = false) {
             const val = parseFloat(g.val) || 0;
             const lim = parseFloat(g.limit) || 0;
             const angle = (Math.min(val / g.max, 1) * 180) - 90;
+            
+            // Critical Check: isLow means alert if value is BELOW limit (Oil). 
+            // Otherwise, alert if value is ABOVE limit (Temp/Load).
             const isAlert = g.isLow ? (val <= lim && lim > 0) : (val >= lim && lim > 0);
             const color = isAlert ? 'var(--red)' : 'var(--ey)';
 
             html += `<div class="dial-wrapper">
                 <svg viewBox="0 0 100 65">
                     <path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="8" stroke-linecap="round" />
-                    <line x1="50" y1="50" x2="${50 + 38 * Math.cos((angle - 90) * Math.PI / 180)}" y2="${50 + 38 * Math.sin((angle - 90) * Math.PI / 180)}" stroke="${color}" stroke-width="4" stroke-linecap="round" />
+                    <line class="needle" x1="50" y1="50" x2="${50 + 38 * Math.cos((angle - 90) * Math.PI / 180)}" y2="${50 + 38 * Math.sin((angle - 90) * Math.PI / 180)}" stroke="${color}" stroke-width="4" stroke-linecap="round" />
                 </svg>
                 <div class="dial-value" style="color:${color}">${g.decimal ? val.toFixed(1) : Math.round(val)}</div>
                 <span class="dial-label">${g.lab}</span>
             </div>`;
         });
+        
         row.innerHTML = html;
+        document.getElementById('current-seq').innerText = currentIdx + 1; // Updates the sequence number
         currentIdx = (currentIdx + 1) % d.length;
     }, 2000);
 }
@@ -782,6 +825,7 @@ function exportToExcel() {
 </script>
 </body>
 </html>
+
 
 
 
