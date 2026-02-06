@@ -853,9 +853,31 @@ config.forEach(g => {
         link.href = url;
         link.click();
     }
+    // Add this function to your HTML scripts
+function exportTriggerReport() {
+    if (!globalData || !globalData.globalAlerts || globalData.globalAlerts.length === 0) {
+        return alert("No active triggers to export.");
+    }
+    
+    const headers = ["Machine ID", "Parameter", "Value", "Limit", "Timestamp"];
+    const rows = globalData.globalAlerts.map(a => [
+        a.rig, a.parameter.replace('🚨 ', ''), a.value, a.limit, a.date
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8," 
+        + headers.join(",") + "\n" 
+        + rows.map(r => r.join(",")).join("\n");
+
+    const link = document.createElement("a");
+    link.setAttribute("href", encodeURI(csvContent));
+    link.setAttribute("download", "Fleet_Alert_Report.csv");
+    document.body.appendChild(link);
+    link.click();
+}
 </script>
 </body>
 </html>
+
 
 
 
