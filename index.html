@@ -465,7 +465,7 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbwR7hGcMh_QcutR35-CODoL1OCJkgzYxdtgTP64jI7eDM0nWoI3niIkgUkkO8RbHzZH/exec"; 
+    const API = "https://script.google.com/macros/s/AKfycbwhtjKwdgBccwNYs5pQ8UJh6_DzLGMO8uNDE0MHDdUMWPgzDAdVwhTcMFIwuIRzEtCz/exec"; 
     let chart = null, globalData = null;
     var livelyTimer = null;
     var currentIdx = 0;
@@ -535,75 +535,94 @@
         } catch (err) { console.error("Refresh Error:", err); }
     }
 
- function updateUI(data) {
+function updateUI(data) {
     if (!data) return;
     globalData = data;
-    const summaryBody = document.getElementById('fleet-summary-body');
-
-    // 1. UPDATE TABLE & COUNTERS
-    if (data.summary) {
-        summaryBody.innerHTML = data.summary.map(r => {
-            // Check for critical alerts to add the 'critical-row' class
-            const isCritical = (data.globalAlerts || []).some(a => a.rig === r.id);
-            return `
-                <tr class="${isCritical ? 'critical-row' : ''}" data-region="${r.region || ''}" data-model="${r.model || ''}">
-                    <td><b>${r.id}</b> ${isCritical ? '<span class="alert-dot"></span>' : ''}</td>
-                    <td>${r.audits || 0}</td>
-                    <td>${r.avgLoad || 0}%</td>
-                    <td>${r.avgTemp || 0}</td>
-                    <td>${r.avgOil || 0}</td>
-                    <td>${r.avgFuel || 0}</td>
-                    <td>${r.avgAir || 0}</td>
-                    <td>${r.avgBit || 0}</td>
-                    <td>${r.avgImpact || 0}</td>
-                </tr>`;
-        }).join('');
-        
-        document.getElementById('v-active-rigs').innerText = data.summary.length;
-        const totalLoad = data.summary.reduce((acc, r) => acc + parseFloat(r.avgLoad || 0), 0);
-        const avgLoad = (totalLoad / data.summary.length).toFixed(1);
-        document.getElementById('v-fleet-load').innerText = avgLoad + "%";
-    }
-
-    // 2. UPDATE SIDE VITALS (USING THE PRE-MAPPED GS DATA)
-    // Use data.vitals directly instead of filtering monthlyData again
-    if (data.vitals && data.vitals.date !== "N/A") {
-        const v = data.vitals;
-        document.getElementById('v-boost').innerText = v.boost || "0";
-        document.getElementById('v-fuel').innerText = v.fuel || "0";
-        document.getElementById('v-receiver').innerText = v.receiver || "0";
-        document.getElementById('v-temp').innerText = v.temp + "°C";
-        document.getElementById('vitals-date-stamp').innerText = "Last Audit: " + v.date;
-    } else {
-        document.getElementById('v-boost').innerText = "--";
-        document.getElementById('v-fuel').innerText = "--";
-        document.getElementById('v-receiver').innerText = "--";
-        document.getElementById('v-temp').innerText = "--";
-        document.getElementById('vitals-date-stamp').innerText = "No Audit Data";
-    }
-
-    // 3. UPDATE TRIGGER ALERTS LIST
-    const alertList = document.getElementById('alert-list');
-    const badge = document.getElementById('alert-count-badge');
     
-    if (data.globalAlerts && data.globalAlerts.length > 0) {
-        badge.innerText = data.globalAlerts.length;
-        badge.style.display = 'block';
-        alertList.innerHTML = data.globalAlerts.map(a => `
-            <li class="alert-item-style">
-                <div class="alert-rig-id">${a.rig}</div>
-                <div class="alert-msg">${a.parameter}: ${a.value} (Limit: ${a.limit})</div>
-            </li>
-        `).join('');
-    } else {
-        badge.style.display = 'none';
-        alertList.innerHTML = '<div class="status-normal">FLEET STATUS: NORMAL</div>';
-    }
+    const summaryBody = document.getElementById('fleet-summary-body');
+    const selectedRigId = document.getElementById('rigSelect').value;
 
-    // Refresh components
-    applyGlobalFilters(); 
-    drawChart();
-    document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
+    try {
+        // 1. UPDATE TABLE & COUNTERS (Fleet Overview)
+        if (data.summary && data.summary.length > 0) {
+            summaryBody.innerHTML = data.summary.map(r => {
+                // Determine if this specific row should be highlighted
+                const isCritical = (data.globalAlerts || []).some(a => a.rig === r.id);
+                const rowClass = isCritical ? 'critical-row' : '';
+                
+                return `
+                    <tr class="${rowClass}" data-region="${r.region || ''}" data-model="${r.model || ''}">
+                        <td><b>${r.id}</b> ${isCritical ? '<span class="alert-dot"></span>' : ''}</td>
+                        <td>${r.audits || 0}</td>
+                        <td style="color:${parseFloat(r.avgLoad) > 90 ? 'var(--red)' : 'inherit'}">${r.avgLoad || 0}%</td>
+                        <td>${r.avgTemp || 0}</td>
+                        <td>${r.avgOil || 0}</td>
+                        <td>${r.avgFuel || 0}</td>
+                        <td>${r.avgAir || 0}</td>
+                        <td>${r.avgBit || 0}</td>
+                        <td>${r.avgImpact || 0}</td>
+                    </tr>`;
+            }).join('');
+            
+            document.getElementById('v-active-rigs').innerText = data.summary.length;
+            const totalLoad = data.summary.reduce((acc, r) => acc + parseFloat(r.avgLoad || 0), 0);
+            const avgLoad = (totalLoad / data.summary.length).toFixed(1);
+            document.getElementById('v-fleet-load').innerText = avgLoad + "%";
+        }
+
+        // 2. UPDATE SIDE VITALS (Using the Direct "vitals" object from GS)
+        if (data.vitals && data.vitals.date !== "N/A") {
+            const v = data.vitals;
+            document.getElementById('v-boost').innerText = v.boost || "0";
+            document.getElementById('v-fuel').innerText = v.fuel || "0";
+            document.getElementById('v-receiver').innerText = v.receiver || "0";
+            document.getElementById('v-temp').innerText = (v.temp || "0") + "°C";
+            document.getElementById('vitals-date-stamp').innerText = "Last Audit: " + (v.date || "N/A");
+        } else {
+            // Fallback if no specific rig is selected or data is missing
+            document.getElementById('v-boost').innerText = "--";
+            document.getElementById('v-fuel').innerText = "--";
+            document.getElementById('v-receiver').innerText = "--";
+            document.getElementById('v-temp').innerText = "--";
+            document.getElementById('vitals-date-stamp').innerText = "Select Rig / No Data";
+        }
+
+        // 3. UPDATE TRIGGER ALERTS LIST
+        const alertList = document.getElementById('alert-list');
+        const badge = document.getElementById('alert-count-badge');
+        
+        if (data.globalAlerts && data.globalAlerts.length > 0) {
+            if (badge) { badge.innerText = data.globalAlerts.length; badge.style.display = 'block'; }
+            alertList.innerHTML = data.globalAlerts.map(a => `
+                <li class="alert-item-style" style="border-left:4px solid var(--red); background:rgba(255,77,77,0.1); padding:8px; margin-bottom:5px; border-radius:4px; list-style:none;">
+                    <div style="font-weight:bold; color:var(--yellow); font-size:0.85rem;">${a.rig}</div>
+                    <div style="font-size:0.8rem;">${a.parameter}: <span style="color:var(--red)">${a.value}</span></div>
+                    <div style="font-size:0.7rem; color:#aaa;">Limit: ${a.limit}</div>
+                </li>
+            `).join('');
+        } else {
+            if (badge) badge.style.display = 'none';
+            alertList.innerHTML = '<div style="color:var(--green); text-align:center; padding:15px; border:1px dashed var(--green);">✅ ALL SYSTEMS NORMAL</div>';
+        }
+
+        // 4. TRIGGER CHART REDRAW
+        if (typeof drawChart === "function") {
+            drawChart();
+        }
+
+    } catch (error) {
+        console.error("UI Update Error:", error);
+    } finally {
+        // 5. THE SCANNING KILLER: This hides the loading state regardless of errors
+        const scanningOverlay = document.getElementById('scanning-overlay'); 
+        if (scanningOverlay) {
+            scanningOverlay.style.display = 'none';
+        }
+        // If your "Scanning" is just text inside the alert list:
+        if(alertList && alertList.innerHTML.includes("Scanning")) {
+             // Logic handled in Step 3 else block
+        }
+    }
 }
 
 function applyGlobalFilters() {
@@ -837,6 +856,7 @@ config.forEach(g => {
 </script>
 </body>
 </html>
+
 
 
 
