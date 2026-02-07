@@ -726,7 +726,6 @@ function applyGlobalFilters() {
 
     // --- 2. DYNAMIC RADIAL DIAL GAUGE LOGIC (Optimized & Protected) ---
 function startLivelyGauges(forceReset = false) {
-    // 1. Clear and Nullify the timer to prevent overlapping intervals
     if (livelyTimer) {
         clearInterval(livelyTimer);
         livelyTimer = null;
@@ -734,10 +733,9 @@ function startLivelyGauges(forceReset = false) {
     
     const rigEl = document.getElementById('rigSelect');
     const row = document.getElementById('gauge-row');
-    if (!rigEl || !row) return; // Exit if UI elements are missing
+    if (!rigEl || !row) return; 
 
     const selectedRig = rigEl.value;
-    // Filter data - using optional chaining for safety
     const d = (globalData?.monthlyData || []).filter(entry => entry.rigId === selectedRig);
     
     if (d.length === 0) {
@@ -754,72 +752,60 @@ function startLivelyGauges(forceReset = false) {
         
         const entry = d[currentIdx];
         const dateStr = entry.date || "N/A";
-        
-        // Setup the Date Badge
         let html = `<div class="date-badge">AUDIT DATE: ${dateStr}</div>`;
         let config = [];
 
-     // --- MODE 1: TEMP / OIL / RPM ---
-if (mode === 'tempVsOil') {
-    config = [
-        { lab: 'Oil bar', val: entry.oil, max: 10, limit: T['Engine oil pressure_Low'], isLow: true, decimal: true },
-        { lab: 'RPM', val: entry.rpm, max: 3000, limit: T['Engine RPM Drilling_High'] || 2200, isLow: false, decimal: false },
-        { lab: 'Temp °C', val: entry.temp, max: 130, limit: T['Engine Temp_High'], isLow: false, decimal: false }
-    ];
-} 
-// --- MODE 2: LOAD vs COMPRESSOR ---
-else if (mode === 'loadVsComp') {
-    config = [
-        { lab: 'Eng Load %', val: entry.load || 0, max: 100, limit: T['Engine load Drilling_High'] || 95, isLow: false },
-        { lab: 'Comp %', val: entry.comp || 0, max: 100, limit: T['Compressor Load (Smartroc & PV)_High'] || 90, isLow: false }
-    ];
-} // <--- FIX: Added this missing closing bracket to prevent freezing
+        // --- MODE 1: TEMP / OIL / RPM ---
+        if (mode === 'tempVsOil') {
+            config = [
+                { lab: 'Oil bar', val: entry.oil, max: 10, limit: T['Engine oil pressure_Low'], isLow: true, decimal: true },
+                { lab: 'RPM', val: entry.rpm, max: 3000, limit: T['Engine RPM Drilling_High'] || 2200, isLow: false, decimal: false },
+                { lab: 'Temp °C', val: entry.temp, max: 130, limit: T['Engine Temp_High'], isLow: false, decimal: false }
+            ];
+        } 
+        // --- MODE 2: LOAD vs COMPRESSOR ---
+        else if (mode === 'loadVsComp') {
+            config = [
+                { lab: 'Eng Load %', val: entry.load || 0, max: 100, limit: T['Engine load Drilling_High'] || 95, isLow: false },
+                { lab: 'Comp %', val: entry.comp || 0, max: 100, limit: T['Compressor Load (Smartroc & PV)_High'] || 90, isLow: false }
+            ];
+        } 
+        // --- MODE 3: SET PR vs BIT PR ---
+        else if (mode === 'setVsBit') {
+            config = [
+                { lab: 'Set bar', val: entry.air || 0, max: 35, limit: T['Compressor air pressure_Low'] || 20, isLow: true, decimal: true },
+                { lab: 'Bit bar', val: entry.bit || 0, max: 35, limit: T['Bit_Air_Pressure_Low'] || 18, isLow: true, decimal: true }
+            ];
+        }
+        // --- MODE 4: HYDRAULIC / IMPACT ---
+        else if (mode === 'hydro_impact') {
+            config = [
+                { lab: 'Impact', val: entry.impact || 0, max: 300, limit: T['Impact_Pressure_High'] || 250, isLow: false },
+                { lab: 'Feed', val: entry.feed || 0, max: 150, limit: T['Feed_Pressure_High'] || 100, isLow: false },
+                { lab: 'Damper', val: entry.damper || 0, max: 100, limit: T['Damper_Pressure_High'] || 80, isLow: false }
+            ];
+        }
 
-// --- MODE 3: SET PR vs BIT PR (Columns S & T) ---
-else if (mode === 'setVsBit') {
-    config = [
-        { lab: 'Set bar', val: entry.air || 0, max: 35, limit: T['Compressor air pressure_Low'] || 20, isLow: true, decimal: true },
-        { lab: 'Bit bar', val: entry.bit || 0, max: 35, limit: T['Bit_Air_Pressure_Low'] || 18, isLow: true, decimal: true }
-    ];
-}
-// --- MODE 4: HYDRAULIC / IMPACT (Columns AD, AG, AH) ---
-else if (mode === 'hydro_impact') {
-    config = [
-        { lab: 'Impact', val: entry.impact || 0, max: 300, limit: T['Impact_Pressure_High'] || 250, isLow: false },
-        { lab: 'Feed', val: entry.feed || 0, max: 150, limit: T['Feed_Pressure_High'] || 100, isLow: false },
-        { lab: 'Damper', val: entry.damper || 0, max: 100, limit: T['Damper_Pressure_High'] || 80, isLow: false }
-    ];
-}
-
-       // --- 3. RENDER THE DIALS ---
+        // --- RENDER SECTION (This draws the actual dials) ---
+        html += `<div style="display:flex; justify-content:space-around; width:100%;">`;
         html += config.map(c => {
             const percent = Math.min((c.val / c.max) * 100, 100);
             const isAlert = c.isLow ? (c.val <= c.limit && c.val > 0) : (c.val >= c.limit);
             const color = isAlert ? 'var(--red)' : 'var(--green)';
-            const formattedVal = c.decimal ? parseFloat(c.val).toFixed(1) : Math.round(c.val);
-
             return `
-                <div class="gauge-card">
-                    <div class="gauge-label">${c.lab}</div>
-                    <div class="gauge-dial-container">
-                        <svg viewBox="0 0 100 100">
-                            <circle class="gauge-bg" cx="50" cy="50" r="45"></circle>
-                            <circle class="gauge-fill" cx="50" cy="50" r="45" 
-                                style="stroke-dasharray: ${percent * 2.82}, 282; stroke: ${color};">
-                            </circle>
-                        </svg>
-                        <div class="gauge-value" style="color:${color}">${formattedVal}</div>
-                    </div>
-                    <div class="gauge-limit">Limit: ${c.limit}</div>
+                <div class="gauge-card" style="text-align:center;">
+                    <div style="font-size:0.7rem; color:#aaa;">${c.lab}</div>
+                    <div style="font-size:1.2rem; font-weight:bold; color:${color}">${c.decimal ? c.val.toFixed(1) : Math.round(c.val)}</div>
+                    <div style="font-size:0.6rem; color:#666;">Lim: ${c.limit}</div>
                 </div>`;
         }).join('');
+        html += `</div>`;
 
         row.innerHTML = html;
         currentIdx = (currentIdx + 1) % d.length;
 
-    }, 3000); // Rotates through audit dates every 3 seconds
+    }, 3000); 
 }
-
     function drawChart() {
     // 1. Safety Check
     if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
@@ -929,6 +915,7 @@ else if (mode === 'hydro_impact') {
 </script>
 </body>
 </html>
+
 
 
 
