@@ -588,41 +588,52 @@ function updateUI(data) {
             document.getElementById('v-fleet-load').innerText = avgLoad + "%";
             document.getElementById('v-active-rigs').innerText = data.summary.length;
 
-            applyGlobalFilters(); 
+            if (typeof applyGlobalFilters === "function") applyGlobalFilters(); 
         }
 
         // 2. AUDIT WARNING LOGIC
         const currentRig = document.getElementById('rigSelect').value;
         const rigData = data.summary ? data.summary.find(s => s.id === currentRig) : null;
 
-        if (rigData && rigData.audits < 2) {
-            warningEl.style.display = 'block';
-            warningEl.innerText = `⚠️ ${currentRig} HAS ONLY ${rigData.audits} AUDIT. MINIMUM 2 REQUIRED.`;
-        } else {
-            warningEl.style.display = 'none';
-        }
-
-        // 3. UPDATE SIDE VITALS
-        if (data.vitals && data.vitals.date !== "N/A") {
-            const v = data.vitals;
-            document.getElementById('v-boost').innerText = v.boost || "0";
-            document.getElementById('v-fuel').innerText = v.fuel || "0";
-            document.getElementById('v-receiver').innerText = v.receiver || "0";
-            document.getElementById('v-temp').innerText = (v.temp || "0") + "°C";
-            document.getElementById('vitals-date-stamp').innerText = "Last Audit: " + (v.date || "N/A");
-            
-            if (typeof startLivelyGauges === "function") {
-                startLivelyGauges(true);
+        if (warningEl) {
+            if (rigData && rigData.audits < 2) {
+                warningEl.style.display = 'block';
+                warningEl.innerText = `⚠️ ${currentRig} HAS ONLY ${rigData.audits} AUDIT. MINIMUM 2 REQUIRED.`;
+            } else {
+                warningEl.style.display = 'none';
             }
         }
 
-        // 4. DRAW CHART
-        if (typeof drawChart === "function") {
-            drawChart();
+        // 3. UPDATE ALERT LIST
+        const alerts = data.globalAlerts || [];
+        if (badge) badge.innerText = alerts.length;
+        if (alertList) {
+            if (alerts.length > 0) {
+                alertList.innerHTML = alerts.map(a => `
+                    <div class="alert-item" style="border-left:3px solid var(--red); padding:8px; margin-bottom:8px; background:rgba(255,0,0,0.05);">
+                        <div style="display:flex; justify-content:space-between;">
+                            <strong style="color:var(--yellow);">${a.rig}</strong>
+                            <span style="font-size:0.65rem; color:#888;">${a.date || ''}</span>
+                        </div>
+                        <div style="font-size:0.8rem;">${a.parameter}: ${a.value}</div>
+                    </div>`).join('');
+            } else {
+                alertList.innerHTML = '<div style="color:var(--green); text-align:center; padding:15px;">✅ SYSTEMS NORMAL</div>';
+            }
         }
 
-    } catch (error) {
-        console.error("UI Update Error:", error);
+        // 4. VITALS & GAUGE TRIGGER
+        if (data.vitals) {
+            const v = data.vitals;
+            if(document.getElementById('v-boost')) document.getElementById('v-boost').innerText = v.boost || "0";
+            if(document.getElementById('v-temp')) document.getElementById('v-temp').innerText = (v.temp || "0") + "°C";
+            if(document.getElementById('vitals-date-stamp')) document.getElementById('vitals-date-stamp').innerText = "Last Audit: " + (v.date || "N/A");
+            
+            if (typeof startLivelyGauges === "function") startLivelyGauges(true);
+        }
+
+    } catch (e) {
+        console.error("UI Error:", e);
     } finally {
         const loader = document.getElementById('scanning-overlay');
         if (loader) loader.style.display = 'none';
@@ -936,6 +947,7 @@ config.forEach(g => {
 </script>
 </body>
 </html>
+
 
 
 
