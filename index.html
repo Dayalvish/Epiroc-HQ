@@ -757,15 +757,15 @@
     }, 2000);
 }
      function drawChart() {
-    if (!globalData || !globalData.monthlyData) return;
+    if (!globalData?.monthlyData) return;
     const canvas = document.getElementById('mainChart');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    // 🚀 THE REPLICATION FIX: Clear memory for a fresh redraw
-    if (chart !== null) {
+    // 🚀 THE FORCE REFRESH: Kill the old chart AND wipe the canvas clean
+    if (chart) {
         chart.destroy();
-        chart = null; 
+        chart = null;
     }
 
     const selectedRig = document.getElementById('rigSelect').value;
@@ -860,29 +860,36 @@
     link.click();
     document.body.removeChild(link);
 }
-    // --- SECURITY: BLOCKS F12 BUT ALLOWS ALT+F12 FOR OWNER ---
-document.addEventListener('contextmenu', event => {
-    if (event.altKey) return; // Hold Alt to enable right-click
-    event.preventDefault();
+    let devMode = false;
+
+// 🚀 TRIPLE-CLICK THE LOGO TO UNLOCK (Change '.header-left' to your logo's class)
+document.querySelector('.header-left').addEventListener('click', function (e) {
+    if (e.detail === 3) { // detail 3 = triple click
+        devMode = !devMode;
+        alert(devMode ? "DEV MODE: UNLOCKED (F12 Enabled)" : "DEV MODE: LOCKED");
+    }
+});
+
+// 🔒 THE DYNAMIC GUARD
+document.addEventListener('contextmenu', e => {
+    if (!devMode) e.preventDefault();
 });
 
 document.onkeydown = function(e) {
-    // 🔓 YOUR BACKDOOR: If holding Alt, allow F12 or Ctrl+U
-    if (e.altKey) return true;
+    if (devMode) return true; // Let everything through if unlocked
 
-    // 🔒 FOR OTHERS: Block F12 (keyCode 123)
-    if (e.keyCode == 123) return false;
-
-    // Block Ctrl+Shift+I (73), Ctrl+Shift+J (74), Ctrl+Shift+C (67)
-    if (e.ctrlKey && e.shiftKey && (e.keyCode == 73 || e.keyCode == 74 || e.keyCode == 67)) return false;
-
-    // Block Ctrl+U (85)
-    if (e.ctrlKey && e.keyCode == 85) return false;
+    // Block F12 (123), Ctrl+Shift+I (73), Ctrl+U (85)
+    if (e.keyCode == 123 || 
+       (e.ctrlKey && e.shiftKey && (e.keyCode == 73 || e.keyCode == 74)) || 
+       (e.ctrlKey && e.keyCode == 85)) {
+        return false;
+    }
 };
 </script>
 
 </body>
 </html>
+
 
 
 
