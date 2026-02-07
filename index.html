@@ -444,23 +444,33 @@
             </div>
         </div>
 
-        <div class="sidebar-right-split">
-            <div class="alert-box">
-                <h3 style="color:var(--red); margin-top:0; border-bottom: 1px solid #333; padding-bottom: 10px;">⚠️ TRIGGER ALERTS</h3>
-                <div id="alert-list">Scanning...</div>
+        <div class="sidebar-right-split" style="display: flex; flex-direction: column; gap: 12px; height: 100%;">
+    
+    <div class="alert-box" style="flex: 0 0 450px; display: flex; flex-direction: column; background: var(--card); padding: 15px; border-radius: 8px; overflow: hidden; border: 1px solid #333;">
+        <h3 style="color:var(--red); margin: 0 0 10px 0; border-bottom: 1px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 0.9rem;">⚠️ FLEET ALERTS</span>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <button onclick="exportTriggerReport()" style="background: var(--red); border: none; color: white; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.7rem; font-weight: bold;">
+                    📥 CSV REPORT
+                </button>
+                <span id="alert-count-badge" style="background:#444; color:white; padding:2px 10px; border-radius:4px; font-size:0.9rem; font-family: monospace;">0</span>
             </div>
+        </h3>
+        
+        <div id="alert-list" style="flex-grow: 1; overflow-y: auto; padding-right: 5px;">
+            Scanning...
+        </div>
+    </div>
 
-            <div class="vitals-box">
-                <h3 style="color:var(--ey); margin-top:0; border-bottom: 1px solid #333; padding-bottom: 10px;">📊 MACHINE VITALS</h3>
-                <table class="vital-table">
-                    <tr><td class="v-label">Boost Pressure</td><td class="v-value" id="v-boost">--</td></tr>
-                    <tr><td class="v-label">Fuel Pressure</td><td class="v-value" id="v-fuel">--</td></tr>
-                    <tr><td class="v-label">Receiver PR</td><td class="v-value" id="v-receiver">--</td></tr>
-                    <tr><td class="v-label">Hyd-Oil Temp</td><td class="v-value" id="v-temp">--</td></tr>
-                </table>
-                <div id="vitals-date-stamp" class="timestamp" style="font-size: 0.7rem; color: #666; text-align: right; margin-top: 10px;">Data as of: --</div>
-            </div>
-        </div> 
+    <div class="vitals-box" style="flex-grow: 1; background: var(--card); padding: 15px; border-radius: 8px; border: 1px solid #444;">
+        <h3 style="color:var(--ey); margin:0; border-bottom: 1px solid #333; padding-bottom: 10px;">📊 MACHINE VITALS</h3>
+        <table class="vital-table" style="width:100%; margin-top:10px; border-collapse: collapse;">
+            <tr><td style="padding: 5px 0; color: #aaa; font-size: 0.85rem;">Boost Pressure</td><td id="v-boost" style="text-align: right; color: var(--green); font-weight: bold;">0</td></tr>
+            <tr><td style="padding: 5px 0; color: #aaa; font-size: 0.85rem;">Fuel Pressure</td><td id="v-fuel" style="text-align: right; color: var(--green); font-weight: bold;">0</td></tr>
+            <tr><td style="padding: 5px 0; color: #aaa; font-size: 0.85rem;">Receiver PR</td><td id="v-receiver" style="text-align: right; color: var(--green); font-weight: bold;">0</td></tr>
+            <tr><td style="padding: 5px 0; color: #aaa; font-size: 0.85rem;">Hyd-Oil Temp</td><td id="v-temp" style="text-align: right; color: var(--green); font-weight: bold;">0°C</td></tr>
+        </table>
+        <div id="vitals-date-stamp" style="font-size: 0.65rem; color: #666; margin-top: 10px; text-align: right;">Last Audit: --</div>
     </div>
 </div>
 
@@ -587,20 +597,22 @@ function updateUI(data) {
             document.getElementById('vitals-date-stamp').innerText = "Select Rig / No Data";
         }
 
-        // 3. UPDATE TRIGGER ALERTS LIST
-        const alertList = document.getElementById('alert-list');
-        const badge = document.getElementById('alert-count-badge');
-        
-        if (data.globalAlerts && data.globalAlerts.length > 0) {
-            if (badge) { badge.innerText = data.globalAlerts.length; badge.style.display = 'block'; }
-            alertList.innerHTML = data.globalAlerts.map(a => `
-                <li class="alert-item-style" style="border-left:4px solid var(--red); background:rgba(255,77,77,0.1); padding:8px; margin-bottom:5px; border-radius:4px; list-style:none;">
-                    <div style="font-weight:bold; color:var(--yellow); font-size:0.85rem;">${a.rig}</div>
-                    <div style="font-size:0.8rem;">${a.parameter}: <span style="color:var(--red)">${a.value}</span></div>
-                    <div style="font-size:0.7rem; color:#aaa;">Limit: ${a.limit}</div>
-                </li>
-            `).join('');
-        } else {
+        // --- Update this part in your updateUI(data) function ---
+const alertList = document.getElementById('alert-list');
+if (data.globalAlerts && data.globalAlerts.length > 0) {
+    alertList.innerHTML = data.globalAlerts.map(a => `
+        <div class="alert-item" style="border-left: 3px solid var(--red); padding: 8px; margin-bottom: 8px; background: rgba(255,0,0,0.05); border-radius: 4px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <strong style="color:var(--yellow); font-size:0.85rem;">${a.rig}</strong>
+                <span style="font-size:0.65rem; color:#888;">${a.date || 'N/A'}</span>
+            </div>
+            <div style="font-size:0.8rem; color:#eee; margin-top:3px;">
+                ${a.parameter}: <span style="color:var(--red); font-weight:bold;">${a.value}</span>
+            </div>
+            <div style="font-size:0.7rem; color:#666;">Limit: ${a.limit}</div>
+        </div>
+    `).join('');
+} else {
             if (badge) badge.style.display = 'none';
             alertList.innerHTML = '<div style="color:var(--green); text-align:center; padding:15px; border:1px dashed var(--green);">✅ ALL SYSTEMS NORMAL</div>';
         }
@@ -853,27 +865,29 @@ config.forEach(g => {
         link.href = url;
         link.click();
     }
-    // Add this function to your HTML scripts
-function exportTriggerReport() {
+   function exportTriggerReport() {
     if (!globalData || !globalData.globalAlerts || globalData.globalAlerts.length === 0) {
         return alert("No active triggers to export.");
     }
     
     const headers = ["Machine ID", "Parameter", "Value", "Limit", "Timestamp"];
     const rows = globalData.globalAlerts.map(a => [
-        a.rig, a.parameter.replace('🚨 ', ''), a.value, a.limit, a.date
+        `"${a.rig}"`, 
+        `"${a.parameter.replace('🚨 ', '')}"`, 
+        a.value, 
+        a.limit, 
+        `"${a.date || 'N/A'}"` // <--- THIS POPULATES THE EXCEL COLUMN
     ]);
 
-    const csvContent = "data:text/csv;charset=utf-8," 
-        + headers.join(",") + "\n" 
-        + rows.map(r => r.join(",")).join("\n");
-
+    const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n");
     const link = document.createElement("a");
     link.setAttribute("href", encodeURI(csvContent));
-    link.setAttribute("download", "Fleet_Alert_Report.csv");
+    link.setAttribute("download", `Fleet_Alert_Report_${new Date().toLocaleDateString()}.csv`);
     document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
 }
 </script>
 </body>
 </html>
+
