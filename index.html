@@ -631,10 +631,12 @@
             document.getElementById('vitals-date-stamp').innerText = "Last Audit: " + (v.date || "N/A");
         }
 
-        // 3. Alerts List & Header Badge
+        // 3. Alerts List & Header Badge (Your existing logic)
         const alerts = data.globalAlerts || [];
-        badge.innerText = alerts.length;
-        badge.style.display = alerts.length > 0 ? 'inline-block' : 'none';
+        if (badge) {
+            badge.innerText = alerts.length;
+            badge.style.display = alerts.length > 0 ? 'inline-block' : 'none';
+        }
         
         alertList.innerHTML = alerts.length > 0 ? alerts.map(a => `
             <div class="alert-item" style="border-left: 3px solid var(--red); padding: 8px; margin-bottom: 8px; background: rgba(255,0,0,0.05); border-radius: 4px;">
@@ -647,17 +649,26 @@
                 </div>
             </div>`).join('') : '<div style="color:var(--green); text-align:center; padding:15px;">✅ SYSTEMS NORMAL</div>';
 
-        // 4. 🔥 REFRESH VISUALS
-        // This ensures charts and dials update every 60s when the heartbeat fires
-        if (typeof drawChart === "function") drawChart();
+        // 4. 🔥 REFRESH VISUALS (Fixed Handshake)
+        console.log("UI Update: Refreshing Visuals...");
+
+        // 🚀 THE FIX: We must update globalData BEFORE calling the drawing functions
+        globalData = data; 
+
+        if (typeof drawChart === "function") {
+            // This forces the trend lines to move
+            drawChart(); 
+        }
         
-        // Passing 'true' resets the gauge loop index to 0 so you see the newest dates first
-        if (typeof startLivelyGauges === "function") startLivelyGauges(true);
+        if (typeof startLivelyGauges === "function") {
+            // This forces the dials to sync with the new data sequence
+            startLivelyGauges(true);
+        }
 
     } catch (error) { 
         console.error("UI Update Error:", error); 
     }
-}
+} // End of updateUI
 
     function applyGlobalFilters() {
         const selRegion = document.getElementById('cityFocus').value;
@@ -849,6 +860,7 @@
 
 </body>
 </html>
+
 
 
 
