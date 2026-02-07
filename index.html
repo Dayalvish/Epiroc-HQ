@@ -542,10 +542,13 @@
         const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}&mode=${mode}`));
         const data = await res.json();
         
-        globalData = data; // 🚀 THIS IS THE KEY: Hand the new data to the global variable
-        updateUI(data);    // Then tell the UI to repaint
+        // 🚀 THE HANDSHAKE: Save to globalData so all other functions see it
+        globalData = data; 
         
-        console.log("60s Heartbeat: Visuals updated at " + new Date().toLocaleTimeString());
+        // 🚀 THE TRIGGER: Call updateUI which now contains drawChart()
+        updateUI(data);
+        
+        console.log("60s Heartbeat: Refreshing Dashboard...");
     } catch (err) { console.error("Refresh Error:", err); }
 }
 
@@ -704,11 +707,19 @@
                     <span class="dial-label">${g.lab}</span>
                 </div>`;
             });
+
+            // 🚀 THE DYNAMIC HANDOFF: Update the HTML and move to the next date
             row.innerHTML = html;
-            document.getElementById('current-seq').innerText = currentIdx + 1;
+
+            // 🕒 Update the SEQ badge so you know the loop is moving
+            const seqEl = document.getElementById('current-seq');
+            if (seqEl) seqEl.innerText = currentIdx + 1;
+
+            // 🔄 Increment index to change the date/data on the next 2-second tick
             currentIdx = (currentIdx + 1) % d.length;
-        }, 2000);
-    }
+
+        }, 2000); // End of setInterval
+    } // End of startLivelyGauges
 
      function drawChart() {
     // 1. Safety Check
@@ -815,6 +826,7 @@
 
 </body>
 </html>
+
 
 
 
