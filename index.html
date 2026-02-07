@@ -645,7 +645,22 @@ function updateUI(data) {
             }
         }
 
-    } catch (error) {
+   // 🚀 FORCE RE-PAINT (This makes the dials appear)
+        if (typeof startLivelyGauges === "function") {
+            startLivelyGauges(true);
+        }
+
+        // 🚀 FORCE CHART REDRAW (Every 60s)
+        if (typeof drawChart === "function") {
+            drawChart();
+        }
+
+        // 🚀 AUDIT WARNING 15s AUTO-HIDE
+        if (warningEl && warningEl.style.display === 'block') {
+            setTimeout(() => {
+                warningEl.style.display = 'none';
+            }, 15000); // Disappears exactly after 15 seconds
+        } } catch (error) {
         console.error("UI Update Error:", error);
     } finally {
         const overlay = document.getElementById('scanning-overlay'); 
@@ -748,10 +763,9 @@ function startLivelyGauges(forceReset = false) {
         let html = `<div class="date-badge">AUDIT DATE: ${dateStr}</div>`;
         let config = [];
 
-       // --- MODE 1: TEMP / OIL / RPM ---
+     // --- MODE 1: TEMP / OIL / RPM ---
 if (mode === 'tempVsOil') {
     config = [
-        // Ensure decimal: true is set for the oil pressure
         { lab: 'Oil bar', val: entry.oil, max: 10, limit: T['Engine oil pressure_Low'], isLow: true, decimal: true },
         { lab: 'RPM', val: entry.rpm, max: 3000, limit: T['Engine RPM Drilling_High'] || 2200, isLow: false, decimal: false },
         { lab: 'Temp °C', val: entry.temp, max: 130, limit: T['Engine Temp_High'], isLow: false, decimal: false }
@@ -763,21 +777,23 @@ else if (mode === 'loadVsComp') {
         { lab: 'Eng Load %', val: entry.load || 0, max: 100, limit: T['Engine load Drilling_High'] || 95, isLow: false },
         { lab: 'Comp %', val: entry.comp || 0, max: 100, limit: T['Compressor Load (Smartroc & PV)_High'] || 90, isLow: false }
     ];
-    // --- MODE 3: SET PR vs BIT PR ---
+} // <--- FIX: Added this missing closing bracket to prevent freezing
+
+// --- MODE 3: SET PR vs BIT PR (Columns S & T) ---
 else if (mode === 'setVsBit') {
     config = [
         { lab: 'Set bar', val: entry.air || 0, max: 35, limit: T['Compressor air pressure_Low'] || 20, isLow: true, decimal: true },
         { lab: 'Bit bar', val: entry.bit || 0, max: 35, limit: T['Bit_Air_Pressure_Low'] || 18, isLow: true, decimal: true }
     ];
 }
-// --- MODE 4: HYDRAULIC / IMPACT ---
+// --- MODE 4: HYDRAULIC / IMPACT (Columns AD, AG, AH) ---
 else if (mode === 'hydro_impact') {
-            config = [
-                { lab: 'Impact', val: entry.impact, max: 300, limit: T['Impact_Pressure_High'] || 250, isLow: false },
-                { lab: 'Feed', val: entry.feed, max: 150, limit: T['Feed_Pressure_High'] || 100, isLow: false },
-                { lab: 'Damper', val: entry.damper, max: 100, limit: T['Damper_Pressure_High'] || 80, isLow: false }
-            ];
-        }
+    config = [
+        { lab: 'Impact', val: entry.impact || 0, max: 300, limit: T['Impact_Pressure_High'] || 250, isLow: false },
+        { lab: 'Feed', val: entry.feed || 0, max: 150, limit: T['Feed_Pressure_High'] || 100, isLow: false },
+        { lab: 'Damper', val: entry.damper || 0, max: 100, limit: T['Damper_Pressure_High'] || 80, isLow: false }
+    ];
+}
 
         // Build the SVG HTML
         // Build the SVG and Value display
@@ -917,6 +933,7 @@ config.forEach(g => {
 </script>
 </body>
 </html>
+
 
 
 
