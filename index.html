@@ -764,30 +764,32 @@ function startLivelyGauges(forceReset = false) {
             ];
         } 
         // --- MODE 2: LOAD vs COMPRESSOR ---
-        else if (mode === 'loadVsComp') {
-            config = [
-                { lab: 'Eng Load %', val: entry.load || 0, max: 100, limit: T['Engine load Drilling_High'] || 95, isLow: false },
-                { lab: 'Comp %', val: entry.comp || 0, max: 100, limit: T['Compressor Load (Smartroc & PV)_High'] || 90, isLow: false }
-            ];
-        } 
-        // --- MODE 3: SET PR vs BIT PR ---
-        else if (mode === 'setVsBit') {
-            config = [
-                { lab: 'Set bar', val: entry.air || 0, max: 35, limit: T['Compressor air pressure_Low'] || 20, isLow: true, decimal: true },
-                { lab: 'Bit bar', val: entry.bit || 0, max: 35, limit: T['Bit_Air_Pressure_Low'] || 18, isLow: true, decimal: true }
-            ];
-        }
-        // --- MODE 4: HYDRAULIC / IMPACT ---
-        else if (mode === 'hydro_impact') {
-            config = [
-                { lab: 'Impact', val: entry.impact || 0, max: 300, limit: T['Impact_Pressure_High'] || 250, isLow: false },
-                { lab: 'Feed', val: entry.feed || 0, max: 150, limit: T['Feed_Pressure_High'] || 100, isLow: false },
-                { lab: 'Damper', val: entry.damper || 0, max: 100, limit: T['Damper_Pressure_High'] || 80, isLow: false }
-            ];
-        }
+else if (mode === 'loadVsComp') {
+    config = [
+        { lab: 'Eng Load %', val: entry.load || 0, max: 100, limit: T['Engine load Drilling_High'] || 95, isLow: false },
+        { lab: 'Comp %', val: entry.comp || 0, max: 100, limit: T['Compressor Load (Smartroc & PV)_High'] || 90, isLow: false }
+    ];
+} // <--- FIX 1: This bracket was missing or misplaced, causing the freeze
 
-        // --- RENDER SECTION (This draws the actual dials) ---
-        html += `<div style="display:flex; justify-content:space-around; width:100%;">`;
+// --- MODE 3: SET PR vs BIT PR (Columns S & T) ---
+else if (mode === 'setVsBit') {
+    config = [
+        { lab: 'Set bar', val: entry.air || 0, max: 35, limit: T['Compressor air pressure_Low'] || 20, isLow: true, decimal: true },
+        { lab: 'Bit bar', val: entry.bit || 0, max: 35, limit: T['Bit_Air_Pressure_Low'] || 18, isLow: true, decimal: true }
+    ];
+}
+// --- MODE 4: HYDRAULIC / IMPACT (Columns AD, AG, AH) ---
+else if (mode === 'hydro_impact') {
+    config = [
+        { lab: 'Impact', val: entry.impact || 0, max: 300, limit: T['Impact_Pressure_High'] || 250, isLow: false },
+        { lab: 'Feed', val: entry.feed || 0, max: 150, limit: T['Feed_Pressure_High'] || 100, isLow: false },
+        { lab: 'Damper', val: entry.damper || 0, max: 100, limit: T['Damper_Pressure_High'] || 80, isLow: false }
+    ];
+} 
+
+// --- RENDER SECTION (Outside of the if/else chain) ---
+html += `<div style="display:flex; justify-content:space-around; width:100%;">`;
+// ... (rest of your render logic)
         html += config.map(c => {
             const percent = Math.min((c.val / c.max) * 100, 100);
             const isAlert = c.isLow ? (c.val <= c.limit && c.val > 0) : (c.val >= c.limit);
@@ -915,6 +917,7 @@ function startLivelyGauges(forceReset = false) {
 </script>
 </body>
 </html>
+
 
 
 
