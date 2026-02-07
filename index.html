@@ -633,26 +633,19 @@ function updateUI(data) {
                 </div>`).join('') : '<div style="color:var(--green); text-align:center; padding:15px;">✅ SYSTEMS NORMAL</div>';
         }
 
-        // --- 6. VISUAL REFRESH (Charts, Bit Pressure Dials, & Gauges) ---
-        // 🚀 This triggers your "Set vs Bit Pr" dials and the trend chart
+        // --- 6. VISUAL REFRESH (Charts, Dials & Gauges) ---
+        
+        // 🚀 Redraw the Trend Chart (Handles the 60s Auto-Refresh)
         if (typeof drawChart === "function") {
             drawChart(); 
         }
 
+        // 🚀 Re-paint Gauges (Makes "Set vs Bit" and "Hydro" dials appear)
         if (typeof startLivelyGauges === "function") {
+            // Only restart if data is present to avoid errors
             if (data.monthlyData && data.monthlyData.length > 0) {
                 startLivelyGauges(true);
             }
-        }
-
-   // 🚀 FORCE RE-PAINT (This makes the dials appear)
-        if (typeof startLivelyGauges === "function") {
-            startLivelyGauges(true);
-        }
-
-        // 🚀 FORCE CHART REDRAW (Every 60s)
-        if (typeof drawChart === "function") {
-            drawChart();
         }
 
         // 🚀 AUDIT WARNING 15s AUTO-HIDE
@@ -660,9 +653,12 @@ function updateUI(data) {
             setTimeout(() => {
                 warningEl.style.display = 'none';
             }, 15000); // Disappears exactly after 15 seconds
-        } } catch (error) {
+        }
+
+    } catch (error) {
         console.error("UI Update Error:", error);
     } finally {
+        // Ensures the "Scanning" loader always hides
         const overlay = document.getElementById('scanning-overlay'); 
         if (overlay) overlay.style.display = 'none';
     }
@@ -933,6 +929,7 @@ config.forEach(g => {
 </script>
 </body>
 </html>
+
 
 
 
