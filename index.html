@@ -475,7 +475,7 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbzOUII5AwSMlec-AhJxRstiJq9svKLgLUJqD3PO0LVhLRT7JqTgRP8b__eegaFnYois/exec"; 
+    const API = "https://script.google.com/macros/s/AKfycby_5kE05Mb0WFOgMVBV9EzkUil1rC8WXZRY3FLEbGl38WjQrxjcOciM3JvFIGBjVAgW/exec"; 
     let chart = null, globalData = null;
     var livelyTimer = null;
     var currentIdx = 0;
@@ -775,9 +775,8 @@ function applyGlobalFilters() {
         </div>`;
 }
 
-    // --- 2. DYNAMIC RADIAL DIAL GAUGE LOGIC (Optimized & Protected) ---
-function startLivelyGauges(forceReset = false) {
-    // 1. Clear and Nullify the timer to prevent overlapping intervals
+    function startLivelyGauges(forceReset = false) {
+    // 🚀 THE FIX: Kill the old timer before starting a new one to prevent freezing
     if (livelyTimer) {
         clearInterval(livelyTimer);
         livelyTimer = null;
@@ -785,10 +784,9 @@ function startLivelyGauges(forceReset = false) {
     
     const rigEl = document.getElementById('rigSelect');
     const row = document.getElementById('gauge-row');
-    if (!rigEl || !row) return; // Exit if UI elements are missing
+    if (!rigEl || !row) return; 
 
     const selectedRig = rigEl.value;
-    // Filter data - using optional chaining for safety
     const d = (globalData?.monthlyData || []).filter(entry => entry.rigId === selectedRig);
     
     if (d.length === 0) {
@@ -805,58 +803,59 @@ function startLivelyGauges(forceReset = false) {
         
         const entry = d[currentIdx];
         const dateStr = entry.date || "N/A";
-        
-        // Setup the Date Badge
         let html = `<div class="date-badge">AUDIT DATE: ${dateStr}</div>`;
         let config = [];
 
-       // --- MODE 1: TEMP / OIL / RPM ---
-if (mode === 'tempVsOil') {
-    config = [
-        // Ensure decimal: true is set for the oil pressure
-        { lab: 'Oil bar', val: entry.oil, max: 10, limit: T['Engine oil pressure_Low'], isLow: true, decimal: true },
-        { lab: 'RPM', val: entry.rpm, max: 3000, limit: T['Engine RPM Drilling_High'] || 2200, isLow: false, decimal: false },
-        { lab: 'Temp °C', val: entry.temp, max: 130, limit: T['Engine Temp_High'], isLow: false, decimal: false }
-    ];
-} 
-// --- MODE 2: LOAD vs COMPRESSOR ---
-else if (mode === 'loadVsComp') {
-    config = [
-        { lab: 'Eng Load %', val: entry.load || 0, max: 100, limit: T['Engine load Drilling_High'] || 95, isLow: false },
-        { lab: 'Comp %', val: entry.comp || 0, max: 100, limit: T['Compressor Load (Smartroc & PV)_High'] || 90, isLow: false }
-    ];
-}
-// --- MODE 4: HYDRAULIC / COMP TEMP ---
-else if (mode === 'hydro_impact') {
+        // --- MODE 1: TEMP / OIL / RPM ---
+        if (mode === 'tempVsOil') {
             config = [
-                { lab: 'Impact', val: entry.impact, max: 300, limit: T['Impact_Pressure_High'] || 250, isLow: false },
-                { lab: 'Feed', val: entry.feed, max: 150, limit: T['Feed_Pressure_High'] || 100, isLow: false },
-                { lab: 'Damper', val: entry.damper, max: 100, limit: T['Damper_Pressure_High'] || 80, isLow: false }
+                { lab: 'Oil bar', val: entry.oil, max: 10, limit: T['Engine oil pressure_Low'], isLow: true, decimal: true },
+                { lab: 'RPM', val: entry.rpm, max: 3000, limit: T['Engine RPM Drilling_High'] || 2200, isLow: false, decimal: false },
+                { lab: 'Temp °C', val: entry.temp, max: 130, limit: T['Engine Temp_High'], isLow: false, decimal: false }
+            ];
+        } 
+        // --- MODE 2: LOAD vs COMPRESSOR ---
+        else if (mode === 'loadVsComp') {
+            config = [
+                { lab: 'Eng Load %', val: entry.load || 0, max: 100, limit: T['Engine load Drilling_High'] || 95, isLow: false },
+                { lab: 'Comp %', val: entry.comp || 0, max: 100, limit: T['Compressor Load (Smartroc & PV)_High'] || 90, isLow: false }
+            ];
+        } 
+        // --- MODE 3: SET PR vs BIT PR (Columns S & T) ---
+        else if (mode === 'setBit') {
+            config = [
+                { lab: 'Set bar', val: entry.air || 0, max: 35, limit: T['Compressor air pressure_Low'] || 20, isLow: true, decimal: true },
+                { lab: 'Air bar', val: entry.bit || 0, max: 35, limit: T['Bit_Air_Pressure_Low'] || 18, isLow: true, decimal: true }
+            ];
+        }
+        // --- MODE 4: HYDRAULIC / IMPACT ---
+        else if (mode === 'hydro_impact') {
+            config = [
+                { lab: 'Impact', val: entry.impact || 0, max: 300, limit: T['Impact_Pressure_High'] || 250, isLow: false },
+                { lab: 'Feed', val: entry.feed || 0, max: 150, limit: T['Feed_Pressure_High'] || 100, isLow: false },
+                { lab: 'Damper', val: entry.damper || 0, max: 100, limit: T['Damper_Pressure_High'] || 80, isLow: false }
             ];
         }
 
-        // Build the SVG HTML
-        // Build the SVG and Value display
-config.forEach(g => {
-    const val = parseFloat(g.val || 0);
-    const lim = parseFloat(g.limit || 0);
-    const angle = (Math.min(val / g.max, 1) * 180) - 90;
-    const isAlert = g.isLow ? (val <= lim && lim > 0) : (val >= lim && lim > 0);
-    const color = isAlert ? 'var(--red)' : 'var(--ey)';
+        // --- BUILD THE SVG HTML ---
+        config.forEach(g => {
+            const val = parseFloat(g.val || 0);
+            const lim = parseFloat(g.limit || 0);
+            const angle = (Math.min(val / g.max, 1) * 180) - 90;
+            const isAlert = g.isLow ? (val <= lim && lim > 0) : (val >= lim && lim > 0);
+            const color = isAlert ? 'var(--red)' : 'var(--ey)';
 
-    html += `<div class="dial-wrapper">
-        <svg viewBox="0 0 100 65">
-            <path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="8" stroke-linecap="round" />
-            <line class="needle" x1="50" y1="50" x2="${50 + 38 * Math.cos((angle - 90) * Math.PI / 180)}" y2="${50 + 38 * Math.sin((angle - 90) * Math.PI / 180)}" stroke="${color}" stroke-width="4" stroke-linecap="round" />
-        </svg>
-        <div class="dial-value" style="color:${color}">${g.decimal ? val.toFixed(1) : Math.round(val)}</div>
-        <span class="dial-label">${g.lab}</span>
-    </div>`;
-});
+            html += `<div class="dial-wrapper">
+                <svg viewBox="0 0 100 65">
+                    <path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="8" stroke-linecap="round" />
+                    <line class="needle" x1="50" y1="50" x2="${50 + 38 * Math.cos((angle - 90) * Math.PI / 180)}" y2="${50 + 38 * Math.sin((angle - 90) * Math.PI / 180)}" stroke="${color}" stroke-width="4" stroke-linecap="round" />
+                </svg>
+                <div class="dial-value" style="color:${color}">${g.decimal ? val.toFixed(1) : Math.round(val)}</div>
+                <span class="dial-label">${g.lab}</span>
+            </div>`;
+        });
         
         row.innerHTML = html;
-
-        // Safety check for sequence badge
         const seqBadge = document.getElementById('current-seq');
         if (seqBadge) seqBadge.innerText = currentIdx + 1;
 
@@ -973,6 +972,7 @@ config.forEach(g => {
 </script>
 </body>
 </html>
+
 
 
 
