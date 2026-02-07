@@ -550,7 +550,18 @@
             const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}&mode=${mode}`));
             const data = await res.json();
             updateUI(data);
-        } catch (err) { console.error("Refresh Error:", err); }
+        } 
+        // 🚀 FORCE REFRESH VISUALS
+if (typeof drawChart === "function") {
+    drawChart();
+}
+
+if (typeof startLivelyGauges === "function") {
+    // Only restart if data is present
+    if (data.monthlyData && data.monthlyData.length > 0) {
+        startLivelyGauges(true);
+    }
+}catch (err) { console.error("Refresh Error:", err); }
     }
 
 function updateUI(data) {
@@ -644,13 +655,23 @@ if (data.summary && data.summary.length > 0) {
         const selectedSummary = data.summary.find(s => s.id === selectedRigId);
         const warningEl = document.getElementById('auditWarning');
 
-        // 🚀 FIX: Trigger Audit Warning if Count < 2
-        if (selectedSummary && selectedSummary.audits < 2) {
-            warningEl.style.display = 'block';
-            warningEl.innerText = `⚠️ ${selectedRigId} HAS ONLY ${selectedSummary.audits} AUDIT. MINIMUM 2 REQUIRED.`;
-        } else {
-            warningEl.style.display = 'none';
-        }
+        // 🚀 DYNAMIC AUDIT GRACE LOGIC
+const currentRig = document.getElementById('rigSelect').value;
+const rigData = data.summary ? data.summary.find(s => s.id === currentRig) : null;
+const warningEl = document.getElementById('auditWarning');
+
+if (warningEl) {
+    const today = new Date();
+    const dayOfMonth = today.getDate(); // On Feb 7th, this is 7
+    const requiredCount = dayOfMonth - 1; // 1-day grace period = 6
+
+    if (rigData && rigData.audits < requiredCount) {
+        warningEl.style.display = 'block';
+        warningEl.innerText = `⚠️ ${currentRig}: ${rigData.audits} AUDITS. ${requiredCount} REQUIRED BY DATE ${dayOfMonth}.`;
+    } else {
+        warningEl.style.display = 'none';
+    }
+}
 
         if (data.vitals && data.vitals.date !== "N/A") {
             const v = data.vitals;
@@ -951,6 +972,7 @@ config.forEach(g => {
 </script>
 </body>
 </html>
+
 
 
 
