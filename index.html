@@ -408,7 +408,11 @@
 <select id="chartMode" onchange="drawChart(); startLivelyGauges(true);">
     <option value="tempVsOil">Trend: Temp / Oil / RPM</option>
     <option value="loadVsComp">Load vs Compressor %</option>
-    <option value="setBit">DTH: Set vs Bit Pressure</option>
+    
+    <option value="rpmVsCompTemp">RPM vs Comp Temp (L/H)</option> 
+    <option value="fuelVsBoost">Fuel Pr vs Boost Pr</option> 
+    
+    <option value="setVsBit">DTH: Set vs Bit Pressure</option>
     <option value="hydro_impact">Hydraulic: Impact/Feed/Damper</option>
 </select>
 
@@ -655,123 +659,133 @@
         });
     }
 
-    function startLivelyGauges(forceReset = false) {
-        // 🚀 THE FIX: Kill the previous loop before starting a new one
-        if (livelyTimer) { clearInterval(livelyTimer); livelyTimer = null; }
-        const selectedRig = document.getElementById('rigSelect').value;
-        const d = (globalData?.monthlyData || []).filter(e => e.rigId === selectedRig);
-        const row = document.getElementById('gauge-row');
-        if (!row || d.length === 0) return;
-        if (forceReset) currentIdx = 0;
-        const T = globalData?.thresholds || {}; 
+   function startLivelyGauges(forceReset = false) {
+    if (livelyTimer) { clearInterval(livelyTimer); livelyTimer = null; }
+    
+    const selectedRig = document.getElementById('rigSelect').value;
+    const d = (globalData?.monthlyData || []).filter(e => e.rigId === selectedRig);
+    const T = globalData?.thresholds || {};
+    const row = document.getElementById('gauge-row');
+    
+    if (!row || d.length === 0) return;
+    if (forceReset) currentIdx = 0;
 
-        livelyTimer = setInterval(() => {
-            if (!d[currentIdx]) currentIdx = 0;
-            const entry = d[currentIdx];
-            const mode = document.getElementById('chartMode').value;
-            let html = `<div class="date-badge">AUDIT DATE: ${entry.date}</div>`;
-            let config = [];
+    livelyTimer = setInterval(() => {
+        if (!d[currentIdx]) currentIdx = 0;
+        const entry = d[currentIdx];
+        const mode = document.getElementById('chartMode').value;
+        
+        let html = `<div class="date-badge">AUDIT: ${entry.date}</div>`;
+        let config = [];
 
-            if (mode === 'tempVsOil') {
-                config = [
-                    { lab: 'Oil bar', val: entry.oil, max: 10, limit: T['Engine oil pressure_Low'], isLow: true, decimal: true },
-                    { lab: 'RPM', val: entry.rpm, max: 3000, limit: T['Engine RPM Drilling_High'] || 2200, isLow: false },
-                    { lab: 'Temp °C', val: entry.temp, max: 130, limit: T['Engine Temp_High'], isLow: false }
-                ];
-            } else if (mode === 'loadVsComp') {
-                config = [
-                    { lab: 'Eng Load %', val: entry.load || 0, max: 100, limit: 95, isLow: false },
-                    { lab: 'Comp %', val: entry.comp || 0, max: 100, limit: 90, isLow: false }
-                ];
-            } else if (mode === 'setBit') {
-                config = [
-                    { lab: 'Set bar', val: entry.air || 0, max: 35, limit: 20, isLow: true, decimal: true },
-                    { lab: 'Bit bar', val: entry.bit || 0, max: 35, limit: 18, isLow: true, decimal: true }
-                ];
-            } else if (mode === 'hydro_impact') {
-                config = [
-                    { lab: 'Impact', val: entry.impact || 0, max: 300, limit: 250, isLow: false },
-                    { lab: 'Feed', val: entry.feed || 0, max: 150, limit: 100, isLow: false },
-                    { lab: 'Damper', val: entry.damper || 0, max: 100, limit: 80, isLow: false }
-                ];
-            }
+        if (mode === 'tempVsOil') {
+            config = [
+                { lab: 'Oil bar', val: entry.oil, max: 10, limit: T['Engine oil pressure_Low'], isLow: true, decimal: true },
+                { lab: 'RPM', val: entry.rpm, max: 3000, limit: T['Engine RPM Drilling_High'] || 2200, isLow: false },
+                { lab: 'Temp °C', val: entry.temp, max: 130, limit: T['Engine Temp_High'], isLow: false }
+            ];
+        } else if (mode === 'loadVsComp') {
+            config = [
+                { lab: 'Eng Load %', val: entry.load, max: 100, limit: 95, isLow: false },
+                { lab: 'Comp %', val: entry.comp, max: 100, limit: 90, isLow: false }
+            ];
+        } else if (mode === 'rpmVsCompTemp') {
+            config = [
+                { lab: 'RPM', val: entry.rpm, max: 3000, limit: 2200, isLow: false },
+                { lab: 'Comp T(L)', val: entry.compTempL, max: 140, limit: 110, isLow: false },
+                { lab: 'Comp T(H)', val: entry.compTempH, max: 140, limit: 120, isLow: false }
+            ];
+        } else if (mode === 'fuelVsBoost') {
+            config = [
+                { lab: 'Fuel bar', val: entry.fuel, max: 15, limit: T['Fuel Pressure_Low'] || 4, isLow: true, decimal: true },
+                { lab: 'Boost bar', val: entry.boost, max: 5, limit: 3, isLow: false, decimal: true }
+            ];
+        } else if (mode === 'setVsBit') {
+            config = [
+                { lab: 'Set bar', val: entry.air, max: 35, limit: 20, isLow: true, decimal: true },
+                { lab: 'Bit bar', val: entry.bit, max: 35, limit: 18, isLow: true, decimal: true }
+            ];
+        } else if (mode === 'hydro_impact') {
+            config = [
+                { lab: 'Impact', val: entry.impact, max: 300, limit: 250, isLow: false },
+                { lab: 'Feed', val: entry.feed, max: 150, limit: 100, isLow: false },
+                { lab: 'Damper', val: entry.damper, max: 100, limit: 80, isLow: false }
+            ];
+        }
 
-            config.forEach(g => {
-                const val = parseFloat(g.val || 0);
-                const angle = (Math.min(val / g.max, 1) * 180) - 90;
-                const isAlert = g.isLow ? (val <= g.limit && val > 0) : (val >= g.limit);
-                const color = isAlert ? 'var(--red)' : 'var(--ey)';
-                html += `<div class="dial-wrapper">
-                    <svg viewBox="0 0 100 65"><path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="8" /><line class="needle" x1="50" y1="50" x2="${50 + 38 * Math.cos((angle - 90) * Math.PI / 180)}" y2="${50 + 38 * Math.sin((angle - 90) * Math.PI / 180)}" stroke="${color}" stroke-width="4"/></svg>
+        config.forEach(g => {
+            const val = parseFloat(g.val || 0);
+            const angle = (Math.min(val / g.max, 1) * 180) - 90;
+            const isAlert = g.isLow ? (val <= g.limit && val > 0) : (val >= g.limit);
+            const color = isAlert ? 'var(--red)' : 'var(--ey)';
+            html += `
+                <div class="dial-wrapper">
+                    <svg viewBox="0 0 100 65">
+                        <path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="8" />
+                        <line class="needle" x1="50" y1="50" x2="${50 + 38 * Math.cos((angle - 90) * Math.PI / 180)}" y2="${50 + 38 * Math.sin((angle - 90) * Math.PI / 180)}" stroke="${color}" stroke-width="4"/>
+                    </svg>
                     <div class="dial-value" style="color:${color}">${g.decimal ? val.toFixed(1) : Math.round(val)}</div>
                     <span class="dial-label">${g.lab}</span>
                 </div>`;
-            });
-
-            // 🚀 THE DYNAMIC HANDOFF: Update the HTML and move to the next date
-            row.innerHTML = html;
-
-            // 🕒 Update the SEQ badge so you know the loop is moving
-            const seqEl = document.getElementById('current-seq');
-            if (seqEl) seqEl.innerText = currentIdx + 1;
-
-            // 🔄 Increment index to change the date/data on the next 2-second tick
-            currentIdx = (currentIdx + 1) % d.length;
-
-        }, 2000); // End of setInterval
-    } // End of startLivelyGauges
-
+        });
+        row.innerHTML = html;
+        currentIdx = (currentIdx + 1) % d.length;
+    }, 2000);
+}
      function drawChart() {
-    // 1. Safety Check
-    if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
-        if (chart) chart.destroy();
-        return;
-    }
-
-    const ctx = document.getElementById('mainChart').getContext('2d');
+    if (!globalData?.monthlyData) return;
+    const canvas = document.getElementById('mainChart');
+    const ctx = canvas.getContext('2d');
     if (chart) chart.destroy();
 
-    // 2. FILTER: Only get data for the Rig currently selected in the dropdown
     const selectedRig = document.getElementById('rigSelect').value;
     const mode = document.getElementById('chartMode').value;
-    
-    // This is the "Magic Link": It filters the fleet data for just this machine
-    const d = globalData.monthlyData.filter(entry => entry.rigId === selectedRig);
-    
-    if (d.length === 0) return; // Don't draw if no data for this specific rig
+    const d = globalData.monthlyData.filter(e => e.rigId === selectedRig);
+    if (d.length === 0) return;
 
     const labels = d.map(x => x.date);
     let datasets = [];
     let scales = {
-        x: { grid: { color: '#333' }, ticks: { color: '#888', font: { size: 10 } } },
+        x: { grid: { color: '#333' }, ticks: { color: '#888' } },
         y: { grid: { color: '#333' }, ticks: { color: '#fff' } }
     };
 
     if (mode === 'tempVsOil') {
         datasets = [
-            { label: 'Oil (bar)', data: d.map(x => x.oil || 0), borderColor: '#2ecc71', yAxisID: 'y', tension: 0.3, fill: false },
-            { label: 'Temp (°C)', data: d.map(x => x.temp || 0), borderColor: '#ff4d4d', yAxisID: 'y1', tension: 0.3, fill: false },
-            { label: 'RPM', data: d.map(x => x.rpm || 0), borderColor: '#3498db', yAxisID: 'y2', borderDash: [5, 5], tension: 0.3, fill: false }
+            { label: 'Oil', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'y', tension: 0.3 },
+            { label: 'Temp', data: d.map(x => x.temp), borderColor: '#ff4d4d', yAxisID: 'y1', tension: 0.3 },
+            { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'y2', borderDash: [5, 5] }
         ];
-
-        scales.y1 = { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#ff4d4d' } };
-        scales.y2 = { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#3498db' }, min: 0, max: 3000 };
-
+        scales.y1 = { position: 'right', grid: { drawOnChartArea: false } };
+        scales.y2 = { position: 'right', min: 0, max: 3000, grid: { drawOnChartArea: false } };
     } else if (mode === 'loadVsComp') {
         datasets = [
-            { label: 'Eng Load %', data: d.map(x => x.load || 0), borderColor: '#f1c40f', tension: 0.3 },
-            { label: 'Compressor %', data: d.map(x => x.comp || 0), borderColor: '#3498db', tension: 0.3 }
+            { label: 'Eng Load %', data: d.map(x => x.load), borderColor: '#f1c40f' },
+            { label: 'Comp %', data: d.map(x => x.comp), borderColor: '#3498db' }
         ];
-    } else if (mode === 'setBit') {
+    } else if (mode === 'rpmVsCompTemp') {
         datasets = [
-            { label: 'Air Set (bar)', data: d.map(x => x.air || 0), borderColor: '#2ecc71', tension: 0.3 },
-            { label: 'Bit Pr (bar)', data: d.map(x => x.bit || 0), borderColor: '#f39c12', tension: 0.3 }
+            { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'y1' },
+            { label: 'Comp T(L)', data: d.map(x => x.compTempL), borderColor: '#2ecc71', yAxisID: 'y' },
+            { label: 'Comp T(H)', data: d.map(x => x.compTempH), borderColor: '#ff4d4d', yAxisID: 'y' }
+        ];
+        scales.y1 = { position: 'right', min: 0, max: 3000 };
+    } else if (mode === 'fuelVsBoost') {
+        datasets = [
+            { label: 'Fuel (bar)', data: d.map(x => x.fuel), borderColor: '#f1c40f', yAxisID: 'y' },
+            { label: 'Boost (bar)', data: d.map(x => x.boost), borderColor: '#3498db', yAxisID: 'y1' }
+        ];
+        scales.y1 = { position: 'right', min: 0, max: 5, title: { display: true, text: 'Boost' } };
+    } else if (mode === 'setVsBit') {
+        datasets = [
+            { label: 'Set bar', data: d.map(x => x.air), borderColor: '#2ecc71' },
+            { label: 'Bit bar', data: d.map(x => x.bit), borderColor: '#f39c12' }
         ];
     } else if (mode === 'hydro_impact') {
         datasets = [
-            { label: 'Impact (bar)', data: d.map(x => x.impact || 0), borderColor: '#f1c40f', tension: 0.3 },
-            { label: 'Feed (bar)', data: d.map(x => x.feed || 0), borderColor: '#e67e22', tension: 0.3 },
-            { label: 'Damper (bar)', data: d.map(x => x.damper || 0), borderColor: '#3498db', tension: 0.3 }
+            { label: 'Impact', data: d.map(x => x.impact), borderColor: '#f1c40f' },
+            { label: 'Feed', data: d.map(x => x.feed), borderColor: '#e67e22' },
+            { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db' }
         ];
     }
 
@@ -781,12 +795,8 @@
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false },
-            plugins: {
-                legend: { position: 'top', labels: { color: '#fff', boxWidth: 12, font: { size: 11 } } },
-                title: { display: true, text: `Trend Analysis: ${selectedRig}`, color: 'var(--ey)' }
-            },
-            scales: scales
+            scales: scales,
+            plugins: { legend: { labels: { color: '#fff', boxWidth: 12 } } }
         }
     });
 }
@@ -826,6 +836,7 @@
 
 </body>
 </html>
+
 
 
 
