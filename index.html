@@ -736,7 +736,6 @@ function startLivelyGauges(forceReset = false) {
        // --- MODE 1: TEMP / OIL / RPM ---
 if (mode === 'tempVsOil') {
     config = [
-        // Ensure decimal: true is set for the oil pressure
         { lab: 'Oil bar', val: entry.oil, max: 10, limit: T['Engine oil pressure_Low'], isLow: true, decimal: true },
         { lab: 'RPM', val: entry.rpm, max: 3000, limit: T['Engine RPM Drilling_High'] || 2200, isLow: false, decimal: false },
         { lab: 'Temp °C', val: entry.temp, max: 130, limit: T['Engine Temp_High'], isLow: false, decimal: false }
@@ -749,14 +748,21 @@ else if (mode === 'loadVsComp') {
         { lab: 'Comp %', val: entry.comp || 0, max: 100, limit: T['Compressor Load (Smartroc & PV)_High'] || 90, isLow: false }
     ];
 }
-// --- MODE 4: HYDRAULIC / COMP TEMP ---
+// --- MODE 3: FULL AIR SET vs AIR PRESSURE FULL (Columns S & T) ---
+else if (mode === 'setVsBit') {
+    config = [
+        { lab: 'Set bar', val: entry.air || 0, max: 35, limit: T['Compressor air pressure_Low'] || 20, isLow: true, decimal: true },
+        { lab: 'Air bar', val: entry.bit || 0, max: 35, limit: T['Bit_Air_Pressure_Low'] || 18, isLow: true, decimal: true }
+    ];
+}
+// --- MODE 4: HYDRAULIC / IMPACT / FEED / DAMPER ---
 else if (mode === 'hydro_impact') {
-            config = [
-                { lab: 'Impact', val: entry.impact, max: 300, limit: T['Impact_Pressure_High'] || 250, isLow: false },
-                { lab: 'Feed', val: entry.feed, max: 150, limit: T['Feed_Pressure_High'] || 100, isLow: false },
-                { lab: 'Damper', val: entry.damper, max: 100, limit: T['Damper_Pressure_High'] || 80, isLow: false }
-            ];
-        }
+    config = [
+        { lab: 'Impact', val: entry.impact, max: 300, limit: T['Impact_Pressure_High'] || 250, isLow: false },
+        { lab: 'Feed', val: entry.feed, max: 150, limit: T['Feed_Pressure_High'] || 100, isLow: false },
+        { lab: 'Damper', val: entry.damper, max: 100, limit: T['Damper_Pressure_High'] || 80, isLow: false }
+    ];
+}
 
         // Build the SVG HTML
         // Build the SVG and Value display
@@ -896,6 +902,7 @@ config.forEach(g => {
 </script>
 </body>
 </html>
+
 
 
 
