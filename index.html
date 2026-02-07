@@ -553,7 +553,25 @@
         } catch (err) { console.error("Refresh Error:", err); }
     }
 
-// 1. UPDATE TABLE & COUNTERS (Fleet Overview)
+function updateUI(data) {
+
+    if (!data) return;
+
+    globalData = data;
+
+    
+
+    const summaryBody = document.getElementById('fleet-summary-body');
+
+    const alertList = document.getElementById('alert-list');
+
+    const badge = document.getElementById('alert-count-badge'); // The small counter in the header
+
+
+
+    try {
+
+        // 1. UPDATE TABLE & COUNTERS (Fleet Overview)
         if (data.summary && data.summary.length > 0) {
             summaryBody.innerHTML = data.summary.map(r => {
                 const isCritical = (data.globalAlerts || []).some(a => a.rig === r.id);
@@ -582,6 +600,18 @@
             applyGlobalFilters(); 
         }
 
+        // 2. UPDATE SIDE VITALS & AUDIT WARNING
+        const selectedRigId = document.getElementById('rigSelect').value;
+        const selectedSummary = data.summary.find(s => s.id === selectedRigId);
+        const warningEl = document.getElementById('auditWarning');
+
+        // 🚀 FIX: Trigger Audit Warning if Count < 2
+        if (selectedSummary && selectedSummary.audits < 2) {
+            warningEl.style.display = 'block';
+            warningEl.innerText = `⚠️ ${selectedRigId} HAS ONLY ${selectedSummary.audits} AUDIT. MINIMUM 2 REQUIRED.`;
+        } else {
+            warningEl.style.display = 'none';
+        }
         // 2. UPDATE SIDE VITALS & AUDIT WARNING
         const selectedRigId = document.getElementById('rigSelect').value;
         const selectedSummary = data.summary.find(s => s.id === selectedRigId);
@@ -916,6 +946,7 @@ config.forEach(g => {
 </script>
 </body>
 </html>
+
 
 
 
