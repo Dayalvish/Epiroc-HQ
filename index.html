@@ -559,6 +559,8 @@
 
 function updateUI(data) {
     if (!data) return;
+    
+    // 1. SAVE DATA GLOBALLY FIRST (Crucial for Chart/Gauges)
     globalData = data;
 
     const summaryBody = document.getElementById('fleet-summary-body');
@@ -567,7 +569,7 @@ function updateUI(data) {
     const warningEl = document.getElementById('auditWarning');
 
     try {
-        // 1. UPDATE TABLE & FLEET LOAD
+        // --- 2. UPDATE TABLE & FLEET COUNTERS ---
         if (data.summary && data.summary.length > 0) {
             summaryBody.innerHTML = data.summary.map(r => {
                 const isCritical = (data.globalAlerts || []).some(a => a.rig === r.id);
@@ -584,66 +586,66 @@ function updateUI(data) {
             const totalLoad = data.summary.reduce((acc, r) => acc + (parseFloat(r.avgLoad) || 0), 0);
             const avgLoad = (totalLoad / data.summary.length).toFixed(1);
             if(document.getElementById('v-fleet-load')) document.getElementById('v-fleet-load').innerText = avgLoad + "%";
-            document.getElementById('v-active-rigs').innerText = data.summary.length;
+            if(document.getElementById('v-active-rigs')) document.getElementById('v-active-rigs').innerText = data.summary.length;
+
             applyGlobalFilters(); 
         }
 
-        // 2. DYNAMIC AUDIT GRACE LOGIC
+        // --- 3. DYNAMIC AUDIT WARNING (Feb 7th = 6 Required) ---
         const currentRig = document.getElementById('rigSelect').value;
         const rigData = data.summary ? data.summary.find(s => s.id === currentRig) : null;
         if (warningEl) {
-            const dayOfMonth = new Date().getDate();
-            const requiredCount = dayOfMonth - 1; 
+            const requiredCount = new Date().getDate() - 1; 
             if (rigData && rigData.audits < requiredCount) {
                 warningEl.style.display = 'block';
-                warningEl.innerText = `⚠️ ${currentRig}: ${rigData.audits} AUDITS. ${requiredCount} REQUIRED BY DATE ${dayOfMonth}.`;
+                warningEl.innerText = `⚠️ ${currentRig}: ${rigData.audits} AUDITS. ${requiredCount} REQUIRED BY DATE ${new Date().getDate()}.`;
             } else {
                 warningEl.style.display = 'none';
             }
         }
 
-        // 3. SIDE VITALS & GAUGES
+        // --- 4. UPDATE SIDE VITALS ---
         if (data.vitals && data.vitals.date !== "N/A") {
             const v = data.vitals;
-            document.getElementById('v-boost').innerText = v.boost || "0";
-            document.getElementById('v-fuel').innerText = v.fuel || "0";
-            document.getElementById('v-receiver').innerText = v.receiver || "0";
-            document.getElementById('v-temp').innerText = (v.temp || "0") + "°C";
-            document.getElementById('vitals-date-stamp').innerText = "Last Audit: " + (v.date || "N/A");
-            
-            if (typeof startLivelyGauges === "function" && data.monthlyData) {
+            if(document.getElementById('v-boost')) document.getElementById('v-boost').innerText = v.boost || "0";
+            if(document.getElementById('v-fuel')) document.getElementById('v-fuel').innerText = v.fuel || "0";
+            if(document.getElementById('v-receiver')) document.getElementById('v-receiver').innerText = v.receiver || "0";
+            if(document.getElementById('v-temp')) document.getElementById('v-temp').innerText = (v.temp || "0") + "°C";
+            if(document.getElementById('vitals-date-stamp')) document.getElementById('vitals-date-stamp').innerText = "Last Audit: " + (v.date || "N/A");
+        }
+
+        // --- 5. ALERT LIST (Detailed styling with Limits) ---
+        const alerts = data.globalAlerts || [];
+        if (badge) badge.innerText = alerts.length;
+        if (alertList) {
+            alertList.innerHTML = alerts.length > 0 ? alerts.map(a => `
+                <div class="alert-item" style="border-left: 3px solid var(--red); padding: 8px; margin-bottom: 8px; background: rgba(255,0,0,0.05);">
+                    <div style="display:flex; justify-content:space-between;">
+                        <strong style="color:var(--yellow);">${a.rig}</strong>
+                        <span style="font-size:0.65rem; color:#888;">${a.date || ''}</span>
+                    </div>
+                    <div style="font-size:0.8rem;">${a.parameter}: <span style="color:var(--red); font-weight:bold;">${a.value}</span></div>
+                    <div style="font-size:0.7rem; color:#666;">Limit: ${a.limit}</div>
+                </div>`).join('') : '<div style="color:var(--green); text-align:center; padding:15px;">✅ SYSTEMS NORMAL</div>';
+        }
+
+        // --- 6. VISUAL REFRESH (Charts, Bit Pressure Dials, & Gauges) ---
+        // 🚀 This triggers your "Set vs Bit Pr" dials and the trend chart
+        if (typeof drawChart === "function") {
+            drawChart(); 
+        }
+
+        if (typeof startLivelyGauges === "function") {
+            if (data.monthlyData && data.monthlyData.length > 0) {
                 startLivelyGauges(true);
             }
         }
 
-        // 4. ALERT LIST (Detailed styling preserved)
-        const alerts = data.globalAlerts || [];
-        if (badge) {
-            badge.innerText = alerts.length;
-            badge.style.display = alerts.length > 0 ? 'inline-block' : 'none';
-        }
-        if (alertList) {
-            alertList.innerHTML = alerts.length > 0 ? alerts.map(a => `
-                <div class="alert-item" style="border-left: 3px solid var(--red); padding: 8px; margin-bottom: 8px; background: rgba(255,0,0,0.05); border-radius: 4px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <strong style="color:var(--yellow); font-size:0.85rem;">${a.rig}</strong>
-                        <span style="font-size:0.65rem; color:#888;">${a.date || 'N/A'}</span>
-                    </div>
-                    <div style="font-size:0.8rem; color:#eee; margin-top:3px;">
-                        ${a.parameter}: <span style="color:var(--red); font-weight:bold;">${a.value}</span>
-                    </div>
-                    <div style="font-size:0.7rem; color:#666;">Limit: ${a.limit}</div>
-                </div>`).join('') : '<div style="color:var(--green); text-align:center; padding:15px; border:1px dashed var(--green); margin-top:10px;">✅ ALL SYSTEMS NORMAL</div>';
-        }
-
-        // 5. CHART REDRAW
-        if (typeof drawChart === "function") drawChart();
-
     } catch (error) {
         console.error("UI Update Error:", error);
     } finally {
-        const scanningOverlay = document.getElementById('scanning-overlay'); 
-        if (scanningOverlay) scanningOverlay.style.display = 'none';
+        const overlay = document.getElementById('scanning-overlay'); 
+        if (overlay) overlay.style.display = 'none';
     }
 }
 
@@ -905,6 +907,7 @@ config.forEach(g => {
 </script>
 </body>
 </html>
+
 
 
 
