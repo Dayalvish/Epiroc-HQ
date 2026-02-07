@@ -704,8 +704,9 @@ if (typeof startLivelyGauges === "function") {
     // Only restart if data is present
     if (data.monthlyData && data.monthlyData.length > 0) {
         startLivelyGauges(true);
-    }
-}
+   }
+        }
+
     } catch (error) {
         console.error("UI Update Error:", error);
     } finally {
@@ -971,6 +972,7 @@ config.forEach(g => {
 </script>
 </body>
 </html>
+
 
 
 
