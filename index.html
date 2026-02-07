@@ -475,7 +475,7 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbzOUII5AwSMlec-AhJxRstiJq9svKLgLUJqD3PO0LVhLRT7JqTgRP8b__eegaFnYois/exec"; 
+    const API = "https://script.google.com/macros/s/AKfycby_5kE05Mb0WFOgMVBV9EzkUil1rC8WXZRY3FLEbGl38WjQrxjcOciM3JvFIGBjVAgW/exec"; 
     let chart = null, globalData = null;
     var livelyTimer = null;
     var currentIdx = 0;
@@ -550,45 +550,84 @@
             const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}&mode=${mode}`));
             const data = await res.json();
             updateUI(data);
-        }catch (err) { console.error("Refresh Error:", err); }
+        } catch (err) { console.error("Refresh Error:", err); }
     }
 
 function updateUI(data) {
     if (!data) return;
     globalData = data;
-    
+
     const summaryBody = document.getElementById('fleet-summary-body');
     const alertList = document.getElementById('alert-list');
-    const badge = document.getElementById('alert-count-badge'); // The small counter in the header
+    const badge = document.getElementById('alert-count-badge');
+    const warningEl = document.getElementById('auditWarning');
 
     try {
-        // 1. UPDATE TABLE & COUNTERS (Fleet Overview)
-if (data.summary && data.summary.length > 0) {
-    summaryBody.innerHTML = data.summary.map(r => {
-        const isCritical = (data.globalAlerts || []).some(a => a.rig === r.id);
-        const rowClass = isCritical ? 'critical-row' : '';
-        
-        // 🚀 THE FIX: Adding data-region and data-model so your existing filter works
-        return `
-            <tr class="${rowClass}" data-region="${r.region || ''}" data-model="${r.model || ''}">
-                <td><b>${r.id}</b> ${isCritical ? '<span class="alert-dot"></span>' : ''}</td>
-                <td>${r.audits || 0}</td>
-                <td style="color:${parseFloat(r.avgLoad) > 90 ? 'var(--red)' : 'inherit'}">${r.avgLoad || 0}%</td>
-                <td>${r.avgTemp || 0}</td>
-                <td>${r.avgOil || 0}</td>
-                <td>${r.avgFuel || 0}</td>
-                <td>${r.avgAir || 0}</td>
-                <td>${r.avgBit || 0}</td>
-                <td>${r.avgImpact || 0}</td>
-            </tr>`;
-    }).join('');
-    
-    // Refresh the filter immediately after building the table
-    applyGlobalFilters(); 
-    
-    document.getElementById('v-active-rigs').innerText = data.summary.length;
-}
+        // 1. UPDATE TABLE & COUNTERS
+        if (data.summary && data.summary.length > 0) {
+            summaryBody.innerHTML = data.summary.map(r => {
+                const isCritical = (data.globalAlerts || []).some(a => a.rig === r.id);
+                const rowClass = isCritical ? 'critical-row' : '';
+                
+                return `
+                    <tr class="${rowClass}" data-region="${r.region || ''}" data-model="${r.model || ''}">
+                        <td><b>${r.id}</b> ${isCritical ? '<span class="alert-dot"></span>' : ''}</td>
+                        <td>${r.audits || 0}</td>
+                        <td style="color:${parseFloat(r.avgLoad) > 90 ? 'var(--red)' : 'inherit'}">${r.avgLoad || 0}%</td>
+                        <td>${r.avgTemp || 0}</td>
+                        <td>${r.avgOil || 0}</td>
+                        <td>${r.avgFuel || 0}</td>
+                        <td>${r.avgAir || 0}</td>
+                        <td>${r.avgBit || 0}</td>
+                        <td>${r.avgImpact || 0}</td>
+                    </tr>`;
+            }).join('');
+            
+            const totalLoad = data.summary.reduce((acc, r) => acc + (parseFloat(r.avgLoad) || 0), 0);
+            const avgLoad = (totalLoad / data.summary.length).toFixed(1);
+            document.getElementById('v-fleet-load').innerText = avgLoad + "%";
+            document.getElementById('v-active-rigs').innerText = data.summary.length;
 
+            applyGlobalFilters(); 
+        }
+
+        // 2. AUDIT WARNING LOGIC
+        const currentRig = document.getElementById('rigSelect').value;
+        const rigData = data.summary ? data.summary.find(s => s.id === currentRig) : null;
+
+        if (rigData && rigData.audits < 2) {
+            warningEl.style.display = 'block';
+            warningEl.innerText = `⚠️ ${currentRig} HAS ONLY ${rigData.audits} AUDIT. MINIMUM 2 REQUIRED.`;
+        } else {
+            warningEl.style.display = 'none';
+        }
+
+        // 3. UPDATE SIDE VITALS
+        if (data.vitals && data.vitals.date !== "N/A") {
+            const v = data.vitals;
+            document.getElementById('v-boost').innerText = v.boost || "0";
+            document.getElementById('v-fuel').innerText = v.fuel || "0";
+            document.getElementById('v-receiver').innerText = v.receiver || "0";
+            document.getElementById('v-temp').innerText = (v.temp || "0") + "°C";
+            document.getElementById('vitals-date-stamp').innerText = "Last Audit: " + (v.date || "N/A");
+            
+            if (typeof startLivelyGauges === "function") {
+                startLivelyGauges(true);
+            }
+        }
+
+        // 4. DRAW CHART
+        if (typeof drawChart === "function") {
+            drawChart();
+        }
+
+    } catch (error) {
+        console.error("UI Update Error:", error);
+    } finally {
+        const loader = document.getElementById('scanning-overlay');
+        if (loader) loader.style.display = 'none';
+    }
+}
         // 2. UPDATE SIDE VITALS (Specific Machine Data)
         if (data.vitals && data.vitals.date !== "N/A") {
             const v = data.vitals;
@@ -610,71 +649,7 @@ if (data.summary && data.summary.length > 0) {
             badge.style.display = alerts.length > 0 ? 'inline-block' : 'none';
         }
 
-        if (alerts.length > 0) {// 1. UPDATE TABLE & COUNTERS (Fleet Overview)
-        if (data.summary && data.summary.length > 0) {
-            summaryBody.innerHTML = data.summary.map(r => {
-                const isCritical = (data.globalAlerts || []).some(a => a.rig === r.id);
-                const rowClass = isCritical ? 'critical-row' : '';
-                
-                return `
-                    <tr class="${rowClass}" data-region="${r.region || ''}" data-model="${r.model || ''}">
-                        <td><b>${r.id}</b> ${isCritical ? '<span class="alert-dot"></span>' : ''}</td>
-                        <td>${r.audits || 0}</td>
-                        <td style="color:${parseFloat(r.avgLoad) > 90 ? 'var(--red)' : 'inherit'}">${r.avgLoad || 0}%</td>
-                        <td>${r.avgTemp || 0}</td>
-                        <td>${r.avgOil || 0}</td>
-                        <td>${r.avgFuel || 0}</td>
-                        <td>${r.avgAir || 0}</td>
-                        <td>${r.avgBit || 0}</td>
-                        <td>${r.avgImpact || 0}</td>
-                    </tr>`;
-            }).join('');
-            
-            // 🚀 FIX: Calculate Fleet Avg Load properly to avoid "---"
-            const totalLoad = data.summary.reduce((acc, r) => acc + (parseFloat(r.avgLoad) || 0), 0);
-            const avgLoad = (totalLoad / data.summary.length).toFixed(1);
-            document.getElementById('v-fleet-load').innerText = avgLoad + "%";
-            document.getElementById('v-active-rigs').innerText = data.summary.length;
-
-            applyGlobalFilters(); 
-        }
-
-        // 2. UPDATE SIDE VITALS & AUDIT WARNING
-        const selectedRigId = document.getElementById('rigSelect').value;
-        const selectedSummary = data.summary.find(s => s.id === selectedRigId);
-        const warningEl = document.getElementById('auditWarning');
-
-        // 🚀 DYNAMIC AUDIT GRACE LOGIC
-const currentRig = document.getElementById('rigSelect').value;
-const rigData = data.summary ? data.summary.find(s => s.id === currentRig) : null;
-const warningEl = document.getElementById('auditWarning');
-
-if (warningEl) {
-    const today = new Date();
-    const dayOfMonth = today.getDate(); // On Feb 7th, this is 7
-    const requiredCount = dayOfMonth - 1; // 1-day grace period = 6
-
-    if (rigData && rigData.audits < requiredCount) {
-        warningEl.style.display = 'block';
-        warningEl.innerText = `⚠️ ${currentRig}: ${rigData.audits} AUDITS. ${requiredCount} REQUIRED BY DATE ${dayOfMonth}.`;
-    } else {
-        warningEl.style.display = 'none';
-    }
-}
-
-        if (data.vitals && data.vitals.date !== "N/A") {
-            const v = data.vitals;
-            document.getElementById('v-boost').innerText = v.boost || "0";
-            document.getElementById('v-fuel').innerText = v.fuel || "0";
-            document.getElementById('v-receiver').innerText = v.receiver || "0";
-            document.getElementById('v-temp').innerText = (v.temp || "0") + "°C";
-            document.getElementById('vitals-date-stamp').innerText = "Last Audit: " + (v.date || "N/A");
-            
-            // 🚀 FIX: Kickstart gauges whenever UI updates
-            if (typeof startLivelyGauges === "function") {
-                startLivelyGauges(true);
-            }
-        }
+        if (alerts.length > 0) {
             alertList.innerHTML = alerts.map(a => `
                 <div class="alert-item" style="border-left: 3px solid var(--red); padding: 8px; margin-bottom: 8px; background: rgba(255,0,0,0.05); border-radius: 4px;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -695,17 +670,7 @@ if (warningEl) {
         if (typeof drawChart === "function") {
             drawChart();
         }
- // 🚀 FORCE REFRESH VISUALS
-if (typeof drawChart === "function") {
-    drawChart();
-}
 
-if (typeof startLivelyGauges === "function") {
-    // Only restart if data is present
-    if (data.monthlyData && data.monthlyData.length > 0) {
-        startLivelyGauges(true);
-    }
-}
     } catch (error) {
         console.error("UI Update Error:", error);
     } finally {
@@ -971,9 +936,3 @@ config.forEach(g => {
 </script>
 </body>
 </html>
-
-
-
-
-
-
