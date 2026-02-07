@@ -535,83 +535,109 @@
     }
 
     async function refresh() {
-        const rig = document.getElementById('rigSelect').value;
-        const month = document.getElementById('monthFilter').value; 
-        const mode = document.getElementById('dataSource').value; 
-        try {
-            const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}&mode=${mode}`));
-            const data = await res.json();
-            updateUI(data);
-        } catch (err) { console.error("Refresh Error:", err); }
-    }
+    const rig = document.getElementById('rigSelect').value;
+    const month = document.getElementById('monthFilter').value; 
+    const mode = document.getElementById('dataSource').value; 
+    try {
+        const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}&mode=${mode}`));
+        const data = await res.json();
+        
+        globalData = data; // 🚀 THIS IS THE KEY: Hand the new data to the global variable
+        updateUI(data);    // Then tell the UI to repaint
+        
+        console.log("60s Heartbeat: Visuals updated at " + new Date().toLocaleTimeString());
+    } catch (err) { console.error("Refresh Error:", err); }
+}
 
     function updateUI(data) {
-        if (!data) return;
-        globalData = data;
-        const summaryBody = document.getElementById('fleet-summary-body');
-        const alertList = document.getElementById('alert-list');
-        const badge = document.getElementById('alert-count-badge');
-        const warningEl = document.getElementById('auditWarning');
+    if (!data) return;
 
-        try {
-            // 1. Fleet Summary Table
-            if (data.summary && data.summary.length > 0) {
-                summaryBody.innerHTML = data.summary.map(r => {
-                    const isCritical = (data.globalAlerts || []).some(a => a.rig === r.id);
-                    return `
-                        <tr class="${isCritical ? 'critical-row' : ''}" data-region="${r.region || ''}" data-model="${r.model || ''}">
-                            <td><b>${r.id}</b> ${isCritical ? '<span class="alert-dot"></span>' : ''}</td>
-                            <td>${r.audits || 0}</td>
-                            <td style="color:${parseFloat(r.avgLoad) > 90 ? 'var(--red)' : 'inherit'}">${r.avgLoad || 0}%</td>
-                            <td>${r.avgTemp || 0}</td><td>${r.avgOil || 0}</td><td>${r.avgFuel || 0}</td>
-                            <td>${r.avgAir || 0}</td><td>${r.avgBit || 0}</td><td>${r.avgImpact || 0}</td>
-                        </tr>`;
-                }).join('');
+    // 🚀 CRITICAL: Save new data to global scope so gauges/charts use fresh values
+    globalData = data; 
+    
+    const summaryBody = document.getElementById('fleet-summary-body');
+    const alertList = document.getElementById('alert-list');
+    const badge = document.getElementById('alert-count-badge');
+    const warningEl = document.getElementById('auditWarning');
+
+    try {
+        // 1. Fleet Summary Table
+        if (data.summary && data.summary.length > 0) {
+            summaryBody.innerHTML = data.summary.map(r => {
+                const isCritical = (data.globalAlerts || []).some(a => a.rig === r.id);
+                return `
+                    <tr class="${isCritical ? 'critical-row' : ''}" data-region="${r.region || ''}" data-model="${r.model || ''}">
+                        <td><b>${r.id}</b> ${isCritical ? '<span class="alert-dot"></span>' : ''}</td>
+                        <td>${r.audits || 0}</td>
+                        <td style="color:${parseFloat(r.avgLoad) > 90 ? 'var(--red)' : 'inherit'}">${r.avgLoad || 0}%</td>
+                        <td>${r.avgTemp || 0}</td><td>${r.avgOil || 0}</td><td>${r.avgFuel || 0}</td>
+                        <td>${r.avgAir || 0}</td><td>${r.avgBit || 0}</td><td>${r.avgImpact || 0}</td>
+                    </tr>`;
+            }).join('');
+            
+            const totalLoad = data.summary.reduce((acc, r) => acc + (parseFloat(r.avgLoad) || 0), 0);
+            document.getElementById('v-fleet-load').innerText = (totalLoad / data.summary.length).toFixed(1) + "%";
+            document.getElementById('v-active-rigs').innerText = data.summary.length;
+            
+            // Re-apply filters immediately
+            applyGlobalFilters(); 
+        }
+
+        // 2. Machine Vitals & Grace Period Logic
+        const currentRig = document.getElementById('rigSelect').value;
+        const rigData = data.summary ? data.summary.find(s => s.id === currentRig) : null;
+        
+        if (warningEl) {
+            const today = new Date();
+            const requiredCount = today.getDate() - 1; 
+            if (rigData && rigData.audits < requiredCount) {
+                warningEl.style.display = 'block';
+                warningEl.innerText = `⚠️ ${currentRig}: ${rigData.audits} AUDITS. ${requiredCount} REQUIRED.`;
                 
-                const totalLoad = data.summary.reduce((acc, r) => acc + (parseFloat(r.avgLoad) || 0), 0);
-                document.getElementById('v-fleet-load').innerText = (totalLoad / data.summary.length).toFixed(1) + "%";
-                document.getElementById('v-active-rigs').innerText = data.summary.length;
-                applyGlobalFilters(); 
+                // 🕒 Auto-hide after 15 seconds to clear the screen
+                setTimeout(() => { warningEl.style.display = 'none'; }, 15000); 
+            } else { 
+                warningEl.style.display = 'none'; 
             }
+        }
 
-            // 2. Machine Vitals & Grace Period Logic
-            const currentRig = document.getElementById('rigSelect').value;
-            const rigData = data.summary ? data.summary.find(s => s.id === currentRig) : null;
-            if (warningEl) {
-                const today = new Date();
-                const requiredCount = today.getDate() - 1; 
-                if (rigData && rigData.audits < requiredCount) {
-                    warningEl.style.display = 'block';
-                    warningEl.innerText = `⚠️ ${currentRig}: ${rigData.audits} AUDITS. ${requiredCount} REQUIRED.`;
-                    setTimeout(() => { warningEl.style.display = 'none'; }, 15000); // Auto-hide
-                } else { warningEl.style.display = 'none'; }
-            }
+        // Update Side Vitals
+        if (data.vitals && data.vitals.date !== "N/A") {
+            const v = data.vitals;
+            document.getElementById('v-boost').innerText = v.boost || "0";
+            document.getElementById('v-fuel').innerText = v.fuel || "0";
+            document.getElementById('v-receiver').innerText = v.receiver || "0";
+            document.getElementById('v-temp').innerText = (v.temp || "0") + "°C";
+            document.getElementById('vitals-date-stamp').innerText = "Last Audit: " + (v.date || "N/A");
+        }
 
-            if (data.vitals && data.vitals.date !== "N/A") {
-                const v = data.vitals;
-                document.getElementById('v-boost').innerText = v.boost || "0";
-                document.getElementById('v-fuel').innerText = v.fuel || "0";
-                document.getElementById('v-receiver').innerText = v.receiver || "0";
-                document.getElementById('v-temp').innerText = (v.temp || "0") + "°C";
-                document.getElementById('vitals-date-stamp').innerText = "Last Audit: " + (v.date || "N/A");
-            }
+        // 3. Alerts List & Header Badge
+        const alerts = data.globalAlerts || [];
+        badge.innerText = alerts.length;
+        badge.style.display = alerts.length > 0 ? 'inline-block' : 'none';
+        
+        alertList.innerHTML = alerts.length > 0 ? alerts.map(a => `
+            <div class="alert-item" style="border-left: 3px solid var(--red); padding: 8px; margin-bottom: 8px; background: rgba(255,0,0,0.05); border-radius: 4px;">
+                <div style="display:flex; justify-content:space-between;">
+                    <strong>${a.rig}</strong>
+                    <span style="font-size:0.7rem; color:#888;">${a.date || ''}</span>
+                </div>
+                <div style="font-size:0.8rem;">
+                    ${a.parameter}: <span style="color:var(--red); font-weight:bold;">${a.value}</span>
+                </div>
+            </div>`).join('') : '<div style="color:var(--green); text-align:center; padding:15px;">✅ SYSTEMS NORMAL</div>';
 
-            // 3. Alerts List
-            const alerts = data.globalAlerts || [];
-            badge.innerText = alerts.length;
-            badge.style.display = alerts.length > 0 ? 'inline-block' : 'none';
-            alertList.innerHTML = alerts.length > 0 ? alerts.map(a => `
-                <div class="alert-item" style="border-left: 3px solid var(--red); padding: 8px; margin-bottom: 8px; background: rgba(255,0,0,0.05); border-radius: 4px;">
-                    <div style="display:flex; justify-content:space-between;"><strong>${a.rig}</strong><span>${a.date || ''}</span></div>
-                    <div style="font-size:0.8rem;">${a.parameter}: <span style="color:var(--red); font-weight:bold;">${a.value}</span></div>
-                </div>`).join('') : '<div style="color:var(--green); text-align:center; padding:15px;">✅ SYSTEMS NORMAL</div>';
+        // 4. 🔥 REFRESH VISUALS
+        // This ensures charts and dials update every 60s when the heartbeat fires
+        if (typeof drawChart === "function") drawChart();
+        
+        // Passing 'true' resets the gauge loop index to 0 so you see the newest dates first
+        if (typeof startLivelyGauges === "function") startLivelyGauges(true);
 
-            // 4. Start Visuals
-            drawChart();
-            startLivelyGauges(true);
-
-        } catch (error) { console.error("UI Update Error:", error); }
+    } catch (error) { 
+        console.error("UI Update Error:", error); 
     }
+}
 
     function applyGlobalFilters() {
         const selRegion = document.getElementById('cityFocus').value;
@@ -789,6 +815,7 @@
 
 </body>
 </html>
+
 
 
 
