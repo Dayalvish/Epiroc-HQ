@@ -761,17 +761,15 @@
     const canvas = document.getElementById('mainChart');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    
-    // 1. Force Clear
-    if (chart) {
+
+    // 🚀 THE REPLICATION FIX: Clear memory for a fresh redraw
+    if (chart !== null) {
         chart.destroy();
-        chart = null; // 🚀 Hard reset to ensure replication
+        chart = null; 
     }
 
     const selectedRig = document.getElementById('rigSelect').value;
     const mode = document.getElementById('chartMode').value;
-    
-    // 2. Filter data for the specific machine
     const d = globalData.monthlyData.filter(e => e.rigId === selectedRig);
     if (d.length === 0) return;
 
@@ -782,49 +780,38 @@
         y: { grid: { color: '#333' }, ticks: { color: '#fff' } }
     };
 
-    // --- MODE 1: TEMP / OIL / RPM ---
     if (mode === 'tempVsOil') {
         datasets = [
-            { label: 'Oil', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'y', tension: 0.3 },
-            { label: 'Temp', data: d.map(x => x.temp), borderColor: '#ff4d4d', yAxisID: 'y1', tension: 0.3 },
+            { label: 'Oil', data: d.map(x => x.oil), borderColor: '#2ecc71', yAxisID: 'y' },
+            { label: 'Temp', data: d.map(x => x.temp), borderColor: '#ff4d4d', yAxisID: 'y1' },
             { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'y2', borderDash: [5, 5] }
         ];
-        scales.y1 = { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#ff4d4d' } };
-        scales.y2 = { position: 'right', min: 0, max: 3000, grid: { drawOnChartArea: false }, ticks: { color: '#3498db' } };
-    } 
-    // --- MODE: LOAD vs COMPRESSOR (V) ---
-    else if (mode === 'loadVsComp') {
+        scales.y1 = { position: 'right', grid: { drawOnChartArea: false } };
+        scales.y2 = { position: 'right', min: 0, max: 3000, grid: { drawOnChartArea: false } };
+    } else if (mode === 'loadVsComp') {
         datasets = [
             { label: 'Eng Load %', data: d.map(x => x.load), borderColor: '#f1c40f' },
             { label: 'Comp %', data: d.map(x => x.comp), borderColor: '#3498db' }
         ];
-    }
-    // --- NEW MODE: RPM vs COMP TEMP (W & X) ---
-    else if (mode === 'rpmVsCompTemp') {
+    } else if (mode === 'rpmVsCompTemp') {
         datasets = [
             { label: 'RPM', data: d.map(x => x.rpm), borderColor: '#3498db', yAxisID: 'y1' },
             { label: 'Comp T(L)', data: d.map(x => x.compTempL), borderColor: '#2ecc71', yAxisID: 'y' },
             { label: 'Comp T(H)', data: d.map(x => x.compTempH), borderColor: '#ff4d4d', yAxisID: 'y' }
         ];
-        scales.y1 = { position: 'right', min: 0, max: 3000, ticks: { color: '#3498db' } };
-    }
-    // --- NEW MODE: FUEL vs BOOST (K & N) ---
-    else if (mode === 'fuelVsBoost') {
+        scales.y1 = { position: 'right', min: 0, max: 3000 };
+    } else if (mode === 'fuelVsBoost') {
         datasets = [
-            { label: 'Fuel bar', data: d.map(x => x.fuel), borderColor: '#f1c40f', yAxisID: 'y' },
-            { label: 'Boost bar', data: d.map(x => x.boost), borderColor: '#3498db', yAxisID: 'y1' }
+            { label: 'Fuel (bar)', data: d.map(x => x.fuel), borderColor: '#f1c40f', yAxisID: 'y' },
+            { label: 'Boost (bar)', data: d.map(x => x.boost), borderColor: '#3498db', yAxisID: 'y1' }
         ];
-        scales.y1 = { position: 'right', min: 0, max: 5, ticks: { color: '#3498db' } };
-    }
-    // --- MODE: DTH ---
-    else if (mode === 'setVsBit') {
+        scales.y1 = { position: 'right', min: 0, max: 5 };
+    } else if (mode === 'setVsBit') {
         datasets = [
             { label: 'Set bar', data: d.map(x => x.air), borderColor: '#2ecc71' },
             { label: 'Bit bar', data: d.map(x => x.bit), borderColor: '#f39c12' }
         ];
-    }
-    // --- MODE: HYDRAULIC ---
-    else if (mode === 'hydro_impact') {
+    } else if (mode === 'hydro_impact') {
         datasets = [
             { label: 'Impact', data: d.map(x => x.impact), borderColor: '#f1c40f' },
             { label: 'Feed', data: d.map(x => x.feed), borderColor: '#e67e22' },
@@ -832,19 +819,17 @@
         ];
     }
 
-    // 3. Re-Create the Chart
     chart = new Chart(ctx, {
         type: 'line',
         data: { labels, datasets },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { labels: { color: '#fff', boxWidth: 12 } } },
+            plugins: { legend: { labels: { color: '#fff' } } },
             scales: scales
         }
     });
 }
-
     function exportToExcel() {
         let table = document.getElementById("summary-tbl");
         let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
@@ -875,10 +860,30 @@
     link.click();
     document.body.removeChild(link);
 }
+    // --- SECURITY: BLOCKS F12 BUT ALLOWS ALT+F12 FOR OWNER ---
+document.addEventListener('contextmenu', event => {
+    if (event.altKey) return; // Hold Alt to enable right-click
+    event.preventDefault();
+});
+
+document.onkeydown = function(e) {
+    // 🔓 YOUR BACKDOOR: If holding Alt, allow F12 or Ctrl+U
+    if (e.altKey) return true;
+
+    // 🔒 FOR OTHERS: Block F12 (keyCode 123)
+    if (e.keyCode == 123) return false;
+
+    // Block Ctrl+Shift+I (73), Ctrl+Shift+J (74), Ctrl+Shift+C (67)
+    if (e.ctrlKey && e.shiftKey && (e.keyCode == 73 || e.keyCode == 74 || e.keyCode == 67)) return false;
+
+    // Block Ctrl+U (85)
+    if (e.ctrlKey && e.keyCode == 85) return false;
+};
 </script>
 
 </body>
 </html>
+
 
 
 
