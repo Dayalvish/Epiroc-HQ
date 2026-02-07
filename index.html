@@ -475,7 +475,7 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbzOUII5AwSMlec-AhJxRstiJq9svKLgLUJqD3PO0LVhLRT7JqTgRP8b__eegaFnYois/exec"; 
+    const API = "https://script.google.com/macros/s/AKfycbw2EZECB8TFIVQCVJ3kOLSGsoy1z9oLIZvjHPTVENF0pvUgIMsKdz9qMkWYTWB_d0LP/exec"; 
     let chart = null, globalData = null;
     var livelyTimer = null;
     var currentIdx = 0;
@@ -546,14 +546,16 @@
     const rig = document.getElementById('rigSelect').value;
     const month = document.getElementById('monthFilter').value; 
     const mode = document.getElementById('dataSource').value; 
+    
     try {
         const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}&mode=${mode}`));
         const data = await res.json();
         
-        // 🚀 THE FIX: Save data globally so Chart/Gauges can see it
+        // 🚀 THE FIX: This "wakes up" the chart logic
         globalData = data; 
         
-        updateUI(data);
+        updateUI(data); 
+        console.log("60s Refresh: Visuals updated at " + new Date().toLocaleTimeString());
     } catch (err) { console.error("Refresh Error:", err); }
 }
 
@@ -907,6 +909,7 @@ config.forEach(g => {
 </script>
 </body>
 </html>
+
 
 
 
