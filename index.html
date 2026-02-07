@@ -791,33 +791,33 @@ else if (mode === 'hydro_impact') {
     ];
 }
 
-        // Build the SVG HTML
-        // Build the SVG and Value display
-config.forEach(g => {
-    const val = parseFloat(g.val || 0);
-    const lim = parseFloat(g.limit || 0);
-    const angle = (Math.min(val / g.max, 1) * 180) - 90;
-    const isAlert = g.isLow ? (val <= lim && lim > 0) : (val >= lim && lim > 0);
-    const color = isAlert ? 'var(--red)' : 'var(--ey)';
+       // --- 3. RENDER THE DIALS ---
+        html += config.map(c => {
+            const percent = Math.min((c.val / c.max) * 100, 100);
+            const isAlert = c.isLow ? (c.val <= c.limit && c.val > 0) : (c.val >= c.limit);
+            const color = isAlert ? 'var(--red)' : 'var(--green)';
+            const formattedVal = c.decimal ? parseFloat(c.val).toFixed(1) : Math.round(c.val);
 
-    html += `<div class="dial-wrapper">
-        <svg viewBox="0 0 100 65">
-            <path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="8" stroke-linecap="round" />
-            <line class="needle" x1="50" y1="50" x2="${50 + 38 * Math.cos((angle - 90) * Math.PI / 180)}" y2="${50 + 38 * Math.sin((angle - 90) * Math.PI / 180)}" stroke="${color}" stroke-width="4" stroke-linecap="round" />
-        </svg>
-        <div class="dial-value" style="color:${color}">${g.decimal ? val.toFixed(1) : Math.round(val)}</div>
-        <span class="dial-label">${g.lab}</span>
-    </div>`;
-});
-        
+            return `
+                <div class="gauge-card">
+                    <div class="gauge-label">${c.lab}</div>
+                    <div class="gauge-dial-container">
+                        <svg viewBox="0 0 100 100">
+                            <circle class="gauge-bg" cx="50" cy="50" r="45"></circle>
+                            <circle class="gauge-fill" cx="50" cy="50" r="45" 
+                                style="stroke-dasharray: ${percent * 2.82}, 282; stroke: ${color};">
+                            </circle>
+                        </svg>
+                        <div class="gauge-value" style="color:${color}">${formattedVal}</div>
+                    </div>
+                    <div class="gauge-limit">Limit: ${c.limit}</div>
+                </div>`;
+        }).join('');
+
         row.innerHTML = html;
-
-        // Safety check for sequence badge
-        const seqBadge = document.getElementById('current-seq');
-        if (seqBadge) seqBadge.innerText = currentIdx + 1;
-
         currentIdx = (currentIdx + 1) % d.length;
-    }, 2000);
+
+    }, 3000); // Rotates through audit dates every 3 seconds
 }
 
     function drawChart() {
@@ -929,6 +929,7 @@ config.forEach(g => {
 </script>
 </body>
 </html>
+
 
 
 
