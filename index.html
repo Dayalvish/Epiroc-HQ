@@ -542,18 +542,31 @@
     const rig = document.getElementById('rigSelect').value;
     const month = document.getElementById('monthFilter').value; 
     const mode = document.getElementById('dataSource').value; 
+    
+    // 🚀 THE FIX: Use an AbortController to prevent "Message channel closed" errors
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
     try {
-        const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}&mode=${mode}`));
+        const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}&mode=${mode}`), {
+            signal: controller.signal
+        });
+        
         const data = await res.json();
-        
-        // 🚀 THE HANDSHAKE: Save to globalData so all other functions see it
+        clearTimeout(timeoutId);
+
+        // 🚀 THE HANDSHAKE
         globalData = data; 
+        updateUI(data); 
         
-        // 🚀 THE TRIGGER: Call updateUI which now contains drawChart()
-        updateUI(data);
-        
-        console.log("60s Heartbeat: Refreshing Dashboard...");
-    } catch (err) { console.error("Refresh Error:", err); }
+        console.log("60s Heartbeat: Dashboard Updated Successfully");
+    } catch (err) {
+        if (err.name === 'AbortError') {
+            console.warn("Refresh timed out. Retrying on next heartbeat.");
+        } else {
+            console.error("Refresh Error:", err);
+        }
+    }
 }
 
     function updateUI(data) {
@@ -836,6 +849,7 @@
 
 </body>
 </html>
+
 
 
 
