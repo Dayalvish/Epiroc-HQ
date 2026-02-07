@@ -610,7 +610,61 @@ if (data.summary && data.summary.length > 0) {
             badge.style.display = alerts.length > 0 ? 'inline-block' : 'none';
         }
 
-        if (alerts.length > 0) {
+        if (alerts.length > 0) {// 1. UPDATE TABLE & COUNTERS (Fleet Overview)
+        if (data.summary && data.summary.length > 0) {
+            summaryBody.innerHTML = data.summary.map(r => {
+                const isCritical = (data.globalAlerts || []).some(a => a.rig === r.id);
+                const rowClass = isCritical ? 'critical-row' : '';
+                
+                return `
+                    <tr class="${rowClass}" data-region="${r.region || ''}" data-model="${r.model || ''}">
+                        <td><b>${r.id}</b> ${isCritical ? '<span class="alert-dot"></span>' : ''}</td>
+                        <td>${r.audits || 0}</td>
+                        <td style="color:${parseFloat(r.avgLoad) > 90 ? 'var(--red)' : 'inherit'}">${r.avgLoad || 0}%</td>
+                        <td>${r.avgTemp || 0}</td>
+                        <td>${r.avgOil || 0}</td>
+                        <td>${r.avgFuel || 0}</td>
+                        <td>${r.avgAir || 0}</td>
+                        <td>${r.avgBit || 0}</td>
+                        <td>${r.avgImpact || 0}</td>
+                    </tr>`;
+            }).join('');
+            
+            // 🚀 FIX: Calculate Fleet Avg Load properly to avoid "---"
+            const totalLoad = data.summary.reduce((acc, r) => acc + (parseFloat(r.avgLoad) || 0), 0);
+            const avgLoad = (totalLoad / data.summary.length).toFixed(1);
+            document.getElementById('v-fleet-load').innerText = avgLoad + "%";
+            document.getElementById('v-active-rigs').innerText = data.summary.length;
+
+            applyGlobalFilters(); 
+        }
+
+        // 2. UPDATE SIDE VITALS & AUDIT WARNING
+        const selectedRigId = document.getElementById('rigSelect').value;
+        const selectedSummary = data.summary.find(s => s.id === selectedRigId);
+        const warningEl = document.getElementById('auditWarning');
+
+        // 🚀 FIX: Trigger Audit Warning if Count < 2
+        if (selectedSummary && selectedSummary.audits < 2) {
+            warningEl.style.display = 'block';
+            warningEl.innerText = `⚠️ ${selectedRigId} HAS ONLY ${selectedSummary.audits} AUDIT. MINIMUM 2 REQUIRED.`;
+        } else {
+            warningEl.style.display = 'none';
+        }
+
+        if (data.vitals && data.vitals.date !== "N/A") {
+            const v = data.vitals;
+            document.getElementById('v-boost').innerText = v.boost || "0";
+            document.getElementById('v-fuel').innerText = v.fuel || "0";
+            document.getElementById('v-receiver').innerText = v.receiver || "0";
+            document.getElementById('v-temp').innerText = (v.temp || "0") + "°C";
+            document.getElementById('vitals-date-stamp').innerText = "Last Audit: " + (v.date || "N/A");
+            
+            // 🚀 FIX: Kickstart gauges whenever UI updates
+            if (typeof startLivelyGauges === "function") {
+                startLivelyGauges(true);
+            }
+        }
             alertList.innerHTML = alerts.map(a => `
                 <div class="alert-item" style="border-left: 3px solid var(--red); padding: 8px; margin-bottom: 8px; background: rgba(255,0,0,0.05); border-radius: 4px;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -897,6 +951,7 @@ config.forEach(g => {
 </script>
 </body>
 </html>
+
 
 
 
