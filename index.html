@@ -518,15 +518,11 @@
         
         await updateRigDropdown(); 
 
-        // 🚀 AUTO-REFRESH FIX: Target the currently selected rig every 60s
+        // 🚀 THE FIX: Standardize the auto-refresh to use your fetch logic
         if (window.refreshInterval) clearInterval(window.refreshInterval);
         window.refreshInterval = setInterval(() => { 
-            const activeRig = document.getElementById('rigSelect').value;
-            if (activeRig) {
-                console.log("60s Heartbeat: Refreshing " + activeRig);
-                // Call the existing function that fetches data and triggers updateUI
-                google.script.run.withSuccessHandler(updateUI).getDashboardData(activeRig);
-            }
+            console.log("60s Heartbeat: Refreshing Dashboard Data...");
+            refresh(); // This calls your existing fetch refresh
         }, 60000); 
 
     } catch (e) { console.error("Init Error:", e); }
@@ -870,21 +866,26 @@ config.forEach(g => {
         link.href = url;
         link.click();
     }
-   function exportTriggerReport() {
+  function exportTriggerReport() {
+    // Check if we have alert data saved in globalData
     if (!globalData || !globalData.globalAlerts || globalData.globalAlerts.length === 0) {
         return alert("No active triggers to export.");
     }
     
     const headers = ["Machine ID", "Parameter", "Value", "Limit", "Timestamp"];
+    
     const rows = globalData.globalAlerts.map(a => [
-        `"${a.rig}"`, 
-        `"${a.parameter.replace('🚨 ', '')}"`, 
+        `"${a.rig}"`,                                // Wraps ID in quotes for Excel
+        `"${a.parameter.replace('🚨 ', '')}"`,      // Cleans the emoji
         a.value, 
         a.limit, 
-        `"${a.date || 'N/A'}"` // <--- THIS POPULATES THE EXCEL COLUMN
+        `"${a.date || 'N/A'}"`                       // 🚀 THE FIX: Populates the Date
     ]);
 
-    const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n");
+    const csvContent = "data:text/csv;charset=utf-8," 
+        + headers.join(",") + "\n" 
+        + rows.map(r => r.join(",")).join("\n");
+
     const link = document.createElement("a");
     link.setAttribute("href", encodeURI(csvContent));
     link.setAttribute("download", `Fleet_Alert_Report_${new Date().toLocaleDateString()}.csv`);
@@ -895,5 +896,6 @@ config.forEach(g => {
 </script>
 </body>
 </html>
+
 
 
