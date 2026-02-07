@@ -644,22 +644,7 @@ function updateUI(data) {
                 startLivelyGauges(true);
             }
         }
-// 🚀 FORCE RE-PAINT (This makes the dials appear)
-        if (typeof startLivelyGauges === "function") {
-            startLivelyGauges(true);
-        }
 
-        // 🚀 FORCE CHART REDRAW (Every 60s)
-        if (typeof drawChart === "function") {
-            drawChart();
-        }
-
-        // 🚀 AUDIT WARNING 15s AUTO-HIDE
-        if (warningEl && warningEl.style.display === 'block') {
-            setTimeout(() => {
-                warningEl.style.display = 'none';
-            }, 15000); // Disappears exactly after 15 seconds
-        }
     } catch (error) {
         console.error("UI Update Error:", error);
     } finally {
@@ -932,6 +917,7 @@ config.forEach(g => {
 </script>
 </body>
 </html>
+
 
 
 
