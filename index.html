@@ -599,12 +599,14 @@ function updateUI(data) {
         if (warningEl) {
             const requiredCount = new Date().getDate() - 1; 
             if (rigData && rigData.audits < requiredCount) {
-                warningEl.style.display = 'block';
-                warningEl.innerText = `⚠️ ${currentRig}: ${rigData.audits} AUDITS. ${requiredCount} REQUIRED BY DATE ${new Date().getDate()}.`;
-            } else {
-                warningEl.style.display = 'none';
-            }
-        }
+    warningEl.style.display = 'block';
+    warningEl.innerText = `⚠️ ${currentRig}: ${rigData.audits} AUDITS FOUND. ${requiredCount} REQUIRED.`;
+
+    // 🚀 THE FIX: Hide it automatically after 15 seconds
+    setTimeout(() => {
+        warningEl.style.display = 'none';
+    }, 15000); 
+}
 
         // --- 4. UPDATE SIDE VITALS ---
         if (data.vitals && data.vitals.date !== "N/A") {
@@ -642,7 +644,22 @@ function updateUI(data) {
                 startLivelyGauges(true);
             }
         }
+// 🚀 FORCE RE-PAINT (This makes the dials appear)
+        if (typeof startLivelyGauges === "function") {
+            startLivelyGauges(true);
+        }
 
+        // 🚀 FORCE CHART REDRAW (Every 60s)
+        if (typeof drawChart === "function") {
+            drawChart();
+        }
+
+        // 🚀 AUDIT WARNING 15s AUTO-HIDE
+        if (warningEl && warningEl.style.display === 'block') {
+            setTimeout(() => {
+                warningEl.style.display = 'none';
+            }, 15000); // Disappears exactly after 15 seconds
+        }
     } catch (error) {
         console.error("UI Update Error:", error);
     } finally {
@@ -761,8 +778,14 @@ else if (mode === 'loadVsComp') {
         { lab: 'Eng Load %', val: entry.load || 0, max: 100, limit: T['Engine load Drilling_High'] || 95, isLow: false },
         { lab: 'Comp %', val: entry.comp || 0, max: 100, limit: T['Compressor Load (Smartroc & PV)_High'] || 90, isLow: false }
     ];
+    // --- MODE 3: SET PR vs BIT PR ---
+else if (mode === 'setVsBit') {
+    config = [
+        { lab: 'Set bar', val: entry.air || 0, max: 35, limit: T['Compressor air pressure_Low'] || 20, isLow: true, decimal: true },
+        { lab: 'Bit bar', val: entry.bit || 0, max: 35, limit: T['Bit_Air_Pressure_Low'] || 18, isLow: true, decimal: true }
+    ];
 }
-// --- MODE 4: HYDRAULIC / COMP TEMP ---
+// --- MODE 4: HYDRAULIC / IMPACT ---
 else if (mode === 'hydro_impact') {
             config = [
                 { lab: 'Impact', val: entry.impact, max: 300, limit: T['Impact_Pressure_High'] || 250, isLow: false },
@@ -909,6 +932,7 @@ config.forEach(g => {
 </script>
 </body>
 </html>
+
 
 
 
