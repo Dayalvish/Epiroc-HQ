@@ -475,7 +475,7 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycbw2EZECB8TFIVQCVJ3kOLSGsoy1z9oLIZvjHPTVENF0pvUgIMsKdz9qMkWYTWB_d0LP/exec"; 
+    const API = "https://script.google.com/macros/s/AKfycbwhtjKwdgBccwNYs5pQ8UJh6_DzLGMO8uNDE0MHDdUMWPgzDAdVwhTcMFIwuIRzEtCz/exec"; 
     let chart = null, globalData = null;
     var livelyTimer = null;
     var currentIdx = 0;
@@ -508,25 +508,17 @@
     }
 
     async function init() {
-    const now = new Date(); 
-    document.getElementById('monthFilter').value = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
-    
-    try {
-        const mRes = await fetch(getFullUrl("get=model_list"));
-        const mList = await mRes.json();
-        document.getElementById('modelSelect').innerHTML = '<option value="">All Models</option>' + mList.map(m => `<option value="${m}">${m}</option>`).join('');
-        
-        await updateRigDropdown(); 
-
-        // 🚀 THE FIX: Standardize the auto-refresh to use your fetch logic
-        if (window.refreshInterval) clearInterval(window.refreshInterval);
-        window.refreshInterval = setInterval(() => { 
-            console.log("60s Heartbeat: Refreshing Dashboard Data...");
-            refresh(); // This calls your existing fetch refresh
-        }, 60000); 
-
-    } catch (e) { console.error("Init Error:", e); }
-}
+        const now = new Date(); 
+        document.getElementById('monthFilter').value = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
+        try {
+            const mRes = await fetch(getFullUrl("get=model_list"));
+            const mList = await mRes.json();
+            document.getElementById('modelSelect').innerHTML = '<option value="">All Models</option>' + mList.map(m => `<option value="${m}">${m}</option>`).join('');
+            await updateRigDropdown(); 
+            if (window.refreshInterval) clearInterval(window.refreshInterval);
+            window.refreshInterval = setInterval(() => { refresh(); }, 60000); 
+        } catch (e) { console.error("Init Error:", e); }
+    }
 
     async function updateRigDropdown() {
         const model = document.getElementById('modelSelect').value;
@@ -543,124 +535,105 @@
     }
 
     async function refresh() {
-    const rig = document.getElementById('rigSelect').value;
-    const month = document.getElementById('monthFilter').value; 
-    const mode = document.getElementById('dataSource').value; 
-    
-    try {
-        const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}&mode=${mode}`));
-        const data = await res.json();
-        
-        // 🚀 THE FIX: This "wakes up" the chart logic
-        globalData = data; 
-        
-        updateUI(data); 
-        console.log("60s Refresh: Visuals updated at " + new Date().toLocaleTimeString());
-    } catch (err) { console.error("Refresh Error:", err); }
-}
+        const rig = document.getElementById('rigSelect').value;
+        const month = document.getElementById('monthFilter').value; 
+        const mode = document.getElementById('dataSource').value; 
+        try {
+            const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}&mode=${mode}`));
+            const data = await res.json();
+            updateUI(data);
+        } catch (err) { console.error("Refresh Error:", err); }
+    }
 
 function updateUI(data) {
     if (!data) return;
-    
-    // 1. SAVE DATA GLOBALLY FIRST (Crucial for Chart/Gauges)
     globalData = data;
-
+    
     const summaryBody = document.getElementById('fleet-summary-body');
-    const alertList = document.getElementById('alert-list');
-    const badge = document.getElementById('alert-count-badge');
-    const warningEl = document.getElementById('auditWarning');
+    const selectedRigId = document.getElementById('rigSelect').value;
 
     try {
-        // --- 2. UPDATE TABLE & FLEET COUNTERS ---
+        // 1. UPDATE TABLE & COUNTERS (Fleet Overview)
         if (data.summary && data.summary.length > 0) {
             summaryBody.innerHTML = data.summary.map(r => {
+                // Determine if this specific row should be highlighted
                 const isCritical = (data.globalAlerts || []).some(a => a.rig === r.id);
+                const rowClass = isCritical ? 'critical-row' : '';
+                
                 return `
-                    <tr class="${isCritical ? 'critical-row' : ''}" data-region="${r.region || ''}" data-model="${r.model || ''}">
+                    <tr class="${rowClass}" data-region="${r.region || ''}" data-model="${r.model || ''}">
                         <td><b>${r.id}</b> ${isCritical ? '<span class="alert-dot"></span>' : ''}</td>
                         <td>${r.audits || 0}</td>
                         <td style="color:${parseFloat(r.avgLoad) > 90 ? 'var(--red)' : 'inherit'}">${r.avgLoad || 0}%</td>
-                        <td>${r.avgTemp || 0}</td><td>${r.avgOil || 0}</td><td>${r.avgFuel || 0}</td>
-                        <td>${r.avgAir || 0}</td><td>${r.avgBit || 0}</td><td>${r.avgImpact || 0}</td>
+                        <td>${r.avgTemp || 0}</td>
+                        <td>${r.avgOil || 0}</td>
+                        <td>${r.avgFuel || 0}</td>
+                        <td>${r.avgAir || 0}</td>
+                        <td>${r.avgBit || 0}</td>
+                        <td>${r.avgImpact || 0}</td>
                     </tr>`;
             }).join('');
             
-            const totalLoad = data.summary.reduce((acc, r) => acc + (parseFloat(r.avgLoad) || 0), 0);
+            document.getElementById('v-active-rigs').innerText = data.summary.length;
+            const totalLoad = data.summary.reduce((acc, r) => acc + parseFloat(r.avgLoad || 0), 0);
             const avgLoad = (totalLoad / data.summary.length).toFixed(1);
-            if(document.getElementById('v-fleet-load')) document.getElementById('v-fleet-load').innerText = avgLoad + "%";
-            if(document.getElementById('v-active-rigs')) document.getElementById('v-active-rigs').innerText = data.summary.length;
-
-            applyGlobalFilters(); 
+            document.getElementById('v-fleet-load').innerText = avgLoad + "%";
         }
 
-        // --- 3. DYNAMIC AUDIT WARNING (Feb 7th = 6 Required) ---
-        const currentRig = document.getElementById('rigSelect').value;
-        const rigData = data.summary ? data.summary.find(s => s.id === currentRig) : null;
-        if (warningEl) {
-            const requiredCount = new Date().getDate() - 1; 
-            if (rigData && rigData.audits < requiredCount) {
-    warningEl.style.display = 'block';
-    warningEl.innerText = `⚠️ ${currentRig}: ${rigData.audits} AUDITS FOUND. ${requiredCount} REQUIRED.`;
-
-    // 🚀 THE FIX: Hide it automatically after 15 seconds
-    setTimeout(() => {
-        warningEl.style.display = 'none';
-    }, 15000); 
-}
-
-        // --- 4. UPDATE SIDE VITALS ---
+        // 2. UPDATE SIDE VITALS (Using the Direct "vitals" object from GS)
         if (data.vitals && data.vitals.date !== "N/A") {
             const v = data.vitals;
-            if(document.getElementById('v-boost')) document.getElementById('v-boost').innerText = v.boost || "0";
-            if(document.getElementById('v-fuel')) document.getElementById('v-fuel').innerText = v.fuel || "0";
-            if(document.getElementById('v-receiver')) document.getElementById('v-receiver').innerText = v.receiver || "0";
-            if(document.getElementById('v-temp')) document.getElementById('v-temp').innerText = (v.temp || "0") + "°C";
-            if(document.getElementById('vitals-date-stamp')) document.getElementById('vitals-date-stamp').innerText = "Last Audit: " + (v.date || "N/A");
+            document.getElementById('v-boost').innerText = v.boost || "0";
+            document.getElementById('v-fuel').innerText = v.fuel || "0";
+            document.getElementById('v-receiver').innerText = v.receiver || "0";
+            document.getElementById('v-temp').innerText = (v.temp || "0") + "°C";
+            document.getElementById('vitals-date-stamp').innerText = "Last Audit: " + (v.date || "N/A");
+        } else {
+            // Fallback if no specific rig is selected or data is missing
+            document.getElementById('v-boost').innerText = "--";
+            document.getElementById('v-fuel').innerText = "--";
+            document.getElementById('v-receiver').innerText = "--";
+            document.getElementById('v-temp').innerText = "--";
+            document.getElementById('vitals-date-stamp').innerText = "Select Rig / No Data";
         }
 
-        // --- 5. ALERT LIST (Detailed styling with Limits) ---
-        const alerts = data.globalAlerts || [];
-        if (badge) badge.innerText = alerts.length;
-        if (alertList) {
-            alertList.innerHTML = alerts.length > 0 ? alerts.map(a => `
-                <div class="alert-item" style="border-left: 3px solid var(--red); padding: 8px; margin-bottom: 8px; background: rgba(255,0,0,0.05);">
-                    <div style="display:flex; justify-content:space-between;">
-                        <strong style="color:var(--yellow);">${a.rig}</strong>
-                        <span style="font-size:0.65rem; color:#888;">${a.date || ''}</span>
-                    </div>
-                    <div style="font-size:0.8rem;">${a.parameter}: <span style="color:var(--red); font-weight:bold;">${a.value}</span></div>
-                    <div style="font-size:0.7rem; color:#666;">Limit: ${a.limit}</div>
-                </div>`).join('') : '<div style="color:var(--green); text-align:center; padding:15px;">✅ SYSTEMS NORMAL</div>';
+        // --- Update this part in your updateUI(data) function ---
+const alertList = document.getElementById('alert-list');
+if (data.globalAlerts && data.globalAlerts.length > 0) {
+    alertList.innerHTML = data.globalAlerts.map(a => `
+        <div class="alert-item" style="border-left: 3px solid var(--red); padding: 8px; margin-bottom: 8px; background: rgba(255,0,0,0.05); border-radius: 4px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <strong style="color:var(--yellow); font-size:0.85rem;">${a.rig}</strong>
+                <span style="font-size:0.65rem; color:#888;">${a.date || 'N/A'}</span>
+            </div>
+            <div style="font-size:0.8rem; color:#eee; margin-top:3px;">
+                ${a.parameter}: <span style="color:var(--red); font-weight:bold;">${a.value}</span>
+            </div>
+            <div style="font-size:0.7rem; color:#666;">Limit: ${a.limit}</div>
+        </div>
+    `).join('');
+} else {
+            if (badge) badge.style.display = 'none';
+            alertList.innerHTML = '<div style="color:var(--green); text-align:center; padding:15px; border:1px dashed var(--green);">✅ ALL SYSTEMS NORMAL</div>';
         }
 
-        // --- 6. VISUAL REFRESH (Charts, Dials & Gauges) ---
-        
-        // 🚀 Redraw the Trend Chart (Handles the 60s Auto-Refresh)
+        // 4. TRIGGER CHART REDRAW
         if (typeof drawChart === "function") {
-            drawChart(); 
-        }
-
-        // 🚀 Re-paint Gauges (Makes "Set vs Bit" and "Hydro" dials appear)
-        if (typeof startLivelyGauges === "function") {
-            // Only restart if data is present to avoid errors
-            if (data.monthlyData && data.monthlyData.length > 0) {
-                startLivelyGauges(true);
-            }
-        }
-
-        // 🚀 AUDIT WARNING 15s AUTO-HIDE
-        if (warningEl && warningEl.style.display === 'block') {
-            setTimeout(() => {
-                warningEl.style.display = 'none';
-            }, 15000); // Disappears exactly after 15 seconds
+            drawChart();
         }
 
     } catch (error) {
         console.error("UI Update Error:", error);
     } finally {
-        // Ensures the "Scanning" loader always hides
-        const overlay = document.getElementById('scanning-overlay'); 
-        if (overlay) overlay.style.display = 'none';
+        // 5. THE SCANNING KILLER: This hides the loading state regardless of errors
+        const scanningOverlay = document.getElementById('scanning-overlay'); 
+        if (scanningOverlay) {
+            scanningOverlay.style.display = 'none';
+        }
+        // If your "Scanning" is just text inside the alert list:
+        if(alertList && alertList.innerHTML.includes("Scanning")) {
+             // Logic handled in Step 3 else block
+        }
     }
 }
 
@@ -724,63 +697,95 @@ function applyGlobalFilters() {
         </div>`;
 }
 
-    function startLivelyGauges(forceReset = false) {
-        if (livelyTimer) clearInterval(livelyTimer);
-        const selectedRig = document.getElementById('rigSelect').value;
-        const d = (globalData?.monthlyData || []).filter(e => e.rigId === selectedRig);
-        const T = globalData?.thresholds || {};
-        const row = document.getElementById('gauge-row');
-        if (!row || d.length === 0) return;
-        if (forceReset) currentIdx = 0;
-
-        livelyTimer = setInterval(() => {
-            if (!d[currentIdx]) { currentIdx = 0; return; }
-            const entry = d[currentIdx];
-            const mode = document.getElementById('chartMode').value;
-            let html = `<div class="date-badge" style="position:absolute; top: 15px; left: 20px; font-size: 0.9rem; font-weight: bold; color: var(--ey); background: rgba(0,0,0,0.5); padding: 5px 12px; border-left: 4px solid var(--ey); z-index: 10;">AUDIT: ${entry.date}</div>`;
-            let config = [];
-
-            if (mode === 'tempVsOil') {
-                config = [
-                    { lab: 'Oil bar', val: entry.oil, max: 10, limit: T['Engine oil pressure_Low'], isLow: true },
-                    { lab: 'RPM', val: entry.rpm, max: 3000, limit: 2500, isLow: false },
-                    { lab: 'Temp °C', val: entry.temp, max: 130, limit: T['Engine Temp_High'], isLow: false }
-                ];
-            } else if (mode === 'loadVsComp') {
-                config = [
-                    { lab: 'Eng Load %', val: entry.load || 0, max: 100, limit: 95, isLow: false },
-                    { lab: 'Comp %', val: entry.comp || 0, max: 100, limit: 90, isLow: false }
-                ];
-            } else if (mode === 'setBit') {
-                config = [
-                    { lab: 'Air Set', val: entry.air || 0, max: 35, limit: 30, isLow: false },
-                    { lab: 'Bit Pr', val: entry.bit || 0, max: 35, limit: 30, isLow: false }
-                ];
-            } else if (mode === 'hydro_impact') {
-                config = [
-                    { lab: 'Impact', val: entry.impact, max: 300, limit: 250, isLow: false },
-                    { lab: 'Feed', val: entry.feed, max: 150, limit: 120, isLow: false },
-                    { lab: 'Damper', val: entry.damper, max: 100, limit: 80, isLow: false }
-                ];
-            }
-
-            config.forEach(g => {
-                const val = parseFloat(g.val || 0);
-                const lim = parseFloat(g.limit || 0);
-                const angle = (Math.min(val / g.max, 1) * 180) - 90;
-                const isAlert = g.isLow ? (val <= lim && lim > 0) : (val >= lim && lim > 0);
-                const color = isAlert ? 'var(--red)' : 'var(--ey)';
-                html += `<div class="dial-wrapper">
-                    <svg viewBox="0 0 100 65"><path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="#333" stroke-width="8"/><line x1="50" y1="50" x2="${50 + 38 * Math.cos((angle - 90) * Math.PI / 180)}" y2="${50 + 38 * Math.sin((angle - 90) * Math.PI / 180)}" stroke="${color}" stroke-width="4"/></svg>
-                    <div class="dial-value" style="color:${color}">${val.toFixed(1)}</div>
-                    <span class="dial-label">${g.lab}</span>
-                </div>`;
-            });
-            row.innerHTML = html;
-            document.getElementById('current-seq').innerText = currentIdx + 1;
-            currentIdx = (currentIdx + 1) % d.length;
-        }, 2000);
+    // --- 2. DYNAMIC RADIAL DIAL GAUGE LOGIC (Optimized & Protected) ---
+function startLivelyGauges(forceReset = false) {
+    // 1. Clear and Nullify the timer to prevent overlapping intervals
+    if (livelyTimer) {
+        clearInterval(livelyTimer);
+        livelyTimer = null;
     }
+    
+    const rigEl = document.getElementById('rigSelect');
+    const row = document.getElementById('gauge-row');
+    if (!rigEl || !row) return; // Exit if UI elements are missing
+
+    const selectedRig = rigEl.value;
+    // Filter data - using optional chaining for safety
+    const d = (globalData?.monthlyData || []).filter(entry => entry.rigId === selectedRig);
+    
+    if (d.length === 0) {
+        row.innerHTML = `<div style="color:#666; padding:20px; text-align:center; width:100%;">NO DATA FOR SELECTED RIG</div>`;
+        return;
+    }
+
+    const T = globalData?.thresholds || {}; 
+    if (forceReset) currentIdx = 0;
+    const mode = document.getElementById('chartMode')?.value || 'tempVsOil';
+
+    livelyTimer = setInterval(() => {
+        if (!d[currentIdx]) { currentIdx = 0; }
+        
+        const entry = d[currentIdx];
+        const dateStr = entry.date || "N/A";
+        
+        // Setup the Date Badge
+        let html = `<div class="date-badge">AUDIT DATE: ${dateStr}</div>`;
+        let config = [];
+
+       // --- MODE 1: TEMP / OIL / RPM ---
+if (mode === 'tempVsOil') {
+    config = [
+        // Ensure decimal: true is set for the oil pressure
+        { lab: 'Oil bar', val: entry.oil, max: 10, limit: T['Engine oil pressure_Low'], isLow: true, decimal: true },
+        { lab: 'RPM', val: entry.rpm, max: 3000, limit: T['Engine RPM Drilling_High'] || 2200, isLow: false, decimal: false },
+        { lab: 'Temp °C', val: entry.temp, max: 130, limit: T['Engine Temp_High'], isLow: false, decimal: false }
+    ];
+} 
+// --- MODE 2: LOAD vs COMPRESSOR ---
+else if (mode === 'loadVsComp') {
+    config = [
+        { lab: 'Eng Load %', val: entry.load || 0, max: 100, limit: T['Engine load Drilling_High'] || 95, isLow: false },
+        { lab: 'Comp %', val: entry.comp || 0, max: 100, limit: T['Compressor Load (Smartroc & PV)_High'] || 90, isLow: false }
+    ];
+}
+// --- MODE 4: HYDRAULIC / COMP TEMP ---
+else if (mode === 'hydro_impact') {
+            config = [
+                { lab: 'Impact', val: entry.impact, max: 300, limit: T['Impact_Pressure_High'] || 250, isLow: false },
+                { lab: 'Feed', val: entry.feed, max: 150, limit: T['Feed_Pressure_High'] || 100, isLow: false },
+                { lab: 'Damper', val: entry.damper, max: 100, limit: T['Damper_Pressure_High'] || 80, isLow: false }
+            ];
+        }
+
+        // Build the SVG HTML
+        // Build the SVG and Value display
+config.forEach(g => {
+    const val = parseFloat(g.val || 0);
+    const lim = parseFloat(g.limit || 0);
+    const angle = (Math.min(val / g.max, 1) * 180) - 90;
+    const isAlert = g.isLow ? (val <= lim && lim > 0) : (val >= lim && lim > 0);
+    const color = isAlert ? 'var(--red)' : 'var(--ey)';
+
+    html += `<div class="dial-wrapper">
+        <svg viewBox="0 0 100 65">
+            <path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="8" stroke-linecap="round" />
+            <line class="needle" x1="50" y1="50" x2="${50 + 38 * Math.cos((angle - 90) * Math.PI / 180)}" y2="${50 + 38 * Math.sin((angle - 90) * Math.PI / 180)}" stroke="${color}" stroke-width="4" stroke-linecap="round" />
+        </svg>
+        <div class="dial-value" style="color:${color}">${g.decimal ? val.toFixed(1) : Math.round(val)}</div>
+        <span class="dial-label">${g.lab}</span>
+    </div>`;
+});
+        
+        row.innerHTML = html;
+
+        // Safety check for sequence badge
+        const seqBadge = document.getElementById('current-seq');
+        if (seqBadge) seqBadge.innerText = currentIdx + 1;
+
+        currentIdx = (currentIdx + 1) % d.length;
+    }, 2000);
+}
+
     function drawChart() {
     // 1. Safety Check
     if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
@@ -860,26 +865,21 @@ function applyGlobalFilters() {
         link.href = url;
         link.click();
     }
-  function exportTriggerReport() {
-    // Check if we have alert data saved in globalData
+   function exportTriggerReport() {
     if (!globalData || !globalData.globalAlerts || globalData.globalAlerts.length === 0) {
         return alert("No active triggers to export.");
     }
     
     const headers = ["Machine ID", "Parameter", "Value", "Limit", "Timestamp"];
-    
     const rows = globalData.globalAlerts.map(a => [
-        `"${a.rig}"`,                                // Wraps ID in quotes for Excel
-        `"${a.parameter.replace('🚨 ', '')}"`,      // Cleans the emoji
+        `"${a.rig}"`, 
+        `"${a.parameter.replace('🚨 ', '')}"`, 
         a.value, 
         a.limit, 
-        `"${a.date || 'N/A'}"`                       // 🚀 THE FIX: Populates the Date
+        `"${a.date || 'N/A'}"` // <--- THIS POPULATES THE EXCEL COLUMN
     ]);
 
-    const csvContent = "data:text/csv;charset=utf-8," 
-        + headers.join(",") + "\n" 
-        + rows.map(r => r.join(",")).join("\n");
-
+    const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n");
     const link = document.createElement("a");
     link.setAttribute("href", encodeURI(csvContent));
     link.setAttribute("download", `Fleet_Alert_Report_${new Date().toLocaleDateString()}.csv`);
@@ -890,23 +890,3 @@ function applyGlobalFilters() {
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
