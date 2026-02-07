@@ -563,30 +563,31 @@ function updateUI(data) {
 
     try {
         // 1. UPDATE TABLE & COUNTERS (Fleet Overview)
-        if (data.summary && data.summary.length > 0) {
-            summaryBody.innerHTML = data.summary.map(r => {
-                const isCritical = (data.globalAlerts || []).some(a => a.rig === r.id);
-                const rowClass = isCritical ? 'critical-row' : '';
-                
-                return `
-                    <tr class="${rowClass}">
-                        <td><b>${r.id}</b> ${isCritical ? '<span class="alert-dot"></span>' : ''}</td>
-                        <td>${r.audits || 0}</td>
-                        <td style="color:${parseFloat(r.avgLoad) > 90 ? 'var(--red)' : 'inherit'}">${r.avgLoad || 0}%</td>
-                        <td>${r.avgTemp || 0}</td>
-                        <td>${r.avgOil || 0}</td>
-                        <td>${r.avgFuel || 0}</td>
-                        <td>${r.avgAir || 0}</td>
-                        <td>${r.avgBit || 0}</td>
-                        <td>${r.avgImpact || 0}</td>
-                    </tr>`;
-            }).join('');
-            
-            document.getElementById('v-active-rigs').innerText = data.summary.length;
-            const totalLoad = data.summary.reduce((acc, r) => acc + parseFloat(r.avgLoad || 0), 0);
-            const avgLoad = (totalLoad / data.summary.length).toFixed(1);
-            document.getElementById('v-fleet-load').innerText = avgLoad + "%";
-        }
+if (data.summary && data.summary.length > 0) {
+    summaryBody.innerHTML = data.summary.map(r => {
+        const isCritical = (data.globalAlerts || []).some(a => a.rig === r.id);
+        const rowClass = isCritical ? 'critical-row' : '';
+        
+        // 🚀 THE FIX: Adding data-region and data-model so your existing filter works
+        return `
+            <tr class="${rowClass}" data-region="${r.region || ''}" data-model="${r.model || ''}">
+                <td><b>${r.id}</b> ${isCritical ? '<span class="alert-dot"></span>' : ''}</td>
+                <td>${r.audits || 0}</td>
+                <td style="color:${parseFloat(r.avgLoad) > 90 ? 'var(--red)' : 'inherit'}">${r.avgLoad || 0}%</td>
+                <td>${r.avgTemp || 0}</td>
+                <td>${r.avgOil || 0}</td>
+                <td>${r.avgFuel || 0}</td>
+                <td>${r.avgAir || 0}</td>
+                <td>${r.avgBit || 0}</td>
+                <td>${r.avgImpact || 0}</td>
+            </tr>`;
+    }).join('');
+    
+    // Refresh the filter immediately after building the table
+    applyGlobalFilters(); 
+    
+    document.getElementById('v-active-rigs').innerText = data.summary.length;
+}
 
         // 2. UPDATE SIDE VITALS (Specific Machine Data)
         if (data.vitals && data.vitals.date !== "N/A") {
@@ -896,6 +897,7 @@ config.forEach(g => {
 </script>
 </body>
 </html>
+
 
 
 
