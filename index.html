@@ -701,11 +701,11 @@ if (typeof drawChart === "function") {
 }
 
 if (typeof startLivelyGauges === "function") {
-    // Only restart if data is present
-    if (data.monthlyData && data.monthlyData.length > 0) {
-        startLivelyGauges(true);
-   }
-        }
+            // Only restart if data is present
+            if (data.monthlyData && data.monthlyData.length > 0) {
+                startLivelyGauges(true);
+            }
+        } // This closes the startLivelyGauges check
 
     } catch (error) {
         console.error("UI Update Error:", error);
@@ -713,7 +713,8 @@ if (typeof startLivelyGauges === "function") {
         const scanningOverlay = document.getElementById('scanning-overlay'); 
         if (scanningOverlay) scanningOverlay.style.display = 'none';
     }
-}
+} // <--- THIS BRACKET FINALLY CLOSES updateUI
+
 function applyGlobalFilters() {
     const selRegion = document.getElementById('cityFocus').value;
     const selModel = document.getElementById('modelSelect').value;
@@ -972,6 +973,7 @@ config.forEach(g => {
 </script>
 </body>
 </html>
+
 
 
 
