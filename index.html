@@ -550,18 +550,7 @@
             const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}&mode=${mode}`));
             const data = await res.json();
             updateUI(data);
-        } 
-        // 🚀 FORCE REFRESH VISUALS
-if (typeof drawChart === "function") {
-    drawChart();
-}
-
-if (typeof startLivelyGauges === "function") {
-    // Only restart if data is present
-    if (data.monthlyData && data.monthlyData.length > 0) {
-        startLivelyGauges(true);
-    }
-}catch (err) { console.error("Refresh Error:", err); }
+        }catch (err) { console.error("Refresh Error:", err); }
     }
 
 function updateUI(data) {
@@ -706,7 +695,17 @@ if (warningEl) {
         if (typeof drawChart === "function") {
             drawChart();
         }
+ // 🚀 FORCE REFRESH VISUALS
+if (typeof drawChart === "function") {
+    drawChart();
+}
 
+if (typeof startLivelyGauges === "function") {
+    // Only restart if data is present
+    if (data.monthlyData && data.monthlyData.length > 0) {
+        startLivelyGauges(true);
+    }
+}
     } catch (error) {
         console.error("UI Update Error:", error);
     } finally {
@@ -972,6 +971,7 @@ config.forEach(g => {
 </script>
 </body>
 </html>
+
 
 
 
