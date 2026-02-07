@@ -508,17 +508,25 @@
     }
 
     async function init() {
-        const now = new Date(); 
-        document.getElementById('monthFilter').value = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
-        try {
-            const mRes = await fetch(getFullUrl("get=model_list"));
-            const mList = await mRes.json();
-            document.getElementById('modelSelect').innerHTML = '<option value="">All Models</option>' + mList.map(m => `<option value="${m}">${m}</option>`).join('');
-            await updateRigDropdown(); 
-            if (window.refreshInterval) clearInterval(window.refreshInterval);
-            window.refreshInterval = setInterval(() => { refresh(); }, 60000); 
-        } catch (e) { console.error("Init Error:", e); }
-    }
+    const now = new Date(); 
+    document.getElementById('monthFilter').value = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
+    
+    try {
+        const mRes = await fetch(getFullUrl("get=model_list"));
+        const mList = await mRes.json();
+        document.getElementById('modelSelect').innerHTML = '<option value="">All Models</option>' + mList.map(m => `<option value="${m}">${m}</option>`).join('');
+        
+        await updateRigDropdown(); 
+
+        // 🚀 THE FIX: Standardize the auto-refresh to use your fetch logic
+        if (window.refreshInterval) clearInterval(window.refreshInterval);
+        window.refreshInterval = setInterval(() => { 
+            console.log("60s Heartbeat: Refreshing Dashboard Data...");
+            refresh(); // This calls your existing fetch refresh
+        }, 60000); 
+
+    } catch (e) { console.error("Init Error:", e); }
+}
 
     async function updateRigDropdown() {
         const model = document.getElementById('modelSelect').value;
@@ -550,37 +558,38 @@ function updateUI(data) {
     globalData = data;
     
     const summaryBody = document.getElementById('fleet-summary-body');
-    const selectedRigId = document.getElementById('rigSelect').value;
+    const alertList = document.getElementById('alert-list');
+    const badge = document.getElementById('alert-count-badge'); // The small counter in the header
 
     try {
         // 1. UPDATE TABLE & COUNTERS (Fleet Overview)
-        if (data.summary && data.summary.length > 0) {
-            summaryBody.innerHTML = data.summary.map(r => {
-                // Determine if this specific row should be highlighted
-                const isCritical = (data.globalAlerts || []).some(a => a.rig === r.id);
-                const rowClass = isCritical ? 'critical-row' : '';
-                
-                return `
-                    <tr class="${rowClass}" data-region="${r.region || ''}" data-model="${r.model || ''}">
-                        <td><b>${r.id}</b> ${isCritical ? '<span class="alert-dot"></span>' : ''}</td>
-                        <td>${r.audits || 0}</td>
-                        <td style="color:${parseFloat(r.avgLoad) > 90 ? 'var(--red)' : 'inherit'}">${r.avgLoad || 0}%</td>
-                        <td>${r.avgTemp || 0}</td>
-                        <td>${r.avgOil || 0}</td>
-                        <td>${r.avgFuel || 0}</td>
-                        <td>${r.avgAir || 0}</td>
-                        <td>${r.avgBit || 0}</td>
-                        <td>${r.avgImpact || 0}</td>
-                    </tr>`;
-            }).join('');
-            
-            document.getElementById('v-active-rigs').innerText = data.summary.length;
-            const totalLoad = data.summary.reduce((acc, r) => acc + parseFloat(r.avgLoad || 0), 0);
-            const avgLoad = (totalLoad / data.summary.length).toFixed(1);
-            document.getElementById('v-fleet-load').innerText = avgLoad + "%";
-        }
+if (data.summary && data.summary.length > 0) {
+    summaryBody.innerHTML = data.summary.map(r => {
+        const isCritical = (data.globalAlerts || []).some(a => a.rig === r.id);
+        const rowClass = isCritical ? 'critical-row' : '';
+        
+        // 🚀 THE FIX: Adding data-region and data-model so your existing filter works
+        return `
+            <tr class="${rowClass}" data-region="${r.region || ''}" data-model="${r.model || ''}">
+                <td><b>${r.id}</b> ${isCritical ? '<span class="alert-dot"></span>' : ''}</td>
+                <td>${r.audits || 0}</td>
+                <td style="color:${parseFloat(r.avgLoad) > 90 ? 'var(--red)' : 'inherit'}">${r.avgLoad || 0}%</td>
+                <td>${r.avgTemp || 0}</td>
+                <td>${r.avgOil || 0}</td>
+                <td>${r.avgFuel || 0}</td>
+                <td>${r.avgAir || 0}</td>
+                <td>${r.avgBit || 0}</td>
+                <td>${r.avgImpact || 0}</td>
+            </tr>`;
+    }).join('');
+    
+    // Refresh the filter immediately after building the table
+    applyGlobalFilters(); 
+    
+    document.getElementById('v-active-rigs').innerText = data.summary.length;
+}
 
-        // 2. UPDATE SIDE VITALS (Using the Direct "vitals" object from GS)
+        // 2. UPDATE SIDE VITALS (Specific Machine Data)
         if (data.vitals && data.vitals.date !== "N/A") {
             const v = data.vitals;
             document.getElementById('v-boost').innerText = v.boost || "0";
@@ -589,35 +598,36 @@ function updateUI(data) {
             document.getElementById('v-temp').innerText = (v.temp || "0") + "°C";
             document.getElementById('vitals-date-stamp').innerText = "Last Audit: " + (v.date || "N/A");
         } else {
-            // Fallback if no specific rig is selected or data is missing
-            document.getElementById('v-boost').innerText = "--";
-            document.getElementById('v-fuel').innerText = "--";
-            document.getElementById('v-receiver').innerText = "--";
-            document.getElementById('v-temp').innerText = "--";
+            const fields = ['v-boost', 'v-fuel', 'v-receiver', 'v-temp'];
+            fields.forEach(id => document.getElementById(id).innerText = "--");
             document.getElementById('vitals-date-stamp').innerText = "Select Rig / No Data";
         }
 
-        // --- Update this part in your updateUI(data) function ---
-const alertList = document.getElementById('alert-list');
-if (data.globalAlerts && data.globalAlerts.length > 0) {
-    alertList.innerHTML = data.globalAlerts.map(a => `
-        <div class="alert-item" style="border-left: 3px solid var(--red); padding: 8px; margin-bottom: 8px; background: rgba(255,0,0,0.05); border-radius: 4px;">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <strong style="color:var(--yellow); font-size:0.85rem;">${a.rig}</strong>
-                <span style="font-size:0.65rem; color:#888;">${a.date || 'N/A'}</span>
-            </div>
-            <div style="font-size:0.8rem; color:#eee; margin-top:3px;">
-                ${a.parameter}: <span style="color:var(--red); font-weight:bold;">${a.value}</span>
-            </div>
-            <div style="font-size:0.7rem; color:#666;">Limit: ${a.limit}</div>
-        </div>
-    `).join('');
-} else {
-            if (badge) badge.style.display = 'none';
-            alertList.innerHTML = '<div style="color:var(--green); text-align:center; padding:15px; border:1px dashed var(--green);">✅ ALL SYSTEMS NORMAL</div>';
+        // 3. UPDATE ALERT LIST & BADGE COUNT
+        const alerts = data.globalAlerts || [];
+        if (badge) {
+            badge.innerText = alerts.length;
+            badge.style.display = alerts.length > 0 ? 'inline-block' : 'none';
         }
 
-        // 4. TRIGGER CHART REDRAW
+        if (alerts.length > 0) {
+            alertList.innerHTML = alerts.map(a => `
+                <div class="alert-item" style="border-left: 3px solid var(--red); padding: 8px; margin-bottom: 8px; background: rgba(255,0,0,0.05); border-radius: 4px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <strong style="color:var(--yellow); font-size:0.85rem;">${a.rig}</strong>
+                        <span style="font-size:0.65rem; color:#888;">${a.date || 'N/A'}</span>
+                    </div>
+                    <div style="font-size:0.8rem; color:#eee; margin-top:3px;">
+                        ${a.parameter}: <span style="color:var(--red); font-weight:bold;">${a.value}</span>
+                    </div>
+                    <div style="font-size:0.7rem; color:#666;">Limit: ${a.limit}</div>
+                </div>
+            `).join('');
+        } else {
+            alertList.innerHTML = '<div style="color:var(--green); text-align:center; padding:15px; border:1px dashed var(--green); margin-top:10px;">✅ ALL SYSTEMS NORMAL</div>';
+        }
+
+        // 4. TRIGGER CHART REDRAW (Forces Dials to Update)
         if (typeof drawChart === "function") {
             drawChart();
         }
@@ -625,18 +635,10 @@ if (data.globalAlerts && data.globalAlerts.length > 0) {
     } catch (error) {
         console.error("UI Update Error:", error);
     } finally {
-        // 5. THE SCANNING KILLER: This hides the loading state regardless of errors
         const scanningOverlay = document.getElementById('scanning-overlay'); 
-        if (scanningOverlay) {
-            scanningOverlay.style.display = 'none';
-        }
-        // If your "Scanning" is just text inside the alert list:
-        if(alertList && alertList.innerHTML.includes("Scanning")) {
-             // Logic handled in Step 3 else block
-        }
+        if (scanningOverlay) scanningOverlay.style.display = 'none';
     }
 }
-
 function applyGlobalFilters() {
     const selRegion = document.getElementById('cityFocus').value;
     const selModel = document.getElementById('modelSelect').value;
@@ -865,21 +867,26 @@ config.forEach(g => {
         link.href = url;
         link.click();
     }
-   function exportTriggerReport() {
+  function exportTriggerReport() {
+    // Check if we have alert data saved in globalData
     if (!globalData || !globalData.globalAlerts || globalData.globalAlerts.length === 0) {
         return alert("No active triggers to export.");
     }
     
     const headers = ["Machine ID", "Parameter", "Value", "Limit", "Timestamp"];
+    
     const rows = globalData.globalAlerts.map(a => [
-        `"${a.rig}"`, 
-        `"${a.parameter.replace('🚨 ', '')}"`, 
+        `"${a.rig}"`,                                // Wraps ID in quotes for Excel
+        `"${a.parameter.replace('🚨 ', '')}"`,      // Cleans the emoji
         a.value, 
         a.limit, 
-        `"${a.date || 'N/A'}"` // <--- THIS POPULATES THE EXCEL COLUMN
+        `"${a.date || 'N/A'}"`                       // 🚀 THE FIX: Populates the Date
     ]);
 
-    const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n");
+    const csvContent = "data:text/csv;charset=utf-8," 
+        + headers.join(",") + "\n" 
+        + rows.map(r => r.join(",")).join("\n");
+
     const link = document.createElement("a");
     link.setAttribute("href", encodeURI(csvContent));
     link.setAttribute("download", `Fleet_Alert_Report_${new Date().toLocaleDateString()}.csv`);
@@ -890,4 +897,7 @@ config.forEach(g => {
 </script>
 </body>
 </html>
+
+
+
 
