@@ -475,7 +475,7 @@
 </div>
 
 <script>
-    const API = "https://script.google.com/macros/s/AKfycby_5kE05Mb0WFOgMVBV9EzkUil1rC8WXZRY3FLEbGl38WjQrxjcOciM3JvFIGBjVAgW/exec"; 
+    const API = "https://script.google.com/macros/s/AKfycbwhtjKwdgBccwNYs5pQ8UJh6_DzLGMO8uNDE0MHDdUMWPgzDAdVwhTcMFIwuIRzEtCz/exec"; 
     let chart = null, globalData = null;
     var livelyTimer = null;
     var currentIdx = 0;
@@ -556,21 +556,20 @@
 function updateUI(data) {
     if (!data) return;
     globalData = data;
-
+    
     const summaryBody = document.getElementById('fleet-summary-body');
     const alertList = document.getElementById('alert-list');
-    const badge = document.getElementById('alert-count-badge');
-    const warningEl = document.getElementById('auditWarning');
+    const badge = document.getElementById('alert-count-badge'); // The small counter in the header
 
     try {
-        // 1. UPDATE TABLE & COUNTERS
+        // 1. UPDATE TABLE & COUNTERS (Fleet Overview)
         if (data.summary && data.summary.length > 0) {
             summaryBody.innerHTML = data.summary.map(r => {
                 const isCritical = (data.globalAlerts || []).some(a => a.rig === r.id);
                 const rowClass = isCritical ? 'critical-row' : '';
                 
                 return `
-                    <tr class="${rowClass}" data-region="${r.region || ''}" data-model="${r.model || ''}">
+                    <tr class="${rowClass}">
                         <td><b>${r.id}</b> ${isCritical ? '<span class="alert-dot"></span>' : ''}</td>
                         <td>${r.audits || 0}</td>
                         <td style="color:${parseFloat(r.avgLoad) > 90 ? 'var(--red)' : 'inherit'}">${r.avgLoad || 0}%</td>
@@ -583,51 +582,12 @@ function updateUI(data) {
                     </tr>`;
             }).join('');
             
-            const totalLoad = data.summary.reduce((acc, r) => acc + (parseFloat(r.avgLoad) || 0), 0);
+            document.getElementById('v-active-rigs').innerText = data.summary.length;
+            const totalLoad = data.summary.reduce((acc, r) => acc + parseFloat(r.avgLoad || 0), 0);
             const avgLoad = (totalLoad / data.summary.length).toFixed(1);
             document.getElementById('v-fleet-load').innerText = avgLoad + "%";
-            document.getElementById('v-active-rigs').innerText = data.summary.length;
-
-            applyGlobalFilters(); 
         }
 
-        // 2. AUDIT WARNING LOGIC
-        const currentRig = document.getElementById('rigSelect').value;
-        const rigData = data.summary ? data.summary.find(s => s.id === currentRig) : null;
-
-        if (rigData && rigData.audits < 2) {
-            warningEl.style.display = 'block';
-            warningEl.innerText = `⚠️ ${currentRig} HAS ONLY ${rigData.audits} AUDIT. MINIMUM 2 REQUIRED.`;
-        } else {
-            warningEl.style.display = 'none';
-        }
-
-        // 3. UPDATE SIDE VITALS
-        if (data.vitals && data.vitals.date !== "N/A") {
-            const v = data.vitals;
-            document.getElementById('v-boost').innerText = v.boost || "0";
-            document.getElementById('v-fuel').innerText = v.fuel || "0";
-            document.getElementById('v-receiver').innerText = v.receiver || "0";
-            document.getElementById('v-temp').innerText = (v.temp || "0") + "°C";
-            document.getElementById('vitals-date-stamp').innerText = "Last Audit: " + (v.date || "N/A");
-            
-            if (typeof startLivelyGauges === "function") {
-                startLivelyGauges(true);
-            }
-        }
-
-        // 4. DRAW CHART
-        if (typeof drawChart === "function") {
-            drawChart();
-        }
-
-    } catch (error) {
-        console.error("UI Update Error:", error);
-    } finally {
-        const loader = document.getElementById('scanning-overlay');
-        if (loader) loader.style.display = 'none';
-    }
-}
         // 2. UPDATE SIDE VITALS (Specific Machine Data)
         if (data.vitals && data.vitals.date !== "N/A") {
             const v = data.vitals;
@@ -936,3 +896,5 @@ config.forEach(g => {
 </script>
 </body>
 </html>
+
+
