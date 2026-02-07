@@ -724,90 +724,63 @@ function applyGlobalFilters() {
         </div>`;
 }
 
-    // --- 2. DYNAMIC RADIAL DIAL GAUGE LOGIC (Optimized & Protected) ---
-function startLivelyGauges(forceReset = false) {
-    if (livelyTimer) {
-        clearInterval(livelyTimer);
-        livelyTimer = null;
-    }
-    
-    const rigEl = document.getElementById('rigSelect');
-    const row = document.getElementById('gauge-row');
-    if (!rigEl || !row) return; 
+    function startLivelyGauges(forceReset = false) {
+        if (livelyTimer) clearInterval(livelyTimer);
+        const selectedRig = document.getElementById('rigSelect').value;
+        const d = (globalData?.monthlyData || []).filter(e => e.rigId === selectedRig);
+        const T = globalData?.thresholds || {};
+        const row = document.getElementById('gauge-row');
+        if (!row || d.length === 0) return;
+        if (forceReset) currentIdx = 0;
 
-    const selectedRig = rigEl.value;
-    const d = (globalData?.monthlyData || []).filter(entry => entry.rigId === selectedRig);
-    
-    if (d.length === 0) {
-        row.innerHTML = `<div style="color:#666; padding:20px; text-align:center; width:100%;">NO DATA FOR SELECTED RIG</div>`;
-        return;
-    }
+        livelyTimer = setInterval(() => {
+            if (!d[currentIdx]) { currentIdx = 0; return; }
+            const entry = d[currentIdx];
+            const mode = document.getElementById('chartMode').value;
+            let html = `<div class="date-badge" style="position:absolute; top: 15px; left: 20px; font-size: 0.9rem; font-weight: bold; color: var(--ey); background: rgba(0,0,0,0.5); padding: 5px 12px; border-left: 4px solid var(--ey); z-index: 10;">AUDIT: ${entry.date}</div>`;
+            let config = [];
 
-    const T = globalData?.thresholds || {}; 
-    if (forceReset) currentIdx = 0;
-    const mode = document.getElementById('chartMode')?.value || 'tempVsOil';
+            if (mode === 'tempVsOil') {
+                config = [
+                    { lab: 'Oil bar', val: entry.oil, max: 10, limit: T['Engine oil pressure_Low'], isLow: true },
+                    { lab: 'RPM', val: entry.rpm, max: 3000, limit: 2500, isLow: false },
+                    { lab: 'Temp °C', val: entry.temp, max: 130, limit: T['Engine Temp_High'], isLow: false }
+                ];
+            } else if (mode === 'loadVsComp') {
+                config = [
+                    { lab: 'Eng Load %', val: entry.load || 0, max: 100, limit: 95, isLow: false },
+                    { lab: 'Comp %', val: entry.comp || 0, max: 100, limit: 90, isLow: false }
+                ];
+            } else if (mode === 'setBit') {
+                config = [
+                    { lab: 'Air Set', val: entry.air || 0, max: 35, limit: 30, isLow: false },
+                    { lab: 'Bit Pr', val: entry.bit || 0, max: 35, limit: 30, isLow: false }
+                ];
+            } else if (mode === 'hydro_impact') {
+                config = [
+                    { lab: 'Impact', val: entry.impact, max: 300, limit: 250, isLow: false },
+                    { lab: 'Feed', val: entry.feed, max: 150, limit: 120, isLow: false },
+                    { lab: 'Damper', val: entry.damper, max: 100, limit: 80, isLow: false }
+                ];
+            }
 
-    livelyTimer = setInterval(() => {
-        if (!d[currentIdx]) { currentIdx = 0; }
-        
-        const entry = d[currentIdx];
-        const dateStr = entry.date || "N/A";
-        let html = `<div class="date-badge">AUDIT DATE: ${dateStr}</div>`;
-        let config = [];
-
-        // --- MODE 1: TEMP / OIL / RPM ---
-        if (mode === 'tempVsOil') {
-            config = [
-                { lab: 'Oil bar', val: entry.oil, max: 10, limit: T['Engine oil pressure_Low'], isLow: true, decimal: true },
-                { lab: 'RPM', val: entry.rpm, max: 3000, limit: T['Engine RPM Drilling_High'] || 2200, isLow: false, decimal: false },
-                { lab: 'Temp °C', val: entry.temp, max: 130, limit: T['Engine Temp_High'], isLow: false, decimal: false }
-            ];
-        } 
-        // --- MODE 2: LOAD vs COMPRESSOR ---
-else if (mode === 'loadVsComp') {
-    config = [
-        { lab: 'Eng Load %', val: entry.load || 0, max: 100, limit: T['Engine load Drilling_High'] || 95, isLow: false },
-        { lab: 'Comp %', val: entry.comp || 0, max: 100, limit: T['Compressor Load (Smartroc & PV)_High'] || 90, isLow: false }
-    ];
-} // <--- FIX 1: This bracket was missing or misplaced, causing the freeze
-
-// --- MODE 3: SET PR vs BIT PR (Columns S & T) ---
-else if (mode === 'setVsBit') {
-    config = [
-        { lab: 'Set bar', val: entry.air || 0, max: 35, limit: T['Compressor air pressure_Low'] || 20, isLow: true, decimal: true },
-        { lab: 'Bit bar', val: entry.bit || 0, max: 35, limit: T['Bit_Air_Pressure_Low'] || 18, isLow: true, decimal: true }
-    ];
-}
-// --- MODE 4: HYDRAULIC / IMPACT (Columns AD, AG, AH) ---
-else if (mode === 'hydro_impact') {
-    config = [
-        { lab: 'Impact', val: entry.impact || 0, max: 300, limit: T['Impact_Pressure_High'] || 250, isLow: false },
-        { lab: 'Feed', val: entry.feed || 0, max: 150, limit: T['Feed_Pressure_High'] || 100, isLow: false },
-        { lab: 'Damper', val: entry.damper || 0, max: 100, limit: T['Damper_Pressure_High'] || 80, isLow: false }
-    ];
-} 
-
-// --- RENDER SECTION (Outside of the if/else chain) ---
-html += `<div style="display:flex; justify-content:space-around; width:100%;">`;
-// ... (rest of your render logic)
-        html += config.map(c => {
-            const percent = Math.min((c.val / c.max) * 100, 100);
-            const isAlert = c.isLow ? (c.val <= c.limit && c.val > 0) : (c.val >= c.limit);
-            const color = isAlert ? 'var(--red)' : 'var(--green)';
-            return `
-                <div class="gauge-card" style="text-align:center;">
-                    <div style="font-size:0.7rem; color:#aaa;">${c.lab}</div>
-                    <div style="font-size:1.2rem; font-weight:bold; color:${color}">${c.decimal ? c.val.toFixed(1) : Math.round(c.val)}</div>
-                    <div style="font-size:0.6rem; color:#666;">Lim: ${c.limit}</div>
+            config.forEach(g => {
+                const val = parseFloat(g.val || 0);
+                const lim = parseFloat(g.limit || 0);
+                const angle = (Math.min(val / g.max, 1) * 180) - 90;
+                const isAlert = g.isLow ? (val <= lim && lim > 0) : (val >= lim && lim > 0);
+                const color = isAlert ? 'var(--red)' : 'var(--ey)';
+                html += `<div class="dial-wrapper">
+                    <svg viewBox="0 0 100 65"><path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="#333" stroke-width="8"/><line x1="50" y1="50" x2="${50 + 38 * Math.cos((angle - 90) * Math.PI / 180)}" y2="${50 + 38 * Math.sin((angle - 90) * Math.PI / 180)}" stroke="${color}" stroke-width="4"/></svg>
+                    <div class="dial-value" style="color:${color}">${val.toFixed(1)}</div>
+                    <span class="dial-label">${g.lab}</span>
                 </div>`;
-        }).join('');
-        html += `</div>`;
-
-        row.innerHTML = html;
-        currentIdx = (currentIdx + 1) % d.length;
-
-    }, 3000); 
-}
+            });
+            row.innerHTML = html;
+            document.getElementById('current-seq').innerText = currentIdx + 1;
+            currentIdx = (currentIdx + 1) % d.length;
+        }, 2000);
+    }
     function drawChart() {
     // 1. Safety Check
     if (!globalData || !globalData.monthlyData || globalData.monthlyData.length === 0) {
@@ -917,6 +890,7 @@ html += `<div style="display:flex; justify-content:space-around; width:100%;">`;
 </script>
 </body>
 </html>
+
 
 
 
