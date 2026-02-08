@@ -704,25 +704,25 @@
 
         if (mode === 'tempVsOil') {
             config = [
-                { lab: 'Oil bar', val: entry.oil, max: 10, limit: T['Engine oil pressure_Low'], isLow: true, decimal: true },
-                { lab: 'RPM', val: entry.rpm, max: 3000, limit: T['Engine RPM Drilling_High'] || 2200, isLow: false },
-                { lab: 'Temp °C', val: entry.temp, max: 130, limit: T['Engine Temp_High'], isLow: false }
+                { lab: 'Oil bar', val: entry.oil, max: 6, limit: T['Engine oil pressure_Low'], isLow: true, decimal: true },
+                { lab: 'RPM', val: entry.rpm, max: 2200, limit: T['Engine RPM Drilling_High'] || 1500, isLow: false },
+                { lab: 'Temp °C', val: entry.temp, max: 100, limit: T['Engine Temp_High'], isLow: false }
             ];
         } else if (mode === 'loadVsComp') {
             config = [
-                { lab: 'Eng Load %', val: entry.load, max: 100, limit: 95, isLow: false },
+                { lab: 'Eng Load %', val: entry.load, max: 90, limit: 80, isLow: false },
                 { lab: 'Comp %', val: entry.comp, max: 100, limit: 90, isLow: false }
             ];
         } else if (mode === 'rpmVsCompTemp') {
             config = [
                 { lab: 'RPM', val: entry.rpm, max: 3000, limit: 2200, isLow: false },
-                { lab: 'Comp T(L)', val: entry.compTempL, max: 140, limit: 110, isLow: false },
-                { lab: 'Comp T(H)', val: entry.compTempH, max: 140, limit: 120, isLow: false }
+                { lab: 'Comp T(L)', val: entry.compTempL, max: 122, limit: 100, isLow: false },
+                { lab: 'Comp T(H)', val: entry.compTempH, max: 122, limit: 100, isLow: false }
             ];
         } else if (mode === 'fuelVsBoost') {
             config = [
-                { lab: 'Fuel bar', val: entry.fuel, max: 15, limit: T['Fuel Pressure_Low'] || 4, isLow: true, decimal: true },
-                { lab: 'Boost bar', val: entry.boost, max: 5, limit: 3, isLow: false, decimal: true }
+                { lab: 'Fuel bar', val: entry.fuel, max: 15, limit: T['Fuel Pressure_Low'] || 5, isLow: true, decimal: true },
+                { lab: 'Boost bar', val: entry.boost, max: 2, limit: 1.2, isLow: false, decimal: true }
             ];
         } else if (mode === 'setVsBit') {
             config = [
@@ -731,9 +731,9 @@
             ];
         } else if (mode === 'hydro_impact') {
             config = [
-                { lab: 'Impact', val: entry.impact, max: 300, limit: 250, isLow: false },
-                { lab: 'Feed', val: entry.feed, max: 150, limit: 100, isLow: false },
-                { lab: 'Damper', val: entry.damper, max: 100, limit: 80, isLow: false }
+                { lab: 'Impact', val: entry.impact, max: 220, limit: 180, isLow: false },
+                { lab: 'Feed', val: entry.feed, max: 105, limit: 60, isLow: false },
+                { lab: 'Damper', val: entry.damper, max: 100, limit: 50, isLow: false }
             ];
         }
 
@@ -889,6 +889,7 @@ document.onkeydown = function(e) {
 
 </body>
 </html>
+
 
 
 
