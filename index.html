@@ -815,41 +815,57 @@ function drawChart() {
             { label: 'Feed', data: d.map(x => x.feed), borderColor: '#e67e22' },
             { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db' }
         ];
+    } else if (mode === 'hydro_impact') {
+        datasets = [
+            { label: 'Impact', data: d.map(x => x.impact), borderColor: '#f1c40f' },
+            { label: 'Feed', data: d.map(x => x.feed), borderColor: '#e67e22' },
+            { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db' }
+        ];
     } else if (mode === 'receiverAnalysis') {
-        // Retrieve the constant limits from the server response
-        const lowGauge = globalData.limits?.receiverLow || 0;
-        const highGauge = globalData.limits?.receiverHigh || 0;
+        const lowL = globalData.limits?.receiverLow || 0;
+        const highL = globalData.limits?.receiverHigh || 0;
 
         datasets = [
             { 
-                label: 'Actual Receiver Pr (Col O)', 
+                label: 'Receiver Pr NoLoad (Col O)', 
                 data: d.map(x => x.receiver), 
-                borderColor: '#3498db', // Blue
+                borderColor: '#3498db', 
                 borderWidth: 3,
-                tension: 0.3,
-                fill: false
+                fill: false,
+                tension: 0.2
             },
             { 
-                label: `Low Limit Gauge (${lowGauge})`, 
-                data: new Array(labels.length).fill(lowGauge), 
-                borderColor: '#f1c40f', // Yellow Constant Line
+                label: `Low Limit (${lowL})`, 
+                data: new Array(labels.length).fill(lowL), 
+                borderColor: '#f1c40f', 
                 borderDash: [10, 5], 
                 pointRadius: 0,
-                borderWidth: 2,
                 fill: false 
             },
             { 
-                label: `High Limit Gauge (${highGauge})`, 
-                data: new Array(labels.length).fill(highGauge), 
-                borderColor: '#ff4d4d', // Red Constant Line
+                label: `High Limit (${highL})`, 
+                data: new Array(labels.length).fill(highL), 
+                borderColor: '#ff4d4d', 
                 borderDash: [10, 5], 
                 pointRadius: 0,
-                borderWidth: 2,
                 fill: false 
             }
         ];
+
+        // 🚀 THE VISIBILITY FIX: Forces the Y-axis to center the 7.6 bar data
+        scales.y = { 
+            beginAtZero: false, 
+            suggestedMin: Math.max(0, lowL - 1), 
+            suggestedMax: highL + 1,
+            ticks: { color: '#fff' },
+            grid: { color: '#444' }
+        };
+        // Remove secondary axes from other modes to prevent scaling conflicts
+        delete scales.y1;
+        delete scales.y2;
     }
 
+    // This final part stays exactly as you had it
     chart = new Chart(ctx, {
         type: 'line',
         data: { labels, datasets },
@@ -920,6 +936,7 @@ document.onkeydown = function(e) {
 
 </body>
 </html>
+
 
 
 
