@@ -404,14 +404,13 @@
             <label style="display:block; margin-top:15px;">Target Month</label>
             <input type="month" id="monthFilter" onchange="refresh()">
 
-            <label style="display:block; margin-top:15px;">Analysis Mode</label>
-<select id="chartMode" onchange="drawChart(); startLivelyGauges(true);">
+            <label style="display:block; margin-top:15px; color: #fff;">Analysis Mode</label>
+<select id="chartMode" onchange="drawChart(); startLivelyGauges(true);" style="width:100%; background:#222; color:#fff; border:1px solid #444; padding:5px;">
     <option value="tempVsOil">Trend: Temp / Oil / RPM</option>
     <option value="loadVsComp">Load vs Compressor %</option>
-    
     <option value="rpmVsCompTemp">RPM vs Comp Temp (L/H)</option> 
     <option value="fuelVsBoost">Fuel Pr vs Boost Pr</option> 
-    <option value="receiver_analysis">Receiver Pressure Analysis (Col O vs L/M)</option>
+    <option value="receiverAnalysis">Receiver Pressure Analysis (Col O vs L/M)</option>
     <option value="setVsBit">DTH: Set vs Bit Pressure</option>
     <option value="hydro_impact">Hydraulic: Impact/Feed/Damper</option>
 </select>
@@ -756,7 +755,8 @@
         currentIdx = (currentIdx + 1) % d.length;
     }, 2000);
 }
-     function drawChart() {
+    <script>
+function drawChart() {
     if (!globalData?.monthlyData) return;
     const canvas = document.getElementById('mainChart');
     if (!canvas) return;
@@ -816,32 +816,11 @@
             { label: 'Feed', data: d.map(x => x.feed), borderColor: '#e67e22' },
             { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db' }
         ];
-    // 🚀 NEW: Receiver Pressure Analysis Mode
     } else if (mode === 'receiverAnalysis') {
         datasets = [
-            { 
-                label: 'Receiver Pr (Col O)', 
-                data: d.map(x => x.receiver), 
-                borderColor: '#3498db', 
-                borderWidth: 3,
-                tension: 0.3 
-            },
-            { 
-                label: 'Low Limit (Col L)', 
-                data: new Array(labels.length).fill(globalData.limits?.receiverLow || 0), 
-                borderColor: '#f1c40f', // Yellow
-                borderDash: [5, 5], 
-                pointRadius: 0,
-                fill: false 
-            },
-            { 
-                label: 'High Limit (Col M)', 
-                data: new Array(labels.length).fill(globalData.limits?.receiverHigh || 0), 
-                borderColor: '#ff4d4d', // Red
-                borderDash: [5, 5], 
-                pointRadius: 0,
-                fill: false 
-            }
+            { label: 'Receiver Pr (Col O)', data: d.map(x => x.receiver), borderColor: '#3498db', borderWidth: 3, tension: 0.3 },
+            { label: 'Low Limit (Col L)', data: new Array(labels.length).fill(globalData.limits?.receiverLow || 0), borderColor: '#f1c40f', borderDash: [5, 5], pointRadius: 0, fill: false },
+            { label: 'High Limit (Col M)', data: new Array(labels.length).fill(globalData.limits?.receiverHigh || 0), borderColor: '#ff4d4d', borderDash: [5, 5], pointRadius: 0, fill: false }
         ];
     }
 
@@ -855,18 +834,20 @@
             scales: scales
         }
     });
+} // Closes drawChart properly
+
+function exportToExcel() {
+    let table = document.getElementById("summary-tbl");
+    if(!table) return alert("Summary table not found.");
+    let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
+    let link = document.createElement('a');
+    link.download = "Rig_Report.xls";
+    link.href = url;
+    link.click();
 }
-}
-    function exportToExcel() {
-        let table = document.getElementById("summary-tbl");
-        let url = 'data:application/vnd.ms-excel,' + encodeURIComponent(table.outerHTML);
-        let link = document.createElement('a');
-        link.download = "Rig_Report.xls";
-        link.href = url;
-        link.click();
-    }
-   function exportTriggerReport() {
-    if (!globalData || !globalData.globalAlerts || globalData.globalAlerts.length === 0) {
+
+function exportTriggerReport() {
+    if (!globalData?.globalAlerts || globalData.globalAlerts.length === 0) {
         return alert("No active triggers to export.");
     }
     
@@ -876,7 +857,7 @@
         `"${a.parameter.replace('🚨 ', '')}"`, 
         a.value, 
         a.limit, 
-        `"${a.date || 'N/A'}"` // <--- THIS POPULATES THE EXCEL COLUMN
+        `"${a.date || 'N/A'}"`
     ]);
 
     const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n");
@@ -887,13 +868,14 @@
     link.click();
     document.body.removeChild(link);
 }
-    let devMode = false;
 
-// 🚀 TRIPLE-CLICK THE LOGO TO UNLOCK (Change '.header-left' to your logo's class)
-document.querySelector('.header-left').addEventListener('click', function (e) {
-    if (e.detail === 3) { // detail 3 = triple click
+let devMode = false;
+
+// 🚀 TRIPLE-CLICK LOGO HANDLER
+document.querySelector('.header-left')?.addEventListener('click', function (e) {
+    if (e.detail === 3) {
         devMode = !devMode;
-        alert(devMode ? "DEV MODE: UNLOCKED (F12 Enabled)" : "DEV MODE: LOCKED");
+        alert(devMode ? "DEV MODE: UNLOCKED" : "DEV MODE: LOCKED");
     }
 });
 
@@ -903,12 +885,8 @@ document.addEventListener('contextmenu', e => {
 });
 
 document.onkeydown = function(e) {
-    if (devMode) return true; // Let everything through if unlocked
-
-    // Block F12 (123), Ctrl+Shift+I (73), Ctrl+U (85)
-    if (e.keyCode == 123 || 
-       (e.ctrlKey && e.shiftKey && (e.keyCode == 73 || e.keyCode == 74)) || 
-       (e.ctrlKey && e.keyCode == 85)) {
+    if (devMode) return true;
+    if (e.keyCode == 123 || (e.ctrlKey && e.shiftKey && (e.keyCode == 73 || e.keyCode == 74)) || (e.ctrlKey && e.keyCode == 85)) {
         return false;
     }
 };
@@ -916,6 +894,7 @@ document.onkeydown = function(e) {
 
 </body>
 </html>
+
 
 
 
