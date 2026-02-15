@@ -822,8 +822,12 @@ function drawChart() {
             { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db' }
         ];
   } else if (mode === 'receiverAnalysis') {
-        // 🚀 ONLY ACTUAL DATA - NO LIMITS
+        const lowL = parseFloat(globalData.limits?.receiverLow) || 0;
+        const highL = parseFloat(globalData.limits?.receiverHigh) || 0;
         const plotData = d.map(x => x.receiver);
+
+        // 🚀 SCALE CALCULATOR: Ensures the chart is tall enough for 7.6 bar
+        const maxVal = Math.max(Math.max.apply(null, plotData), highL, 10); 
 
         datasets = [
             { 
@@ -831,22 +835,31 @@ function drawChart() {
                 data: plotData, 
                 borderColor: '#3498db', 
                 borderWidth: 4, 
-                fill: true, // Added fill to make it easier to see
-                backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                tension: 0.3,
-                pointRadius: 5
+                fill: false,
+                tension: 0.3
+            },
+            { 
+                label: `Low Limit (${lowL})`, 
+                data: new Array(labels.length).fill(lowL), 
+                borderColor: '#f1c40f', 
+                borderDash: [10, 5], 
+                pointRadius: 0,
+                fill: false 
+            },
+            { 
+                label: `High Limit (${highL})`, 
+                data: new Array(labels.length).fill(highL), 
+                borderColor: '#ff4d4d', 
+                borderDash: [10, 5], 
+                pointRadius: 0,
+                fill: false 
             }
         ];
 
-        // 🚀 AUTO-SCALE: Let the chart decide the height
-        scales = {
-            x: { grid: { color: '#333' }, ticks: { color: '#888' } },
-            y: { 
-                display: true,
-                beginAtZero: true, 
-                ticks: { color: '#fff' },
-                grid: { color: '#444' }
-            }
+        scales.y = { 
+            beginAtZero: true, 
+            max: Math.ceil(maxVal * 1.2), // Jumps to ~12 to show the 7.6 line
+            ticks: { color: '#fff' }
         };
         delete scales.y1;
         delete scales.y2;
@@ -921,6 +934,7 @@ document.onkeydown = function(e) {
 
 </body>
 </html>
+
 
 
 
