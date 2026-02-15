@@ -411,7 +411,7 @@
     
     <option value="rpmVsCompTemp">RPM vs Comp Temp (L/H)</option> 
     <option value="fuelVsBoost">Fuel Pr vs Boost Pr</option> 
-    
+    <option value="receiver_analysis">Receiver Pressure Analysis (Col O vs L/M)</option>
     <option value="setVsBit">DTH: Set vs Bit Pressure</option>
     <option value="hydro_impact">Hydraulic: Impact/Feed/Damper</option>
 </select>
@@ -762,7 +762,6 @@
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    // 🚀 THE FORCE REFRESH: Kill the old chart AND wipe the canvas clean
     if (chart) {
         chart.destroy();
         chart = null;
@@ -817,6 +816,33 @@
             { label: 'Feed', data: d.map(x => x.feed), borderColor: '#e67e22' },
             { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db' }
         ];
+    // 🚀 NEW: Receiver Pressure Analysis Mode
+    } else if (mode === 'receiverAnalysis') {
+        datasets = [
+            { 
+                label: 'Receiver Pr (Col O)', 
+                data: d.map(x => x.receiver), 
+                borderColor: '#3498db', 
+                borderWidth: 3,
+                tension: 0.3 
+            },
+            { 
+                label: 'Low Limit (Col L)', 
+                data: new Array(labels.length).fill(globalData.limits?.receiverLow || 0), 
+                borderColor: '#f1c40f', // Yellow
+                borderDash: [5, 5], 
+                pointRadius: 0,
+                fill: false 
+            },
+            { 
+                label: 'High Limit (Col M)', 
+                data: new Array(labels.length).fill(globalData.limits?.receiverHigh || 0), 
+                borderColor: '#ff4d4d', // Red
+                borderDash: [5, 5], 
+                pointRadius: 0,
+                fill: false 
+            }
+        ];
     }
 
     chart = new Chart(ctx, {
@@ -829,6 +855,7 @@
             scales: scales
         }
     });
+}
 }
     function exportToExcel() {
         let table = document.getElementById("summary-tbl");
@@ -889,6 +916,7 @@ document.onkeydown = function(e) {
 
 </body>
 </html>
+
 
 
 
