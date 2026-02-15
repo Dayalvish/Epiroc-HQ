@@ -822,8 +822,9 @@ function drawChart() {
             { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db' }
         ];
     } else if (mode === 'receiverAnalysis') {
-        const lowL = globalData.limits?.receiverLow || 0;
-        const highL = globalData.limits?.receiverHigh || 0;
+        // We pull the limits and ensure they are numbers
+        const lowL = parseFloat(globalData.limits?.receiverLow) || 0;
+        const highL = parseFloat(globalData.limits?.receiverHigh) || 0;
 
         datasets = [
             { 
@@ -831,14 +832,14 @@ function drawChart() {
                 data: d.map(x => x.receiver), 
                 borderColor: '#3498db', 
                 borderWidth: 3,
-                fill: false,
-                tension: 0.2
+                tension: 0.2,
+                fill: false
             },
             { 
                 label: `Low Limit (${lowL})`, 
                 data: new Array(labels.length).fill(lowL), 
                 borderColor: '#f1c40f', 
-                borderDash: [10, 5], 
+                borderDash: [5, 5], 
                 pointRadius: 0,
                 fill: false 
             },
@@ -846,21 +847,21 @@ function drawChart() {
                 label: `High Limit (${highL})`, 
                 data: new Array(labels.length).fill(highL), 
                 borderColor: '#ff4d4d', 
-                borderDash: [10, 5], 
+                borderDash: [5, 5], 
                 pointRadius: 0,
                 fill: false 
             }
         ];
 
-        // 🚀 THE VISIBILITY FIX: Forces the Y-axis to center the 7.6 bar data
+        // 🚀 THE AXIS REPAIR: Resets the Y-axis to fit your 7.6 bar data
         scales.y = { 
-            beginAtZero: false, 
-            suggestedMin: Math.max(0, lowL - 1), 
-            suggestedMax: highL + 1,
+            beginAtZero: true, 
+            suggestedMax: highL > 0 ? (highL + 2) : 10, // Gives room above the red line
             ticks: { color: '#fff' },
             grid: { color: '#444' }
         };
-        // Remove secondary axes from other modes to prevent scaling conflicts
+        
+        // Clean up axes from other modes
         delete scales.y1;
         delete scales.y2;
     }
@@ -936,31 +937,3 @@ document.onkeydown = function(e) {
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
