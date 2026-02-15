@@ -821,13 +821,16 @@ function drawChart() {
             { label: 'Feed', data: d.map(x => x.feed), borderColor: '#e67e22' },
             { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db' }
         ];
-    } else if (mode === 'receiverAnalysis') {
-        // 1. Capture the limits
+   } else if (mode === 'receiverAnalysis') {
+        // 1. Capture the limits from globalData
         const lowL = parseFloat(globalData.limits?.receiverLow) || 0;
         const highL = parseFloat(globalData.limits?.receiverHigh) || 0;
         
-        // 2. Map the data from Column O (ensure it's treated as numbers)
+        // 2. Map the data from Column O
         const plotData = d.map(x => parseFloat(x.receiver) || 0);
+
+        // 3. NUCLEAR SCALE FIX: Find the highest value to set the ceiling
+        const maxVal = Math.max(...plotData, highL, 10); 
 
         datasets = [
             { 
@@ -837,8 +840,8 @@ function drawChart() {
                 borderWidth: 4, 
                 fill: false,
                 tension: 0.2,
-                pointRadius: 4,      // Dots made larger for visibility
-                yAxisID: 'y'         // Force to primary axis
+                pointRadius: 4,
+                yAxisID: 'y' 
             },
             { 
                 label: `Low Limit (${lowL})`, 
@@ -858,6 +861,20 @@ function drawChart() {
             }
         ];
 
+        // 🚀 THE RESET: Wipes out old Y-axis settings and fits the new data
+        scales = {
+            x: { grid: { color: '#333' }, ticks: { color: '#888' } },
+            y: { 
+                display: true,
+                position: 'left',
+                beginAtZero: true, 
+                // This forces the chart to be tall enough to see your 7.6 bar value
+                max: Math.ceil(maxVal * 1.2), 
+                grid: { color: '#444' },
+                ticks: { color: '#fff' }
+            }
+        };
+    }
         // 🚀 THE RESET: This wipes out y1/y2 from other charts
         scales = {
             x: { grid: { color: '#333' }, ticks: { color: '#888' } },
@@ -943,6 +960,7 @@ document.onkeydown = function(e) {
 
 </body>
 </html>
+
 
 
 
