@@ -826,12 +826,13 @@ function drawChart() {
         const highL = parseFloat(globalData.limits?.receiverHigh) || 0;
         const plotData = d.map(x => x.receiver);
 
-        // Calculate a safe ceiling (at least 10 or 2 units above the High Limit)
-        const maxVal = Math.max.apply(null, plotData.concat([highL, 10]));
+        // 🚀 SCALE REPAIR: Find the highest point (Actual vs High Limit)
+        const maxDataPoint = plotData.length > 0 ? Math.max.apply(null, plotData) : 0;
+        const chartCeiling = Math.max(maxDataPoint, highL, 10); 
 
         datasets = [
             { 
-                label: 'Actual Receiver Pressure (Col O)', 
+                label: 'Actual Pr (Col O)', 
                 data: plotData, 
                 borderColor: '#3498db', 
                 borderWidth: 4, 
@@ -841,7 +842,7 @@ function drawChart() {
             },
             { 
                 label: `Low Limit (${lowL})`, 
-                data: new Array(labels.length).fill(lowL), 
+                data: new Array(labels.length).fill(lowL), // Static Line
                 borderColor: '#f1c40f', 
                 borderDash: [10, 5], 
                 pointRadius: 0,
@@ -849,7 +850,7 @@ function drawChart() {
             },
             { 
                 label: `High Limit (${highL})`, 
-                data: new Array(labels.length).fill(highL), 
+                data: new Array(labels.length).fill(highL), // Static Line
                 borderColor: '#ff4d4d', 
                 borderDash: [10, 5], 
                 pointRadius: 0,
@@ -857,13 +858,12 @@ function drawChart() {
             }
         ];
 
-        // 🚀 FORCE THE AXIS RESET
         scales = {
             x: { grid: { color: '#333' }, ticks: { color: '#888' } },
             y: { 
                 display: true,
                 beginAtZero: true, 
-                max: Math.ceil(maxVal * 1.2), // Adjusts to show 5.1 and 7.6 bar values
+                max: Math.ceil(chartCeiling * 1.2), // Adjusts to show 5.1 and 7.6 bar values
                 grid: { color: '#444' },
                 ticks: { color: '#fff' }
             }
@@ -941,6 +941,7 @@ document.onkeydown = function(e) {
 
 </body>
 </html>
+
 
 
 
