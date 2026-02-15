@@ -822,37 +822,39 @@ function drawChart() {
             { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db' }
         ];
  } else if (mode === 'receiverAnalysis') {
-        const lowL = parseFloat(globalData.limits?.receiverLow) || 0;
-        const highL = parseFloat(globalData.limits?.receiverHigh) || 0;
+        // 1. Pull the STATIC values
+        const sLow = parseFloat(globalData.limits?.low) || 0;
+        const sHigh = parseFloat(globalData.limits?.high) || 0;
+        
+        // 2. Pull the DYNAMIC actual pressure
         const plotData = d.map(x => x.receiver);
 
-        // 🚀 SCALE REPAIR: Find the highest point (Actual vs High Limit)
-        const maxDataPoint = plotData.length > 0 ? Math.max.apply(null, plotData) : 0;
-        const chartCeiling = Math.max(maxDataPoint, highL, 10); 
+        // 🚀 THE MIRACLE FIX: Force the Y-Axis to be tall enough
+        // If sHigh is 8.0, this makes the chart 10.0 high so you can see the data
+        const chartCeiling = Math.max(8, sHigh + 2);
 
         datasets = [
             { 
-                label: 'Actual Pr (Col O)', 
+                label: 'Actual Receiver Pr (Col O)', 
                 data: plotData, 
                 borderColor: '#3498db', 
-                borderWidth: 4, 
+                borderWidth: 3,
                 fill: false,
-                tension: 0.2,
-                pointRadius: 4
+                tension: 0.2
             },
             { 
-                label: `Low Limit (${lowL})`, 
-                data: new Array(labels.length).fill(lowL), // Static Line
+                label: `Low Limit (${sLow})`, 
+                data: new Array(labels.length).fill(sLow), 
                 borderColor: '#f1c40f', 
-                borderDash: [10, 5], 
+                borderDash: [5, 5], 
                 pointRadius: 0,
                 fill: false 
             },
             { 
-                label: `High Limit (${highL})`, 
-                data: new Array(labels.length).fill(highL), // Static Line
+                label: `High Limit (${sHigh})`, 
+                data: new Array(labels.length).fill(sHigh), 
                 borderColor: '#ff4d4d', 
-                borderDash: [10, 5], 
+                borderDash: [5, 5], 
                 pointRadius: 0,
                 fill: false 
             }
@@ -862,9 +864,9 @@ function drawChart() {
             x: { grid: { color: '#333' }, ticks: { color: '#888' } },
             y: { 
                 beginAtZero: true, 
-                max: Math.ceil(chartCeiling * 1.2), // Jumps to ~12 to show 7.6 bar data
-                grid: { color: '#444' },
-                ticks: { color: '#fff' }
+                max: chartCeiling, // 🚀 This is the critical change
+                ticks: { color: '#fff' },
+                grid: { color: '#444' }
             }
         };
         delete scales.y1;
@@ -940,6 +942,7 @@ document.onkeydown = function(e) {
 
 </body>
 </html>
+
 
 
 
