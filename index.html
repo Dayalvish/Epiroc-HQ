@@ -821,16 +821,15 @@ function drawChart() {
             { label: 'Feed', data: d.map(x => x.feed), borderColor: '#e67e22' },
             { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db' }
         ];
-   } else if (mode === 'receiverAnalysis') {
-        // 1. Capture the limits from globalData
+  } else if (mode === 'receiverAnalysis') {
         const lowL = parseFloat(globalData.limits?.receiverLow) || 0;
         const highL = parseFloat(globalData.limits?.receiverHigh) || 0;
         
-        // 2. Map the data from Column O
         const plotData = d.map(x => parseFloat(x.receiver) || 0);
 
-        // 3. NUCLEAR SCALE FIX: Find the highest value to set the ceiling
-        const maxVal = Math.max(...plotData, highL, 10); 
+        // 🚀 FIX: Use apply instead of spread (...) to prevent freezing on large arrays
+        const maxDataPoint = plotData.length > 0 ? Math.max.apply(null, plotData) : 0;
+        const maxVal = Math.max(maxDataPoint, highL, 10); 
 
         datasets = [
             { 
@@ -861,14 +860,14 @@ function drawChart() {
             }
         ];
 
-        // 🚀 THE RESET: Wipes out old Y-axis settings and fits the new data
+        // 🚀 FIX: Ensure 'scales' isn't being declared with 'const' earlier in the function
+        // Use direct assignment to overwrite the existing scales object
         scales = {
             x: { grid: { color: '#333' }, ticks: { color: '#888' } },
             y: { 
                 display: true,
                 position: 'left',
                 beginAtZero: true, 
-                // This forces the chart to be tall enough to see your 7.6 bar value
                 max: Math.ceil(maxVal * 1.2), 
                 grid: { color: '#444' },
                 ticks: { color: '#fff' }
@@ -960,6 +959,7 @@ document.onkeydown = function(e) {
 
 </body>
 </html>
+
 
 
 
