@@ -822,50 +822,48 @@ function drawChart() {
             { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db' }
         ];
     } else if (mode === 'receiverAnalysis') {
-        // We pull the limits and ensure they are numbers
-        const lowL = parseFloat(globalData.limits?.receiverLow) || 0;
-        const highL = parseFloat(globalData.limits?.receiverHigh) || 0;
+        // 🔗 CONNECTION: Linking to the values sent from Script
+        const lowL = globalData.limits?.receiverLow || 0;
+        const highL = globalData.limits?.receiverHigh || 0;
 
         datasets = [
             { 
-                label: 'Receiver Pr NoLoad (Col O)', 
+                label: 'Actual Value (Col O)', 
                 data: d.map(x => x.receiver), 
                 borderColor: '#3498db', 
                 borderWidth: 3,
-                tension: 0.2,
                 fill: false
             },
             { 
-                label: `Low Limit (${lowL})`, 
+                label: `Low Limit (Col L): ${lowL}`, 
                 data: new Array(labels.length).fill(lowL), 
-                borderColor: '#f1c40f', 
+                borderColor: '#f1c40f', // Yellow
                 borderDash: [5, 5], 
                 pointRadius: 0,
                 fill: false 
             },
             { 
-                label: `High Limit (${highL})`, 
+                label: `High Limit (Col M): ${highL}`, 
                 data: new Array(labels.length).fill(highL), 
-                borderColor: '#ff4d4d', 
+                borderColor: '#ff4d4d', // Red
                 borderDash: [5, 5], 
                 pointRadius: 0,
                 fill: false 
             }
         ];
 
-        // 🚀 THE AXIS REPAIR: Resets the Y-axis to fit your 7.6 bar data
+        // 🚀 THE SCALE REPAIR: No negatives, just real values
         scales.y = { 
             beginAtZero: true, 
-            suggestedMax: highL > 0 ? (highL + 2) : 10, // Gives room above the red line
+            suggestedMax: highL + 2, // Auto-scales above the high limit
             ticks: { color: '#fff' },
             grid: { color: '#444' }
         };
         
-        // Clean up axes from other modes
+        // Ensure old RPM/Boost scales don't interfere
         delete scales.y1;
         delete scales.y2;
     }
-
     // This final part stays exactly as you had it
     chart = new Chart(ctx, {
         type: 'line',
@@ -937,3 +935,4 @@ document.onkeydown = function(e) {
 
 </body>
 </html>
+
