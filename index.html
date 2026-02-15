@@ -822,31 +822,29 @@ function drawChart() {
             { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db' }
         ];
  } else if (mode === 'receiverAnalysis') {
-        // 1. Pull the STATIC values
         const sLow = parseFloat(globalData.limits?.low) || 0;
         const sHigh = parseFloat(globalData.limits?.high) || 0;
-        
-        // 2. Pull the DYNAMIC actual pressure
         const plotData = d.map(x => x.receiver);
 
-        // 🚀 THE MIRACLE FIX: Force the Y-Axis to be tall enough
-        // If sHigh is 8.0, this makes the chart 10.0 high so you can see the data
-        const chartCeiling = Math.max(8, sHigh + 2);
+        // 🚀 CALCULATE CEILING: Ensures 5.1 bar is visible
+        const maxData = plotData.length > 0 ? Math.max.apply(null, plotData) : 0;
+        const chartCeiling = Math.max(maxData, sHigh, 10); 
 
         datasets = [
             { 
                 label: 'Actual Receiver Pr (Col O)', 
                 data: plotData, 
                 borderColor: '#3498db', 
-                borderWidth: 3,
+                borderWidth: 4, 
                 fill: false,
-                tension: 0.2
+                tension: 0.2,
+                pointRadius: 4
             },
             { 
                 label: `Low Limit (${sLow})`, 
                 data: new Array(labels.length).fill(sLow), 
                 borderColor: '#f1c40f', 
-                borderDash: [5, 5], 
+                borderDash: [10, 5], 
                 pointRadius: 0,
                 fill: false 
             },
@@ -854,19 +852,21 @@ function drawChart() {
                 label: `High Limit (${sHigh})`, 
                 data: new Array(labels.length).fill(sHigh), 
                 borderColor: '#ff4d4d', 
-                borderDash: [5, 5], 
+                borderDash: [10, 5], 
                 pointRadius: 0,
                 fill: false 
             }
         ];
 
+        // 🚀 THE TOTAL RESET: Wipes out old axis settings
         scales = {
             x: { grid: { color: '#333' }, ticks: { color: '#888' } },
             y: { 
+                display: true,
                 beginAtZero: true, 
-                max: chartCeiling, // 🚀 This is the critical change
-                ticks: { color: '#fff' },
-                grid: { color: '#444' }
+                max: Math.ceil(chartCeiling * 1.2), 
+                grid: { color: '#444' },
+                ticks: { color: '#fff' }
             }
         };
         delete scales.y1;
@@ -942,6 +942,7 @@ document.onkeydown = function(e) {
 
 </body>
 </html>
+
 
 
 
