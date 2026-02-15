@@ -822,22 +822,23 @@ function drawChart() {
             { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db' }
         ];
     } else if (mode === 'receiverAnalysis') {
-        // 🔗 CONNECTION: Linking to the values sent from Script
-        const lowL = globalData.limits?.receiverLow || 0;
-        const highL = globalData.limits?.receiverHigh || 0;
+        // Get the limits passed from GAS
+        const lowL = parseFloat(globalData.limits?.receiverLow) || 0;
+        const highL = parseFloat(globalData.limits?.receiverHigh) || 0;
 
         datasets = [
             { 
-                label: 'Actual Value (Col O)', 
+                label: 'Receiver Pr NoLoad (Col O)', 
                 data: d.map(x => x.receiver), 
                 borderColor: '#3498db', 
                 borderWidth: 3,
+                tension: 0.2,
                 fill: false
             },
             { 
                 label: `Low Limit (Col L): ${lowL}`, 
                 data: new Array(labels.length).fill(lowL), 
-                borderColor: '#f1c40f', // Yellow
+                borderColor: '#f1c40f', 
                 borderDash: [5, 5], 
                 pointRadius: 0,
                 fill: false 
@@ -845,22 +846,23 @@ function drawChart() {
             { 
                 label: `High Limit (Col M): ${highL}`, 
                 data: new Array(labels.length).fill(highL), 
-                borderColor: '#ff4d4d', // Red
+                borderColor: '#ff4d4d', 
                 borderDash: [5, 5], 
                 pointRadius: 0,
                 fill: false 
             }
         ];
 
-        // 🚀 THE SCALE REPAIR: No negatives, just real values
+        // 🚀 SCALING FIX: Ensures 7.6 bar is visible and limits are in view
         scales.y = { 
             beginAtZero: true, 
-            suggestedMax: highL + 2, // Auto-scales above the high limit
+            // Ensures the top of the chart is always higher than the red line
+            suggestedMax: highL > 0 ? (highL + 2) : 12, 
             ticks: { color: '#fff' },
             grid: { color: '#444' }
         };
         
-        // Ensure old RPM/Boost scales don't interfere
+        // Remove secondary axes to prevent data being squashed
         delete scales.y1;
         delete scales.y2;
     }
@@ -935,4 +937,5 @@ document.onkeydown = function(e) {
 
 </body>
 </html>
+
 
