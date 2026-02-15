@@ -822,64 +822,55 @@ function drawChart() {
             { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db' }
         ];
   } else if (mode === 'receiverAnalysis') {
-        // 1. Capture the limits from the globalData object sent by GAS
-        const lowL = parseFloat(globalData.limits?.receiverLow) || 0;
-        const highL = parseFloat(globalData.limits?.receiverHigh) || 0;
+        // Pull the STATIC values once
+        const staticLow = parseFloat(globalData.limits?.low) || 0;
+        const staticHigh = parseFloat(globalData.limits?.high) || 0;
         
-        // 2. Map the data specifically from the 'receiver' property we set in GS
-        const plotData = d.map(x => parseFloat(x.receiver) || 0);
+        // Pull the DYNAMIC actual pressure values
+        const actualData = d.map(x => x.receiver);
 
-        // 3. Find the highest point to ensure the chart is tall enough to show the line
-        const maxVal = Math.max(Math.max.apply(null, plotData), highL, 10); 
+        // Auto-scale logic so the line isn't invisible at the top
+        const chartMax = Math.max(Math.max.apply(null, actualData), staticHigh, 10);
 
         datasets = [
             { 
                 label: 'Actual Pr (Col O)', 
-                data: plotData, 
+                data: actualData, 
                 borderColor: '#3498db', 
-                borderWidth: 4, 
+                borderWidth: 3,
                 fill: false,
-                tension: 0.2,
-                pointRadius: 4,
-                yAxisID: 'y' 
+                tension: 0.2
             },
             { 
-                label: `Low Limit (${lowL})`, 
-                data: new Array(labels.length).fill(lowL), 
+                label: `Low Limit (${staticLow})`, 
+                data: new Array(labels.length).fill(staticLow), // Constant line
                 borderColor: '#f1c40f', 
-                borderDash: [10, 5], 
+                borderDash: [5, 5], 
                 pointRadius: 0,
                 fill: false 
             },
             { 
-                label: `High Limit (${highL})`, 
-                data: new Array(labels.length).fill(highL), 
+                label: `High Limit (${staticHigh})`, 
+                data: new Array(labels.length).fill(staticHigh), // Constant line
                 borderColor: '#ff4d4d', 
-                borderDash: [10, 5], 
+                borderDash: [5, 5], 
                 pointRadius: 0,
                 fill: false 
             }
         ];
 
-        // 🚀 THE RESET: One single scales object. No duplicates.
         scales = {
             x: { grid: { color: '#333' }, ticks: { color: '#888' } },
             y: { 
-                display: true,
-                position: 'left',
                 beginAtZero: true, 
-                // This makes the chart at least 12 units high so 7.6 bar is visible
-                max: Math.ceil(maxVal * 1.2), 
-                grid: { color: '#444' },
-                ticks: { color: '#fff' }
+                max: Math.ceil(chartMax * 1.2), 
+                ticks: { color: '#fff' },
+                grid: { color: '#444' }
             }
         };
-        
-        // Clean up extra axes from other modes
         delete scales.y1;
         delete scales.y2;
     }
-
     chart = new Chart(ctx, {
         type: 'line',
         data: { labels, datasets },
@@ -950,6 +941,7 @@ document.onkeydown = function(e) {
 
 </body>
 </html>
+
 
 
 
