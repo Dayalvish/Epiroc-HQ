@@ -822,14 +822,15 @@ function drawChart() {
             { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db' }
         ];
   } else if (mode === 'receiverAnalysis') {
+        // 1. Capture the limits from the globalData object sent by GAS
         const lowL = parseFloat(globalData.limits?.receiverLow) || 0;
         const highL = parseFloat(globalData.limits?.receiverHigh) || 0;
         
+        // 2. Map the data specifically from the 'receiver' property we set in GS
         const plotData = d.map(x => parseFloat(x.receiver) || 0);
 
-        // Calculate max point safely
-        const maxDataPoint = plotData.length > 0 ? Math.max.apply(null, plotData) : 0;
-        const maxVal = Math.max(maxDataPoint, highL, 10); 
+        // 3. Find the highest point to ensure the chart is tall enough to show the line
+        const maxVal = Math.max(Math.max.apply(null, plotData), highL, 10); 
 
         datasets = [
             { 
@@ -860,24 +861,21 @@ function drawChart() {
             }
         ];
 
-        // 🚀 CONSOLIDATED SCALE (Removed the duplicate block that was causing the crash)
+        // 🚀 THE RESET: One single scales object. No duplicates.
         scales = {
             x: { grid: { color: '#333' }, ticks: { color: '#888' } },
             y: { 
                 display: true,
                 position: 'left',
                 beginAtZero: true, 
-                // Ensures 7.6 bar is visible even if highL is 0
+                // This makes the chart at least 12 units high so 7.6 bar is visible
                 max: Math.ceil(maxVal * 1.2), 
                 grid: { color: '#444' },
                 ticks: { color: '#fff' }
             }
         };
-    } // Correctly closes the receiverAnalysis block
-
-    // --- FINAL CHART RENDERING ---
-    // Ensure y1 and y2 from other modes are cleared
-    if (mode === 'receiverAnalysis') {
+        
+        // Clean up extra axes from other modes
         delete scales.y1;
         delete scales.y2;
     }
@@ -952,6 +950,7 @@ document.onkeydown = function(e) {
 
 </body>
 </html>
+
 
 
 
