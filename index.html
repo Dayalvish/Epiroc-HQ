@@ -816,10 +816,37 @@ function drawChart() {
             { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db' }
         ];
     } else if (mode === 'receiverAnalysis') {
+        // Retrieve the constant limits from the server response
+        const lowGauge = globalData.limits?.receiverLow || 0;
+        const highGauge = globalData.limits?.receiverHigh || 0;
+
         datasets = [
-            { label: 'Receiver Pr (Col O)', data: d.map(x => x.receiver), borderColor: '#3498db', borderWidth: 3, tension: 0.3 },
-            { label: 'Low Limit (Col L)', data: new Array(labels.length).fill(globalData.limits?.receiverLow || 0), borderColor: '#f1c40f', borderDash: [5, 5], pointRadius: 0, fill: false },
-            { label: 'High Limit (Col M)', data: new Array(labels.length).fill(globalData.limits?.receiverHigh || 0), borderColor: '#ff4d4d', borderDash: [5, 5], pointRadius: 0, fill: false }
+            { 
+                label: 'Actual Receiver Pr (Col O)', 
+                data: d.map(x => x.receiver), 
+                borderColor: '#3498db', // Blue
+                borderWidth: 3,
+                tension: 0.3,
+                fill: false
+            },
+            { 
+                label: `Low Limit Gauge (${lowGauge})`, 
+                data: new Array(labels.length).fill(lowGauge), 
+                borderColor: '#f1c40f', // Yellow Constant Line
+                borderDash: [10, 5], 
+                pointRadius: 0,
+                borderWidth: 2,
+                fill: false 
+            },
+            { 
+                label: `High Limit Gauge (${highGauge})`, 
+                data: new Array(labels.length).fill(highGauge), 
+                borderColor: '#ff4d4d', // Red Constant Line
+                borderDash: [10, 5], 
+                pointRadius: 0,
+                borderWidth: 2,
+                fill: false 
+            }
         ];
     }
 
@@ -893,6 +920,7 @@ document.onkeydown = function(e) {
 
 </body>
 </html>
+
 
 
 
