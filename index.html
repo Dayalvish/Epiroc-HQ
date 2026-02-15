@@ -837,9 +837,15 @@ function drawChart() {
             { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db' }
         ];
  } else if (mode === 'receiverAnalysis') {
-        const lowL = parseFloat(globalData.limits?.receiverLow) || 0;
-        const highL = parseFloat(globalData.limits?.receiverHigh) || 0;
+        const lowL = parseFloat(globalData.limits?.low) || 0;
+        const highL = parseFloat(globalData.limits?.high) || 0;
         const plotData = d.map(x => x.receiver);
+
+        // 🚀 SMART BOUNDARIES: 
+        // We set the bottom to 1 unit below the Low Limit, 
+        // and the top to 1 unit above the High Limit.
+        const suggestedMin = Math.max(0, Math.floor(lowL - 1));
+        const suggestedMax = Math.ceil(highL + 1);
 
         datasets = [
             { 
@@ -848,25 +854,43 @@ function drawChart() {
                 borderColor: '#3498db', 
                 borderWidth: 4, 
                 fill: false,
-                tension: 0.3, // Adds a nice curve to the dynamic view
+                tension: 0.3,
                 pointRadius: 4
             },
-            // ... (keep your Low/High Limit datasets here)
+            { 
+                label: `Low Limit (${lowL})`, 
+                data: new Array(labels.length).fill(lowL), 
+                borderColor: '#f1c40f', 
+                borderDash: [10, 5], 
+                pointRadius: 0,
+                fill: false 
+            },
+            { 
+                label: `High Limit (${highL})`, 
+                data: new Array(labels.length).fill(highL), 
+                borderColor: '#ff4d4d', 
+                borderDash: [10, 5], 
+                pointRadius: 0,
+                fill: false 
+            }
         ];
 
-        // 🚀 DYNAMICAL SCALE: Fixed between 2 and 8 with 0.2 increments
+        
+
         scales = {
             x: { grid: { color: '#333' }, ticks: { color: '#888' } },
             y: { 
                 display: true,
-                min: 2, // Starts at 2 bar
-                max: 8, // Ends at 8 bar
+                // These 'suggested' values keep the lines visible 
+                // but allow the chart to zoom in on the data.
+                suggestedMin: suggestedMin, 
+                suggestedMax: suggestedMax, 
                 grid: { color: '#444' },
                 ticks: { 
                     color: '#fff',
-                    stepSize: 0.2, // 🚀 Forces 0.2, 0.4, 0.6...
+                    stepSize: 0.2, // 🚀 Keeps your 0.2 fraction
                     callback: function(value) {
-                        return value.toFixed(1); // Ensures 5.0, 5.2 format
+                        return value.toFixed(1);
                     }
                 }
             }
@@ -944,6 +968,7 @@ document.onkeydown = function(e) {
 
 </body>
 </html>
+
 
 
 
