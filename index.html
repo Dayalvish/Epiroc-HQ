@@ -734,6 +734,22 @@
                 { lab: 'Feed', val: entry.feed, max: 105, limit: 60, isLow: false },
                 { lab: 'Damper', val: entry.damper, max: 100, limit: 50, isLow: false }
             ];
+        // 🚀 THE MISSING LINK: Added for Receiver Pressure Analysis
+        } else if (mode === 'receiverAnalysis') {
+            const lowL = parseFloat(globalData.limits?.receiverLow) || 0;
+            const highL = parseFloat(globalData.limits?.receiverHigh) || 0;
+            
+            config = [
+                { 
+                    lab: 'Receiver Pr', 
+                    val: entry.receiver, 
+                    max: 12, 
+                    limit: highL || 8, // Uses the static High Limit we sent
+                    isLow: false, 
+                    decimal: true 
+                }
+            ];
+        }
         }
 
         config.forEach(g => {
@@ -949,3 +965,4 @@ document.onkeydown = function(e) {
 
 </body>
 </html>
+
