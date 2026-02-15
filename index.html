@@ -822,15 +822,16 @@ function drawChart() {
             { label: 'Damper', data: d.map(x => x.damper), borderColor: '#3498db' }
         ];
   } else if (mode === 'receiverAnalysis') {
-        // Pull the STATIC values once
+        // 1. Get the static limits once
         const staticLow = parseFloat(globalData.limits?.low) || 0;
         const staticHigh = parseFloat(globalData.limits?.high) || 0;
         
-        // Pull the DYNAMIC actual pressure values
+        // 2. Get the dynamic pressure data
         const actualData = d.map(x => x.receiver);
 
-        // Auto-scale logic so the line isn't invisible at the top
-        const chartMax = Math.max(Math.max.apply(null, actualData), staticHigh, 10);
+        // 3. Scale calculation (safe version)
+        const maxDataPoint = actualData.length > 0 ? Math.max.apply(null, actualData) : 0;
+        const chartCeiling = Math.max(maxDataPoint, staticHigh, 10);
 
         datasets = [
             { 
@@ -843,7 +844,7 @@ function drawChart() {
             },
             { 
                 label: `Low Limit (${staticLow})`, 
-                data: new Array(labels.length).fill(staticLow), // Constant line
+                data: new Array(labels.length).fill(staticLow), // Constant Horizontal Line
                 borderColor: '#f1c40f', 
                 borderDash: [5, 5], 
                 pointRadius: 0,
@@ -851,7 +852,7 @@ function drawChart() {
             },
             { 
                 label: `High Limit (${staticHigh})`, 
-                data: new Array(labels.length).fill(staticHigh), // Constant line
+                data: new Array(labels.length).fill(staticHigh), // Constant Horizontal Line
                 borderColor: '#ff4d4d', 
                 borderDash: [5, 5], 
                 pointRadius: 0,
@@ -863,11 +864,12 @@ function drawChart() {
             x: { grid: { color: '#333' }, ticks: { color: '#888' } },
             y: { 
                 beginAtZero: true, 
-                max: Math.ceil(chartMax * 1.2), 
+                max: Math.ceil(chartCeiling * 1.2), 
                 ticks: { color: '#fff' },
                 grid: { color: '#444' }
             }
         };
+        // Clean up previous mode axes
         delete scales.y1;
         delete scales.y2;
     }
@@ -941,6 +943,7 @@ document.onkeydown = function(e) {
 
 </body>
 </html>
+
 
 
 
