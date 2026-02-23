@@ -547,7 +547,8 @@
     const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
     try {
-        const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}&mode=${mode}`), {
+        // 🛠️ UPDATED LINE: Added &t=${Date.now()} to force a fresh data pull every time
+        const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}&mode=${mode}&t=${Date.now()}`), {
             signal: controller.signal
         });
         
@@ -558,7 +559,7 @@
         globalData = data; 
         updateUI(data); 
         
-        console.log("60s Heartbeat: Dashboard Updated Successfully");
+        console.log("60s Heartbeat: Dashboard Updated Successfully at " + new Date().toLocaleTimeString());
     } catch (err) {
         if (err.name === 'AbortError') {
             console.warn("Refresh timed out. Retrying on next heartbeat.");
@@ -568,6 +569,16 @@
     }
 }
 
+// --- ADD THESE LINES BELOW THE REFRESH FUNCTION ---
+
+// 🚀 THE HEARTBEAT ENGINE
+// This triggers the refresh function automatically every 60 seconds.
+setInterval(() => {
+    refresh(); 
+}, 60000); 
+
+// Optional: Run once immediately on page load so you don't wait 60s for the first data
+refresh();
     function updateUI(data) {
     if (!data) return;
 
@@ -963,6 +974,7 @@ document.onkeydown = function(e) {
 
 </body>
 </html>
+
 
 
 
