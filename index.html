@@ -541,14 +541,14 @@
     const rig = document.getElementById('rigSelect').value;
     const month = document.getElementById('monthFilter').value; 
     
-    // 🔗 THIS CONNECTS TO YOUR EXISTING DROPDOWN
+    // 🔴 THE CONNECTION: This captures "active" or "history" from your dropdown
     const mode = document.getElementById('dataSource').value; 
     
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000); 
 
     try {
-        // 🛠️ THE HANDSHAKE: Passes the 'mode' to the Apps Script
+        // 🛠️ THE HANDSHAKE: Notice the &mode=${mode} added to the URL
         const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}&mode=${mode}&t=${Date.now()}`), {
             signal: controller.signal
         });
@@ -556,13 +556,14 @@
         const data = await res.json();
         clearTimeout(timeoutId);
 
+        // Update Global State and UI
         globalData = data; 
         updateUI(data); 
         
-        console.log(`Heartbeat: [${mode.toUpperCase()}] Updated at ` + new Date().toLocaleTimeString());
+        console.log(`Handshake Success: ${mode.toUpperCase()} data loaded at ` + new Date().toLocaleTimeString());
     } catch (err) {
         if (err.name === 'AbortError') {
-            console.warn("Timeout: Retrying on next heartbeat.");
+            console.warn("Refresh timed out. Retrying on next heartbeat.");
         } else {
             console.error("Refresh Error:", err);
         }
@@ -975,6 +976,7 @@ document.onkeydown = function(e) {
 
 </body>
 </html>
+
 
 
 
