@@ -540,14 +540,15 @@
     async function refresh() {
     const rig = document.getElementById('rigSelect').value;
     const month = document.getElementById('monthFilter').value; 
+    
+    // 🔗 THIS CONNECTS TO YOUR EXISTING DROPDOWN
     const mode = document.getElementById('dataSource').value; 
     
-    // 🚀 THE FIX: Use an AbortController to prevent "Message channel closed" errors
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+    const timeoutId = setTimeout(() => controller.abort(), 15000); 
 
     try {
-        // 🛠️ UPDATED LINE: Added &t=${Date.now()} to force a fresh data pull every time
+        // 🛠️ THE HANDSHAKE: Passes the 'mode' to the Apps Script
         const res = await fetch(getFullUrl(`fleetId=${encodeURIComponent(rig)}&month=${month}&mode=${mode}&t=${Date.now()}`), {
             signal: controller.signal
         });
@@ -555,48 +556,50 @@
         const data = await res.json();
         clearTimeout(timeoutId);
 
-        // 🚀 THE HANDSHAKE
         globalData = data; 
         updateUI(data); 
         
-        console.log("60s Heartbeat: Dashboard Updated Successfully at " + new Date().toLocaleTimeString());
+        console.log(`Heartbeat: [${mode.toUpperCase()}] Updated at ` + new Date().toLocaleTimeString());
     } catch (err) {
         if (err.name === 'AbortError') {
-            console.warn("Refresh timed out. Retrying on next heartbeat.");
+            console.warn("Timeout: Retrying on next heartbeat.");
         } else {
             console.error("Refresh Error:", err);
         }
     }
 }
 
-// --- ADD THESE LINES BELOW THE REFRESH FUNCTION ---
+// --- HEARTBEAT ENGINE ---
+setInterval(() => { refresh(); }, 60000); 
+refresh(); // Initial load
 
-// 🚀 THE HEARTBEAT ENGINE
-// This triggers the refresh function automatically every 60 seconds.
-setInterval(() => {
-    refresh(); 
-}, 60000); 
-
-// Optional: Run once immediately on page load so you don't wait 60s for the first data
-refresh();
-    function updateUI(data) {
+function updateUI(data) {
     if (!data) return;
 
-    // 🚀 CRITICAL: Save new data to global scope so gauges/charts use fresh values
     globalData = data; 
+    
+    // 🕒 UPDATE LIVE TIMESTAMP (Shows the bosses the data is fresh)
+    const syncEl = document.getElementById('last-sync'); // Ensure this ID exists in your HTML
+    if (syncEl) {
+        syncEl.innerText = new Date().toLocaleTimeString();
+    }
     
     const summaryBody = document.getElementById('fleet-summary-body');
     const alertList = document.getElementById('alert-list');
     const badge = document.getElementById('alert-count-badge');
     const warningEl = document.getElementById('auditWarning');
+    const modeStatus = document.getElementById('dataSource').value;
 
     try {
         // 1. Fleet Summary Table
         if (data.summary && data.summary.length > 0) {
             summaryBody.innerHTML = data.summary.map(r => {
                 const isCritical = (data.globalAlerts || []).some(a => a.rig === r.id);
+                // Orange highlight for rows if we are in Archive mode
+                const rowClass = isCritical ? 'critical-row' : (modeStatus === 'history' ? 'archive-row' : '');
+                
                 return `
-                    <tr class="${isCritical ? 'critical-row' : ''}" data-region="${r.region || ''}" data-model="${r.model || ''}">
+                    <tr class="${rowClass}" data-region="${r.region || ''}" data-model="${r.model || ''}">
                         <td><b>${r.id}</b> ${isCritical ? '<span class="alert-dot"></span>' : ''}</td>
                         <td>${r.audits || 0}</td>
                         <td style="color:${parseFloat(r.avgLoad) > 90 ? 'var(--red)' : 'inherit'}">${r.avgLoad || 0}%</td>
@@ -609,10 +612,8 @@ refresh();
             document.getElementById('v-fleet-load').innerText = (totalLoad / data.summary.length).toFixed(1) + "%";
             document.getElementById('v-active-rigs').innerText = data.summary.length;
             
-            // Re-apply filters immediately
             applyGlobalFilters(); 
         }
-
         // 2. Machine Vitals & Grace Period Logic
         const currentRig = document.getElementById('rigSelect').value;
         const rigData = data.summary ? data.summary.find(s => s.id === currentRig) : null;
@@ -974,6 +975,7 @@ document.onkeydown = function(e) {
 
 </body>
 </html>
+
 
 
 
